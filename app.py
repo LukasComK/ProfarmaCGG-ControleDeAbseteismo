@@ -928,10 +928,14 @@ with col_btn_processar:
                     
                     out.seek(0)
                 
+                # Gera nome único com timestamp
+                timestamp = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+                nome_arquivo = f"Mestra_Completa_{ano}-{mes:02d}_{timestamp}.xlsx"
+                
                 st.download_button(
                     "📥 Download - Planilha MESTRA Completa",
                     out.getvalue(),
-                    f"Mestra_Completa_{ano}-{mes:02d}.xlsx",
+                    nome_arquivo,
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
             except Exception as e:
