@@ -399,8 +399,30 @@ with col_btn_processar:
                             import io as io_module
                             df_mest = pd.read_excel(io_module.BytesIO(file_bytes), header=0, engine='openpyxl')
                         except Exception as e3:
-                            st.error(f"❌ Erro ao ler planilha mestra:\n\nTentativa 1 (automática): {str(e1)}\nTentativa 2 (openpyxl): {str(e2)}\nTentativa 3 (bytes): {str(e3)}\n\n**Solução:** O arquivo pode estar corrompido. Tente:\n1. Abrir o arquivo no LibreOffice/Excel\n2. Salvar como novo arquivo\n3. Fazer upload novamente")
-                            st.stop()
+                            try:
+                                # Quarta tentativa: tenta reparar ZIP interno
+                                import zipfile
+                                file_mestra.seek(0)
+                                file_bytes = file_mestra.read()
+                                import io as io_module
+                                
+                                try:
+                                    # Tenta verificar como ZIP
+                                    zip_file = zipfile.ZipFile(io_module.BytesIO(file_bytes), 'r')
+                                    zip_file.testzip()  # Testa integridade
+                                    df_mest = pd.read_excel(io_module.BytesIO(file_bytes), header=0, engine='openpyxl')
+                                except zipfile.BadZipFile:
+                                    st.warning("⚠️ Arquivo ZIP corrompido, tentando recuperar...")
+                                    # Tenta reparar procurando por PK (assinatura ZIP)
+                                    pk_index = file_bytes.find(b'PK\x03\x04')
+                                    if pk_index > 0:
+                                        file_bytes_repaired = file_bytes[pk_index:]
+                                        df_mest = pd.read_excel(io_module.BytesIO(file_bytes_repaired), header=0, engine='openpyxl')
+                                    else:
+                                        raise Exception("Não foi possível reparar o arquivo")
+                            except Exception as e4:
+                                st.error(f"❌ Erro ao ler planilha mestra:\n\n**Tentativa 1 (automática):** {str(e1)}\n**Tentativa 2 (openpyxl):** {str(e2)}\n**Tentativa 3 (bytes):** {str(e3)}\n**Tentativa 4 (reparar ZIP):** {str(e4)}\n\n**Solução:** O arquivo está severamente corrompido e não pode ser recuperado. Tente:\n1. Abrir o arquivo no LibreOffice/Excel\n2. Salvar como novo arquivo (.xlsx)\n3. Fazer upload novamente")
+                                st.stop()
                 
                 if df_mest is None:
                     st.error("❌ Não foi possível carregar a planilha mestra (DataFrame vazio)")
@@ -479,8 +501,27 @@ with col_btn_processar:
                                     import io as io_module
                                     df_enc = pd.read_excel(io_module.BytesIO(file_bytes), sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
                                 except Exception as e3:
-                                    st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e1)}")
-                                    continue
+                                    try:
+                                        # Quarta tentativa: tenta reparar ZIP
+                                        import zipfile
+                                        file_enc.seek(0)
+                                        file_bytes = file_enc.read()
+                                        import io as io_module
+                                        
+                                        try:
+                                            zip_file = zipfile.ZipFile(io_module.BytesIO(file_bytes), 'r')
+                                            zip_file.testzip()
+                                            df_enc = pd.read_excel(io_module.BytesIO(file_bytes), sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                                        except zipfile.BadZipFile:
+                                            pk_index = file_bytes.find(b'PK\x03\x04')
+                                            if pk_index > 0:
+                                                file_bytes_repaired = file_bytes[pk_index:]
+                                                df_enc = pd.read_excel(io_module.BytesIO(file_bytes_repaired), sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                                            else:
+                                                raise Exception("Não foi possível reparar")
+                                    except Exception as e4:
+                                        st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e1)}")
+                                        continue
                         
                         if df_enc is None:
                             continue
