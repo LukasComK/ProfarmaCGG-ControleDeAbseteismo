@@ -380,18 +380,15 @@ with col_btn_processar:
         if file_mestra and files_encarregado and todos_configurados:
             try:
                 # Carrega a planilha mestra UMA VEZ
-                # Tenta com engine automático primeiro, se falhar tenta com openpyxl ou xlrd
+                # Tenta com engine automático primeiro, se falhar tenta com openpyxl
                 try:
                     df_mest = pd.read_excel(file_mestra, header=0)
                 except Exception as e:
-                    # Tenta especificar o engine manualmente
                     try:
                         df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
                     except:
-                        try:
-                            df_mest = pd.read_excel(file_mestra, header=0, engine='xlrd')
-                        except:
-                            raise Exception(f"Erro ao ler arquivo: {str(e)}")
+                        st.error(f"❌ Erro ao ler planilha mestra: {str(e)}")
+                        st.stop()
                 
                 if 'NOME' not in df_mest.columns:
                     st.error("Coluna NOME não encontrada!")
@@ -421,10 +418,9 @@ with col_btn_processar:
                 
                 # Pré-preenche TODOS os sábados e domingos com "D" (Descanso)
                 st.info("🗓️ Pré-preenchendo todos os fins de semana com 'D'...")
-                for col_data_obj in mapa_datas.values():
-                    data = col_data_obj if isinstance(col_data_obj, datetime.date) else col_data_obj.date()
-                    
-                    if eh_fim_de_semana(data):
+                for data_obj, col_data_obj in mapa_datas.items():
+                    # data_obj já é uma datetime.date, col_data_obj é o nome da coluna
+                    if eh_fim_de_semana(data_obj):
                         for idx in df_mest.index:
                             df_mest.at[idx, col_data_obj] = 'D'
                 
@@ -450,7 +446,7 @@ with col_btn_processar:
                         st.write(f"📄 Processando: **{file_enc.name}**")
                         
                         buf = io.BytesIO(file_enc.getvalue())
-                        # Tenta ler com engine automático, se falhar tenta openpyxl ou xlrd
+                        # Tenta ler com engine automático, se falhar tenta openpyxl
                         try:
                             df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str)
                         except Exception as e:
@@ -458,12 +454,8 @@ with col_btn_processar:
                                 buf.seek(0)
                                 df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
                             except:
-                                try:
-                                    buf.seek(0)
-                                    df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str, engine='xlrd')
-                                except:
-                                    st.error(f"Erro ao ler arquivo {file_enc.name}: {str(e)}")
-                                    continue
+                                st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e)}")
+                                continue
                         
                         cols_nomes = [str(df_enc.iloc[idx_linha, i]) for i in range(len(df_enc.columns))]
                         df_enc = df_enc.iloc[idx_linha+1:].copy()
