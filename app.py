@@ -382,27 +382,28 @@ with col_btn_processar:
                 # Carrega a planilha mestra UMA VEZ
                 df_mest = None
                 
-                # Estratégia 1: Tenta com openpyxl (melhor para LibreOffice)
                 try:
-                    file_bytes = file_mestra.read()
-                    file_mestra.seek(0)  # Reset para possível releitura
-                    
-                    import io as io_module
-                    from openpyxl import load_workbook
-                    
-                    wb = load_workbook(io_module.BytesIO(file_bytes))
-                    df_mest = pd.read_excel(io_module.BytesIO(file_bytes), header=0, engine='openpyxl')
+                    # Primeiro tenta ler direto com pandas (automático)
+                    file_mestra.seek(0)
+                    df_mest = pd.read_excel(file_mestra, header=0)
                 except Exception as e1:
-                    # Estratégia 2: Tenta leitura direta com pandas
                     try:
+                        # Segunda tentativa: especifica openpyxl
                         file_mestra.seek(0)
                         df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
                     except Exception as e2:
-                        st.error(f"❌ Erro ao ler planilha mestra:\n\n{str(e1)}\n\nDica: Salve o arquivo no LibreOffice como '.xlsx' (não .ods)")
-                        st.stop()
+                        try:
+                            # Terceira tentativa: lê como bytes
+                            file_mestra.seek(0)
+                            file_bytes = file_mestra.read()
+                            import io as io_module
+                            df_mest = pd.read_excel(io_module.BytesIO(file_bytes), header=0, engine='openpyxl')
+                        except Exception as e3:
+                            st.error(f"❌ Erro ao ler planilha mestra:\n\nTentativa 1 (automática): {str(e1)}\nTentativa 2 (openpyxl): {str(e2)}\nTentativa 3 (bytes): {str(e3)}\n\n**Solução:** O arquivo pode estar corrompido. Tente:\n1. Abrir o arquivo no LibreOffice/Excel\n2. Salvar como novo arquivo\n3. Fazer upload novamente")
+                            st.stop()
                 
                 if df_mest is None:
-                    st.error("❌ Não foi possível carregar a planilha mestra")
+                    st.error("❌ Não foi possível carregar a planilha mestra (DataFrame vazio)")
                     st.stop()
                 
                 if 'NOME' not in df_mest.columns:
@@ -460,22 +461,26 @@ with col_btn_processar:
                         
                         st.write(f"📄 Processando: **{file_enc.name}**")
                         
-                        # Estratégia 1: Tenta com openpyxl (melhor para LibreOffice)
                         df_enc = None
                         try:
-                            file_bytes = file_enc.read()
-                            file_enc.seek(0)  # Reset
-                            
-                            import io as io_module
-                            df_enc = pd.read_excel(io_module.BytesIO(file_bytes), sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                            # Primeira tentativa: leitura direta
+                            file_enc.seek(0)
+                            df_enc = pd.read_excel(file_enc, sheet_name=guia_usar, header=None, dtype=str)
                         except Exception as e1:
-                            # Estratégia 2: Tenta leitura direta
                             try:
+                                # Segunda tentativa: com openpyxl
                                 file_enc.seek(0)
                                 df_enc = pd.read_excel(file_enc, sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
                             except Exception as e2:
-                                st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e1)}")
-                                continue
+                                try:
+                                    # Terceira tentativa: bytes
+                                    file_enc.seek(0)
+                                    file_bytes = file_enc.read()
+                                    import io as io_module
+                                    df_enc = pd.read_excel(io_module.BytesIO(file_bytes), sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                                except Exception as e3:
+                                    st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e1)}")
+                                    continue
                         
                         if df_enc is None:
                             continue
