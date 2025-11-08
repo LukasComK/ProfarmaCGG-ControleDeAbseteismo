@@ -380,17 +380,25 @@ with col_btn_processar:
         if file_mestra and files_encarregado and todos_configurados:
             try:
                 # Carrega a planilha mestra UMA VEZ
-                # Para arquivos .xlsx, especifica openpyxl explicitamente
                 df_mest = None
+                
+                # Estratégia 1: Tenta com openpyxl (melhor para LibreOffice)
                 try:
-                    # Força openpyxl para .xlsx (inclusive arquivos do LibreOffice)
-                    df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
-                except Exception as e:
+                    file_bytes = file_mestra.read()
+                    file_mestra.seek(0)  # Reset para possível releitura
+                    
+                    import io as io_module
+                    from openpyxl import load_workbook
+                    
+                    wb = load_workbook(io_module.BytesIO(file_bytes))
+                    df_mest = pd.read_excel(io_module.BytesIO(file_bytes), header=0, engine='openpyxl')
+                except Exception as e1:
+                    # Estratégia 2: Tenta leitura direta com pandas
                     try:
-                        # Fallback: tenta com engine automático
-                        df_mest = pd.read_excel(file_mestra, header=0)
-                    except:
-                        st.error(f"❌ Erro ao ler planilha mestra (pode ser formato LibreOffice inválido): {str(e)}\n\nSolução: Salve o arquivo como '.xlsx' no Excel ou LibreOffice com 'Microsoft Excel 2007-365'")
+                        file_mestra.seek(0)
+                        df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
+                    except Exception as e2:
+                        st.error(f"❌ Erro ao ler planilha mestra:\n\n{str(e1)}\n\nDica: Salve o arquivo no LibreOffice como '.xlsx' (não .ods)")
                         st.stop()
                 
                 if df_mest is None:
@@ -452,18 +460,25 @@ with col_btn_processar:
                         
                         st.write(f"📄 Processando: **{file_enc.name}**")
                         
-                        buf = io.BytesIO(file_enc.getvalue())
-                        # Força openpyxl para .xlsx (inclusive arquivos do LibreOffice)
+                        # Estratégia 1: Tenta com openpyxl (melhor para LibreOffice)
+                        df_enc = None
                         try:
-                            buf.seek(0)
-                            df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
-                        except Exception as e:
+                            file_bytes = file_enc.read()
+                            file_enc.seek(0)  # Reset
+                            
+                            import io as io_module
+                            df_enc = pd.read_excel(io_module.BytesIO(file_bytes), sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                        except Exception as e1:
+                            # Estratégia 2: Tenta leitura direta
                             try:
-                                buf.seek(0)
-                                df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str)
-                            except:
-                                st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e)}")
+                                file_enc.seek(0)
+                                df_enc = pd.read_excel(file_enc, sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                            except Exception as e2:
+                                st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e1)}")
                                 continue
+                        
+                        if df_enc is None:
+                            continue
                         
                         cols_nomes = [str(df_enc.iloc[idx_linha, i]) for i in range(len(df_enc.columns))]
                         df_enc = df_enc.iloc[idx_linha+1:].copy()
