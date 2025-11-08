@@ -24,53 +24,73 @@ def limpar_nome(nome):
     return ""
 
 def extrair_dia_do_cabecalho(label_dia, mes, ano):
+    """
+    Extrai a data do cabeçalho da coluna, detectando automaticamente o formato.
+    Aceita: "01/nov", "01/11", "01", "1/nov", "1/11", etc.
+    """
     if pd.isna(label_dia):
         return None
     
-    label_str = str(label_dia).lower()
+    label_str = str(label_dia).strip().lower()
     
-    try:
-        data = pd.to_datetime(label_str, dayfirst=True)
-        if data.month == mes and data.year == ano:
-            return data.date()
-    except:
-        pass
-
+    # Mapa de meses em português (tanto nomes curtos quanto abreviações)
     mapa_mes_curto = {'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6, 
                       'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12}
     
-    dia_num_str = None
+    dia_num = None
     mes_encontrado = None
-
+    
+    # Formato 1: "DD/mmm" ou "D/mmm" (ex: "01/nov", "1/nov")
     for nome_mes, num_mes in mapa_mes_curto.items():
         if nome_mes in label_str:
             if num_mes == mes:
                 mes_encontrado = num_mes
-                dia_num_str = label_str.split(nome_mes)[0]
+                # Extrair número antes do mês
+                parts = label_str.split(nome_mes)
+                if parts[0]:
+                    try:
+                        # Remove tudo que não é número
+                        dia_num = int("".join(filter(str.isdigit, parts[0])))
+                    except:
+                        pass
+            if mes_encontrado is not None:
                 break
     
+    # Formato 2: "DD/MM" ou "D/M" (ex: "01/11", "1/11")
     if mes_encontrado is None:
-        partes = re.split(r'[/.-]', label_str)
-        if len(partes) >= 1:
-            dia_num_str = partes[0]
+        # Tenta com separadores comuns: /, -, .
+        partes = re.split(r'[/.\-]', label_str.strip())
         if len(partes) >= 2:
             try:
-                if int(partes[1]) == mes:
-                    mes_encontrado = int(partes[1])
+                dia_candidato = int(partes[0].strip())
+                mes_candidato = int(partes[1].strip())
+                # Valida se é o mês certo e dia válido
+                if mes_candidato == mes and 1 <= dia_candidato <= 31:
+                    dia_num = dia_candidato
+                    mes_encontrado = mes_candidato
             except:
-                pass 
-
-    if mes_encontrado is None and re.match(r'^\d+$', label_str.strip()):
-        dia_num_str = label_str
-        mes_encontrado = mes
-        
-    if dia_num_str and mes_encontrado == mes:
+                pass
+    
+    # Formato 3: "DD" (só o dia, sem separador)
+    if mes_encontrado is None:
         try:
-            dia_limpo = int("".join(filter(str.isdigit, dia_num_str)))
-            if 1 <= dia_limpo <= 31:
-                return datetime.date(ano, mes, dia_limpo)
+            # Se for só número, assume que é o dia
+            dia_num = int(label_str.strip())
+            if 1 <= dia_num <= 31:
+                mes_encontrado = mes
         except:
-            pass 
+            pass
+    
+    # Se encontrou dia e mês válidos, retornar data
+    if dia_num is not None and mes_encontrado == mes and 1 <= dia_num <= 31:
+        try:
+            return datetime.date(ano, mes, dia_num)
+        except:
+            pass
+    
+    return None
+    
+    return None
 
     return None
 
