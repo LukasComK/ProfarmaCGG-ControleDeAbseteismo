@@ -380,15 +380,27 @@ with col_btn_processar:
         if file_mestra and files_encarregado and todos_configurados:
             try:
                 # Carrega a planilha mestra UMA VEZ
-                # Tenta com engine automático primeiro, se falhar tenta com openpyxl
+                # Tenta com engine automático primeiro, se falhar tenta com openpyxl, depois tenta converter
+                df_mest = None
                 try:
                     df_mest = pd.read_excel(file_mestra, header=0)
-                except Exception as e:
+                except Exception as e1:
                     try:
                         df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
-                    except:
-                        st.error(f"❌ Erro ao ler planilha mestra: {str(e)}")
-                        st.stop()
+                    except Exception as e2:
+                        # Tenta ler como binário e converter
+                        try:
+                            import openpyxl
+                            from openpyxl import load_workbook
+                            wb = load_workbook(file_mestra)
+                            df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
+                        except:
+                            st.error(f"❌ Erro ao ler planilha mestra: {str(e1)}\n\nPor favor, certifique-se de que o arquivo é .xlsx válido")
+                            st.stop()
+                
+                if df_mest is None:
+                    st.error("❌ Não foi possível carregar a planilha mestra")
+                    st.stop()
                 
                 if 'NOME' not in df_mest.columns:
                     st.error("Coluna NOME não encontrada!")
@@ -700,7 +712,7 @@ with col_btn_processar:
                             # Largura fixa para outras colunas
                             try:
                                 datetime.datetime.strptime(str(col_name), '%d/%m')
-                                worksheet.column_dimensions[get_column_letter(col_idx)].width = 3
+                                worksheet.column_dimensions[get_column_letter(col_idx)].width = 7
                             except:
                                 worksheet.column_dimensions[get_column_letter(col_idx)].width = 10
                         
