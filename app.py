@@ -380,7 +380,18 @@ with col_btn_processar:
         if file_mestra and files_encarregado and todos_configurados:
             try:
                 # Carrega a planilha mestra UMA VEZ
-                df_mest = pd.read_excel(file_mestra, header=0)
+                # Tenta com engine automático primeiro, se falhar tenta com openpyxl ou xlrd
+                try:
+                    df_mest = pd.read_excel(file_mestra, header=0)
+                except Exception as e:
+                    # Tenta especificar o engine manualmente
+                    try:
+                        df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
+                    except:
+                        try:
+                            df_mest = pd.read_excel(file_mestra, header=0, engine='xlrd')
+                        except:
+                            raise Exception(f"Erro ao ler arquivo: {str(e)}")
                 
                 if 'NOME' not in df_mest.columns:
                     st.error("Coluna NOME não encontrada!")
@@ -390,8 +401,23 @@ with col_btn_processar:
                 
                 mapa_datas = {}
                 for col in df_mest.columns:
+                    # Detecta colunas de data: datetime, date, ou string no formato DD/MM ou DD/mmm
                     if isinstance(col, (datetime.datetime, datetime.date)):
                         mapa_datas[col.date()] = col
+                    elif isinstance(col, str):
+                        # Tenta extrair data de strings no formato "DD/MM" ou "DD/mmm"
+                        try:
+                            # Tenta parse como data
+                            data_obj = extrair_dia_do_cabecalho(col, mes, ano)
+                            if data_obj:
+                                mapa_datas[data_obj] = col
+                        except:
+                            pass
+                
+                # Debug: mostra quantas datas foram encontradas
+                st.write(f"📅 Encontradas {len(mapa_datas)} colunas de data")
+                if len(mapa_datas) == 0:
+                    st.warning("⚠️ Nenhuma coluna de data encontrada! Colunas disponíveis: " + str(list(df_mest.columns)))
                 
                 # Pré-preenche TODOS os sábados e domingos com "D" (Descanso)
                 st.info("🗓️ Pré-preenchendo todos os fins de semana com 'D'...")
@@ -424,7 +450,20 @@ with col_btn_processar:
                         st.write(f"📄 Processando: **{file_enc.name}**")
                         
                         buf = io.BytesIO(file_enc.getvalue())
-                        df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str)
+                        # Tenta ler com engine automático, se falhar tenta openpyxl ou xlrd
+                        try:
+                            df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str)
+                        except Exception as e:
+                            try:
+                                buf.seek(0)
+                                df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                            except:
+                                try:
+                                    buf.seek(0)
+                                    df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str, engine='xlrd')
+                                except:
+                                    st.error(f"Erro ao ler arquivo {file_enc.name}: {str(e)}")
+                                    continue
                         
                         cols_nomes = [str(df_enc.iloc[idx_linha, i]) for i in range(len(df_enc.columns))]
                         df_enc = df_enc.iloc[idx_linha+1:].copy()
