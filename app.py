@@ -773,7 +773,9 @@ with col_btn_processar:
                                 cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
                                 cell_ferias.font = Font(color='FFFFFFFF')  # Texto branco
                                 
-                                ws_relatorio.cell(row=row_idx, column=6, value=int(total_lancamentos))
+                                # Coluna Total (cinza)
+                                cell_total = ws_relatorio.cell(row=row_idx, column=6, value=int(total_lancamentos))
+                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                 
                                 row_idx += 1
                     
@@ -847,7 +849,9 @@ with col_btn_processar:
                                     cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_ma_bloq))
                                     cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                     
-                                    ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_ma_bloq + fa_ma_bloq))
+                                    # Coluna Total (cinza)
+                                    cell_total = ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_ma_bloq + fa_ma_bloq))
+                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                     row_departamento += 1
                                 
                                 # CRDK / D&E
@@ -874,7 +878,9 @@ with col_btn_processar:
                                     cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_crdk_de))
                                     cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                     
-                                    ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_crdk_de + fa_crdk_de))
+                                    # Coluna Total (cinza)
+                                    cell_total = ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_crdk_de + fa_crdk_de))
+                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                     row_departamento += 1
                     
                     # Linha de Não Encontrados
