@@ -752,11 +752,27 @@ with col_btn_processar:
                                 dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
                                 dia_semana = dias_semana_pt.get(dia_en, dia_en)
                                 
-                                ws_relatorio.cell(row=row_idx, column=1, value=data_formatada)
-                                ws_relatorio.cell(row=row_idx, column=2, value=dia_semana)
-                                ws_relatorio.cell(row=row_idx, column=3, value=int(total_fi))
-                                ws_relatorio.cell(row=row_idx, column=4, value=int(total_fa))
-                                ws_relatorio.cell(row=row_idx, column=5, value=int(total_ferias))
+                                # Coluna Data (cinza)
+                                cell_data = ws_relatorio.cell(row=row_idx, column=1, value=data_formatada)
+                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Coluna Dia (cinza)
+                                cell_dia = ws_relatorio.cell(row=row_idx, column=2, value=dia_semana)
+                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Coluna FI (vermelho)
+                                cell_fi = ws_relatorio.cell(row=row_idx, column=3, value=int(total_fi))
+                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                
+                                # Coluna FA (amarelo)
+                                cell_fa = ws_relatorio.cell(row=row_idx, column=4, value=int(total_fa))
+                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                
+                                # Coluna FÉRIAS-BH (preto)
+                                cell_ferias = ws_relatorio.cell(row=row_idx, column=5, value=int(total_ferias))
+                                cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
+                                cell_ferias.font = Font(color='FFFFFFFF')  # Texto branco
+                                
                                 ws_relatorio.cell(row=row_idx, column=6, value=int(total_lancamentos))
                                 
                                 row_idx += 1
@@ -811,11 +827,24 @@ with col_btn_processar:
                                 fi_ma_bloq, fa_ma_bloq = contar_fi_fa_por_depto_data(df_mest, setores_ma_bloq, 'AREA', col_data)
                                 
                                 if fi_ma_bloq > 0 or fa_ma_bloq > 0:
-                                    ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
-                                    ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
+                                    # Coluna Data (cinza)
+                                    cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
+                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    
+                                    # Coluna Dia (cinza)
+                                    cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
+                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    
                                     ws_relatorio.cell(row=row_departamento, column=3, value='M&A / BLOQ')
-                                    ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_ma_bloq))
-                                    ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_ma_bloq))
+                                    
+                                    # Coluna FI (vermelho)
+                                    cell_fi = ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_ma_bloq))
+                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                    
+                                    # Coluna FA (amarelo)
+                                    cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_ma_bloq))
+                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                    
                                     ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_ma_bloq + fa_ma_bloq))
                                     row_departamento += 1
                                 
@@ -823,11 +852,24 @@ with col_btn_processar:
                                 fi_crdk_de, fa_crdk_de = contar_fi_fa_por_depto_data(df_mest, setores_crdk_de, 'AREA', col_data)
                                 
                                 if fi_crdk_de > 0 or fa_crdk_de > 0:
-                                    ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
-                                    ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
+                                    # Coluna Data (cinza)
+                                    cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
+                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    
+                                    # Coluna Dia (cinza)
+                                    cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
+                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    
                                     ws_relatorio.cell(row=row_departamento, column=3, value='CRDK / D&E')
-                                    ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_crdk_de))
-                                    ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_crdk_de))
+                                    
+                                    # Coluna FI (vermelho)
+                                    cell_fi = ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_crdk_de))
+                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                    
+                                    # Coluna FA (amarelo)
+                                    cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_crdk_de))
+                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                    
                                     ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_crdk_de + fa_crdk_de))
                                     row_departamento += 1
                     
