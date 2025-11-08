@@ -109,8 +109,8 @@ MAPA_CODIGOS = {1: 'P', 2: 'FI', 4: 'FA', 3: 'FÉRIAS-BH', 5: 'DESLIGADO'}
 
 MAPA_CORES = {
     'P': 'FF90EE90',      # Verde claro
-    'FI': 'FFFF0000',     # Vermelho
-    'FA': 'FFFFFF00',     # Amarelo
+    'FI': 'FFFF9999',     # Vermelho suave (rosa claro)
+    'FA': 'FFFFFF99',     # Amarelo suave (bege claro)
     'FÉRIAS-BH': 'FF000000',    # Preto (com texto branco)
     'DESLIGADO': 'FF800080',   # Roxo
     'DESCANSO': 'FFC0C0C0'  # Cinza
@@ -835,13 +835,15 @@ with col_btn_processar:
                                     cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
                                     cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                     
-                                    ws_relatorio.cell(row=row_departamento, column=3, value='M&A / BLOQ')
+                                    # Coluna Depto (verde suave)
+                                    cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='M&A / BLOQ')
+                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                                     
-                                    # Coluna FI (vermelho)
+                                    # Coluna FI (vermelho suave)
                                     cell_fi = ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_ma_bloq))
                                     cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                     
-                                    # Coluna FA (amarelo)
+                                    # Coluna FA (amarelo suave)
                                     cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_ma_bloq))
                                     cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                     
@@ -860,13 +862,15 @@ with col_btn_processar:
                                     cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
                                     cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                     
-                                    ws_relatorio.cell(row=row_departamento, column=3, value='CRDK / D&E')
+                                    # Coluna Depto (verde suave)
+                                    cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='CRDK / D&E')
+                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                                     
-                                    # Coluna FI (vermelho)
+                                    # Coluna FI (vermelho suave)
                                     cell_fi = ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_crdk_de))
                                     cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                     
-                                    # Coluna FA (amarelo)
+                                    # Coluna FA (amarelo suave)
                                     cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_crdk_de))
                                     cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                     
