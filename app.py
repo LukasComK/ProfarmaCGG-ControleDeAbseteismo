@@ -380,23 +380,18 @@ with col_btn_processar:
         if file_mestra and files_encarregado and todos_configurados:
             try:
                 # Carrega a planilha mestra UMA VEZ
-                # Tenta com engine automático primeiro, se falhar tenta com openpyxl, depois tenta converter
+                # Para arquivos .xlsx, especifica openpyxl explicitamente
                 df_mest = None
                 try:
-                    df_mest = pd.read_excel(file_mestra, header=0)
-                except Exception as e1:
+                    # Força openpyxl para .xlsx (inclusive arquivos do LibreOffice)
+                    df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
+                except Exception as e:
                     try:
-                        df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
-                    except Exception as e2:
-                        # Tenta ler como binário e converter
-                        try:
-                            import openpyxl
-                            from openpyxl import load_workbook
-                            wb = load_workbook(file_mestra)
-                            df_mest = pd.read_excel(file_mestra, header=0, engine='openpyxl')
-                        except:
-                            st.error(f"❌ Erro ao ler planilha mestra: {str(e1)}\n\nPor favor, certifique-se de que o arquivo é .xlsx válido")
-                            st.stop()
+                        # Fallback: tenta com engine automático
+                        df_mest = pd.read_excel(file_mestra, header=0)
+                    except:
+                        st.error(f"❌ Erro ao ler planilha mestra (pode ser formato LibreOffice inválido): {str(e)}\n\nSolução: Salve o arquivo como '.xlsx' no Excel ou LibreOffice com 'Microsoft Excel 2007-365'")
+                        st.stop()
                 
                 if df_mest is None:
                     st.error("❌ Não foi possível carregar a planilha mestra")
@@ -458,13 +453,14 @@ with col_btn_processar:
                         st.write(f"📄 Processando: **{file_enc.name}**")
                         
                         buf = io.BytesIO(file_enc.getvalue())
-                        # Tenta ler com engine automático, se falhar tenta openpyxl
+                        # Força openpyxl para .xlsx (inclusive arquivos do LibreOffice)
                         try:
-                            df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str)
+                            buf.seek(0)
+                            df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
                         except Exception as e:
                             try:
                                 buf.seek(0)
-                                df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str, engine='openpyxl')
+                                df_enc = pd.read_excel(buf, sheet_name=guia_usar, header=None, dtype=str)
                             except:
                                 st.error(f"❌ Erro ao ler arquivo {file_enc.name}: {str(e)}")
                                 continue
