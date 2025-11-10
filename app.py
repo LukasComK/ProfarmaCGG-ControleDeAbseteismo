@@ -181,7 +181,11 @@ if files_encarregado:
         file_encarregado = files_encarregado[idx_arquivo_atual]
     
     # Detecta as guias (sheets) disponíveis no arquivo
-    guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue())).sheet_names
+    try:
+        guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue()), engine='openpyxl').sheet_names
+    except Exception as e:
+        st.error(f"❌ Erro ao ler sheets do arquivo: {str(e)}")
+        st.stop()
     
     # Carrega guia salva anteriormente se existir
     nome_arquivo = file_encarregado.name
