@@ -181,41 +181,35 @@ if files_encarregado:
         file_encarregado = files_encarregado[idx_arquivo_atual]
     
     # Detecta as guias (sheets) disponíveis no arquivo
-    # Tenta múltiplos engines: openpyxl (xlsx), xlrd (xls), e automático
+    # Tenta múltiplos engines: openpyxl (xlsx), automático, e ZIP repair
     guias_disponiveis = None
     erro_final = None
     
-    # Estratégia 1: openpyxl (xlsx moderno)
+    # Estratégia 1: openpyxl (xlsx moderno, incluindo Excel Online)
     try:
         guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue()), engine='openpyxl').sheet_names
     except Exception as e1:
         erro_final = e1
-        # Estratégia 2: xlrd (xls antigo)
+        # Estratégia 2: automático
         try:
             file_encarregado.seek(0)
-            guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue()), engine='xlrd').sheet_names
+            guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue())).sheet_names
         except Exception as e2:
             erro_final = e2
-            # Estratégia 3: automático
+            # Estratégia 3: tenta reparar ZIP (se for xlsx corrompido)
             try:
+                import zipfile
                 file_encarregado.seek(0)
-                guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue())).sheet_names
+                file_bytes = file_encarregado.read()
+                pk_index = file_bytes.find(b'PK\x03\x04')
+                if pk_index > 0:
+                    file_bytes_repaired = file_bytes[pk_index:]
+                    guias_disponiveis = pd.ExcelFile(io.BytesIO(file_bytes_repaired), engine='openpyxl').sheet_names
+                else:
+                    raise Exception("Não foi possível reparar")
             except Exception as e3:
-                erro_final = e3
-                # Estratégia 4: tenta reparar ZIP (se for xlsx corrompido)
-                try:
-                    import zipfile
-                    file_encarregado.seek(0)
-                    file_bytes = file_encarregado.read()
-                    pk_index = file_bytes.find(b'PK\x03\x04')
-                    if pk_index > 0:
-                        file_bytes_repaired = file_bytes[pk_index:]
-                        guias_disponiveis = pd.ExcelFile(io.BytesIO(file_bytes_repaired), engine='openpyxl').sheet_names
-                    else:
-                        raise Exception("Não foi possível reparar")
-                except Exception as e4:
-                    st.error(f"❌ Erro ao ler sheets do arquivo:\n\n**Erro:** {str(erro_final)}\n\n**Possíveis causas:**\n- Arquivo corrompido\n- Formato não é Excel válido\n- Arquivo foi salvo incorretamente\n\n**Solução:** Abra o arquivo no Excel/LibreOffice e salve como novo arquivo .xlsx")
-                    st.stop()
+                st.error(f"❌ Erro ao ler sheets do arquivo:\n\n**Erro:** {str(erro_final)}\n\n**Possíveis causas:**\n- Arquivo corrompido\n- Formato não é Excel válido\n- Arquivo foi salvo incorretamente\n\n**Solução:** \n1. Abra o arquivo no Excel Online (funciona)\n2. Clique em Arquivo → Salvar Como\n3. Salve como novo arquivo .xlsx\n4. Faça upload do novo arquivo")
+                st.stop()
     
     if not guias_disponiveis:
         st.error("❌ Nenhuma sheet encontrada no arquivo")
