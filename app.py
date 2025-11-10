@@ -148,8 +148,48 @@ with col2:
     ano = st.number_input("Ano", 2020, 2050, datetime.date.today().year)
     mes = st.number_input("Mês", 1, 12, datetime.date.today().month)
 
+# Valida arquivos de encarregado
+arquivos_invalidos = []
+arquivos_validos = []
+
 if files_encarregado:
     st.divider()
+    
+    # Valida cada arquivo
+    for file_enc in files_encarregado:
+        try:
+            # Tenta detectar sheets com múltiplos engines
+            guias = None
+            try:
+                guias = pd.ExcelFile(io.BytesIO(file_enc.getvalue()), engine='openpyxl').sheet_names
+            except:
+                try:
+                    file_enc.seek(0)
+                    guias = pd.ExcelFile(io.BytesIO(file_enc.getvalue())).sheet_names
+                except:
+                    guias = None
+            
+            if guias:
+                arquivos_validos.append(file_enc)
+            else:
+                arquivos_invalidos.append(file_enc.name)
+        except Exception as e:
+            arquivos_invalidos.append(f"{file_enc.name} (Erro: {str(e)[:50]}...)")
+    
+    # Mostra avisos dos arquivos inválidos
+    if arquivos_invalidos:
+        st.warning(f"⚠️ **{len(arquivos_invalidos)} arquivo(s) inválido(s) ou confidencial(is)**:")
+        for arquivo_invalido in arquivos_invalidos:
+            st.error(f"❌ {arquivo_invalido}")
+        st.info("💡 **Dica:** Remova esses arquivos ou salve-os como novos arquivos sem proteção/confidencialidade")
+    
+    # Continua com arquivos válidos apenas
+    files_encarregado = arquivos_validos
+    
+    if not files_encarregado:
+        st.error("❌ Nenhum arquivo válido encontrado! Por favor, envie arquivos Excel válidos.")
+        st.stop()
+    
     st.header("Pré-Visualização")
     
     # Se há apenas 1 arquivo, processa normalmente
@@ -181,39 +221,7 @@ if files_encarregado:
         file_encarregado = files_encarregado[idx_arquivo_atual]
     
     # Detecta as guias (sheets) disponíveis no arquivo
-    # Tenta múltiplos engines: openpyxl (xlsx), automático, e ZIP repair
-    guias_disponiveis = None
-    erro_final = None
-    
-    # Estratégia 1: openpyxl (xlsx moderno, incluindo Excel Online)
-    try:
-        guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue()), engine='openpyxl').sheet_names
-    except Exception as e1:
-        erro_final = e1
-        # Estratégia 2: automático
-        try:
-            file_encarregado.seek(0)
-            guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue())).sheet_names
-        except Exception as e2:
-            erro_final = e2
-            # Estratégia 3: tenta reparar ZIP (se for xlsx corrompido)
-            try:
-                import zipfile
-                file_encarregado.seek(0)
-                file_bytes = file_encarregado.read()
-                pk_index = file_bytes.find(b'PK\x03\x04')
-                if pk_index > 0:
-                    file_bytes_repaired = file_bytes[pk_index:]
-                    guias_disponiveis = pd.ExcelFile(io.BytesIO(file_bytes_repaired), engine='openpyxl').sheet_names
-                else:
-                    raise Exception("Não foi possível reparar")
-            except Exception as e3:
-                st.error(f"❌ Erro ao ler sheets do arquivo:\n\n**Erro:** {str(erro_final)}\n\n**Possíveis causas:**\n- Arquivo corrompido\n- Formato não é Excel válido\n- Arquivo foi salvo incorretamente\n\n**Solução:** \n1. Abra o arquivo no Excel Online (funciona)\n2. Clique em Arquivo → Salvar Como\n3. Salve como novo arquivo .xlsx\n4. Faça upload do novo arquivo")
-                st.stop()
-    
-    if not guias_disponiveis:
-        st.error("❌ Nenhuma sheet encontrada no arquivo")
-        st.stop()
+    guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue())).sheet_names
     
     # Carrega guia salva anteriormente se existir
     nome_arquivo = file_encarregado.name
