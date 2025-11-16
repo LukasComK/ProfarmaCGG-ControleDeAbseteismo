@@ -871,7 +871,7 @@ with col_btn_processar:
                     ws_relatorio.merge_cells('A4:D4')
                     
                     ws_relatorio.cell(row=5, column=1, value='Total de Lançamentos Processados:')
-                    ws_relatorio.cell(row=5, column=2, value=total_sucesso)
+                    ws_relatorio.cell(row=5, column=2, value=f'=SUM(F11:F{row_idx-1})')
                     
                     ws_relatorio.cell(row=6, column=1, value='Total de Colaboradores Únicos:')
                     ws_relatorio.cell(row=6, column=2, value=len(total_nomes_unicos))
@@ -902,42 +902,46 @@ with col_btn_processar:
                     for data_obj in sorted(mapa_datas.keys()):
                         col_data = mapa_datas[data_obj]
                         if col_data in df_mest.columns:
-                            total_fi = (df_mest[col_data] == 'FI').sum()
-                            total_fa = (df_mest[col_data] == 'FA').sum()
-                            total_ferias = (df_mest[col_data] == 'FÉRIAS-BH').sum()
-                            total_lancamentos = total_fi + total_fa + total_ferias
+                            # Encontra o índice da coluna de dados
+                            col_letter = get_column_letter(list(df_mest_final.columns).index(col_data) + 1)
                             
-                            if total_lancamentos > 0:
-                                data_formatada = data_obj.strftime('%d/%m/%Y') if isinstance(data_obj, datetime.date) else str(data_obj)
-                                dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
-                                dia_semana = dias_semana_pt.get(dia_en, dia_en)
-                                
-                                # Coluna Data (cinza)
-                                cell_data = ws_relatorio.cell(row=row_idx, column=1, value=data_formatada)
-                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                
-                                # Coluna Dia (cinza)
-                                cell_dia = ws_relatorio.cell(row=row_idx, column=2, value=dia_semana)
-                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                
-                                # Coluna FI (vermelho)
-                                cell_fi = ws_relatorio.cell(row=row_idx, column=3, value=int(total_fi))
-                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                
-                                # Coluna FA (amarelo)
-                                cell_fa = ws_relatorio.cell(row=row_idx, column=4, value=int(total_fa))
-                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                
-                                # Coluna FÉRIAS-BH (preto)
-                                cell_ferias = ws_relatorio.cell(row=row_idx, column=5, value=int(total_ferias))
-                                cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
-                                cell_ferias.font = Font(color='FFFFFFFF')  # Texto branco
-                                
-                                # Coluna Total (cinza)
-                                cell_total = ws_relatorio.cell(row=row_idx, column=6, value=int(total_lancamentos))
-                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                
-                                row_idx += 1
+                            if row_idx == 11:  # Apenas calcula uma vez para referenciar depois
+                                data_start_row = row_idx
+                            
+                            data_formatada = data_obj.strftime('%d/%m/%Y') if isinstance(data_obj, datetime.date) else str(data_obj)
+                            dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
+                            dia_semana = dias_semana_pt.get(dia_en, dia_en)
+                            
+                            # Coluna Data (cinza)
+                            cell_data = ws_relatorio.cell(row=row_idx, column=1, value=data_formatada)
+                            cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            
+                            # Coluna Dia (cinza)
+                            cell_dia = ws_relatorio.cell(row=row_idx, column=2, value=dia_semana)
+                            cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            
+                            # Coluna FI (vermelho) - Fórmula COUNTIF
+                            cell_fi = ws_relatorio.cell(row=row_idx, column=3)
+                            cell_fi.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FI")'
+                            cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            
+                            # Coluna FA (amarelo) - Fórmula COUNTIF
+                            cell_fa = ws_relatorio.cell(row=row_idx, column=4)
+                            cell_fa.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FA")'
+                            cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            
+                            # Coluna FÉRIAS-BH (preto) - Fórmula COUNTIF
+                            cell_ferias = ws_relatorio.cell(row=row_idx, column=5)
+                            cell_ferias.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FÉRIAS-BH")'
+                            cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
+                            cell_ferias.font = Font(color='FFFFFFFF')  # Texto branco
+                            
+                            # Coluna Total (cinza) - Fórmula SUM das três anteriores
+                            cell_total = ws_relatorio.cell(row=row_idx, column=6)
+                            cell_total.value = f'=C{row_idx}+D{row_idx}+E{row_idx}'
+                            cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            
+                            row_idx += 1
                     
                     # Linha de Resumo por Departamento (DIÁRIO)
                     row_departamento = row_idx + 2
@@ -977,71 +981,102 @@ with col_btn_processar:
                     
                     # Preenche tabela com dados por dia
                     if 'AREA' in df_mest.columns:
+                        area_col_idx = list(df_mest_final.columns).index('AREA') + 1
+                        area_col_letter = get_column_letter(area_col_idx)
                         row_departamento += 1
+                        
                         for data_obj in sorted(mapa_datas.keys()):
                             col_data = mapa_datas[data_obj]
                             if col_data in df_mest.columns:
+                                data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                                data_col_letter = get_column_letter(data_col_idx)
+                                
                                 data_formatada = data_obj.strftime('%d/%m/%Y') if isinstance(data_obj, datetime.date) else str(data_obj)
                                 dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
                                 dia_semana = dias_semana_pt.get(dia_en, dia_en)
                                 
                                 # M&A / BLOQ
-                                fi_ma_bloq, fa_ma_bloq = contar_fi_fa_por_depto_data(df_mest, setores_ma_bloq, 'AREA', col_data)
+                                # Cria fórmulas SUMPRODUCT para contar com múltiplos critérios
+                                fi_ma_bloq_formula = (
+                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                )
+                                fa_ma_bloq_formula = (
+                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                )
                                 
-                                if fi_ma_bloq > 0 or fa_ma_bloq > 0:
-                                    # Coluna Data (cinza)
-                                    cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
-                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    
-                                    # Coluna Dia (cinza)
-                                    cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
-                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    
-                                    # Coluna Depto (verde suave)
-                                    cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='M&A / BLOQ')
-                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                                    
-                                    # Coluna FI (vermelho suave)
-                                    cell_fi = ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_ma_bloq))
-                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                    
-                                    # Coluna FA (amarelo suave)
-                                    cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_ma_bloq))
-                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                    
-                                    # Coluna Total (cinza)
-                                    cell_total = ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_ma_bloq + fa_ma_bloq))
-                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    row_departamento += 1
+                                # Coluna Data (cinza)
+                                cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
+                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Coluna Dia (cinza)
+                                cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
+                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Coluna Depto (verde suave)
+                                cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='M&A / BLOQ')
+                                cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                
+                                # Coluna FI (vermelho suave) - Fórmula
+                                cell_fi = ws_relatorio.cell(row=row_departamento, column=4)
+                                cell_fi.value = fi_ma_bloq_formula
+                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                
+                                # Coluna FA (amarelo suave) - Fórmula
+                                cell_fa = ws_relatorio.cell(row=row_departamento, column=5)
+                                cell_fa.value = fa_ma_bloq_formula
+                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                
+                                # Coluna Total (cinza) - Fórmula SUM
+                                cell_total = ws_relatorio.cell(row=row_departamento, column=6)
+                                cell_total.value = f'=D{row_departamento}+E{row_departamento}'
+                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                row_departamento += 1
                                 
                                 # CRDK / D&E
-                                fi_crdk_de, fa_crdk_de = contar_fi_fa_por_depto_data(df_mest, setores_crdk_de, 'AREA', col_data)
+                                fi_crdk_de_formula = (
+                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                )
+                                fa_crdk_de_formula = (
+                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                )
                                 
-                                if fi_crdk_de > 0 or fa_crdk_de > 0:
-                                    # Coluna Data (cinza)
-                                    cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
-                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    
-                                    # Coluna Dia (cinza)
-                                    cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
-                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    
-                                    # Coluna Depto (verde suave)
-                                    cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='CRDK / D&E')
-                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                                    
-                                    # Coluna FI (vermelho suave)
-                                    cell_fi = ws_relatorio.cell(row=row_departamento, column=4, value=int(fi_crdk_de))
-                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                    
-                                    # Coluna FA (amarelo suave)
-                                    cell_fa = ws_relatorio.cell(row=row_departamento, column=5, value=int(fa_crdk_de))
-                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                    
-                                    # Coluna Total (cinza)
-                                    cell_total = ws_relatorio.cell(row=row_departamento, column=6, value=int(fi_crdk_de + fa_crdk_de))
-                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    row_departamento += 1
+                                # Coluna Data (cinza)
+                                cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
+                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Coluna Dia (cinza)
+                                cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
+                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Coluna Depto (verde suave)
+                                cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='CRDK / D&E')
+                                cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                
+                                # Coluna FI (vermelho suave) - Fórmula
+                                cell_fi = ws_relatorio.cell(row=row_departamento, column=4)
+                                cell_fi.value = fi_crdk_de_formula
+                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                
+                                # Coluna FA (amarelo suave) - Fórmula
+                                cell_fa = ws_relatorio.cell(row=row_departamento, column=5)
+                                cell_fa.value = fa_crdk_de_formula
+                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                
+                                # Coluna Total (cinza) - Fórmula SUM
+                                cell_total = ws_relatorio.cell(row=row_departamento, column=6)
+                                cell_total.value = f'=D{row_departamento}+E{row_departamento}'
+                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                row_departamento += 1
                     
                     # Linha de Não Encontrados
                     row_nao_encontrados = row_departamento + 2
@@ -1068,9 +1103,13 @@ with col_btn_processar:
                     
                     out.seek(0)
                 
-                # Gera nome único com timestamp
-                timestamp = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-                nome_arquivo = f"Mestra_Completa_{ano}-{mes:02d}_{timestamp}.xlsx"
+                # Gera nome do arquivo no padrão solicitado
+                meses_nomes = {
+                    1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+                    7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+                }
+                mes_nome = meses_nomes.get(mes, 'Mês')
+                nome_arquivo = f"{mes:02d}- Controle de Absenteismo - {mes_nome}.xlsx"
                 
                 st.download_button(
                     "📥 Download - Planilha MESTRA Completa",
