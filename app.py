@@ -1384,17 +1384,47 @@ with col_btn_processar:
                     ws_graficos.row_dimensions[1].height = 25
                     
                     from openpyxl.chart import PieChart, BarChart, Reference
+                    from openpyxl.worksheet.datavalidation import DataValidation
                     
-                    # ===== SEÇÃO 1: Gráficos Globais (Todo o período) =====
-                    row_secao = 3
-                    ws_graficos.merge_cells(f'A{row_secao}:H{row_secao}')
-                    titulo_secao = ws_graficos.cell(row=row_secao, column=1, value='Análise Completa do Período')
-                    titulo_secao.font = Font(bold=True, size=12, color='FFFFFF')
-                    titulo_secao.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
-                    ws_graficos.row_dimensions[row_secao].height = 20
+                    # ===== SEÇÃO 1: Seletor de Data =====
+                    row_selector = 3
+                    ws_graficos.cell(row=row_selector, column=1, value='📅 Selecione a Data:').font = Font(bold=True, size=11)
                     
-                    # ===== GRÁFICO 1: Faltas por Tipo (FI, FA) - GLOBAL =====
-                    row_grafico = row_secao + 2
+                    # Cria lista de datas para o dropdown
+                    datas_lista = sorted(mapa_datas.keys())
+                    datas_formatadas = ','.join([d.strftime('%d/%m') for d in datas_lista])
+                    
+                    # Data Validation na célula B3
+                    dv = DataValidation(type='list', formula1=f'"{datas_formatadas}"', allow_blank=False)
+                    dv.error = 'Por favor, selecione uma data da lista'
+                    dv.errorTitle = 'Seleção Inválida'
+                    ws_graficos.add_data_validation(dv)
+                    
+                    # Define valor padrão (primeira data)
+                    cell_selector = ws_graficos.cell(row=row_selector, column=2, value=datas_lista[0].strftime('%d/%m'))
+                    cell_selector.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
+                    cell_selector.font = Font(bold=True, size=11)
+                    dv.add(cell_selector)
+                    
+                    # ===== SEÇÃO 2: Gráficos Dinâmicos =====
+                    row_grafico = 6
+                    
+                    # Células de cálculo ocultas para dados dinâmicos
+                    # Coluna J e K para dados de FI/FA
+                    # Coluna L e M para dados de setores
+                    
+                    ws_graficos.column_dimensions['J'].hidden = True
+                    ws_graficos.column_dimensions['K'].hidden = True
+                    ws_graficos.column_dimensions['L'].hidden = True
+                    ws_graficos.column_dimensions['M'].hidden = True
+                    
+                    # Cria lista de colunas de data no Relatório para MATCH
+                    col_letras_datas = []
+                    for data_idx, data_obj in enumerate(datas_lista):
+                        col_letra = get_column_letter(data_idx + 2)  # Começa na coluna B (coluna 2) na aba Porcentagens
+                        col_letras_datas.append((data_obj.strftime('%d/%m'), col_letra))
+                    
+                    # ===== GRÁFICO 1: Faltas por Tipo (DINÂMICO) =====
                     ws_graficos.cell(row=row_grafico, column=1, value='Faltas por Tipo').font = Font(bold=True, size=11)
                     
                     row_data = row_grafico + 1
@@ -1403,31 +1433,27 @@ with col_btn_processar:
                     ws_graficos.cell(row=row_data, column=1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     ws_graficos.cell(row=row_data, column=2).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
-                    # Conta FI e FA globais
-                    total_fi_global = 0
-                    total_fa_global = 0
-                    for col_data in mapa_datas.values():
-                        if col_data in df_mest.columns:
-                            total_fi_global += (df_mest[col_data] == 'FI').sum()
-                            total_fa_global += (df_mest[col_data] == 'FA').sum()
-                    
+                    # Dados FI
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FI - Injustificadas').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=2, value=total_fi_global)
-                    ws_graficos.cell(row=row_data, column=1).fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                    ws_graficos.cell(row=row_data, column=2).fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
+                    cell_fi = ws_graficos.cell(row=row_data, column=2)
+                    # Fórmula para buscar FI dinamicamente baseado na data selecionada
+                    cell_fi.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+7),0)'
+                    cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
                     
+                    # Dados FA
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FA - Atestado').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=2, value=total_fa_global)
-                    ws_graficos.cell(row=row_data, column=1).fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                    ws_graficos.cell(row=row_data, column=2).fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
+                    cell_fa = ws_graficos.cell(row=row_data, column=2)
+                    # Fórmula para buscar FA dinamicamente baseado na data selecionada
+                    cell_fa.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+8),0)'
+                    cell_fa.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
                     
                     row_fi_fa_data = row_data
                     
                     # Cria gráfico de pizza para tipos de faltas
                     pie_chart_1 = PieChart()
-                    pie_chart_1.title = 'Distribuição de Faltas por Tipo'
+                    pie_chart_1.title = 'Faltas por Tipo (Data Selecionada)'
                     pie_chart_1.style = 10
                     labels = Reference(ws_graficos, min_col=1, min_row=row_grafico+2, max_row=row_fi_fa_data)
                     data = Reference(ws_graficos, min_col=2, min_row=row_grafico+1, max_row=row_fi_fa_data)
@@ -1435,9 +1461,9 @@ with col_btn_processar:
                     pie_chart_1.set_categories(labels)
                     pie_chart_1.height = 10
                     pie_chart_1.width = 13
-                    ws_graficos.add_chart(pie_chart_1, 'A14')
+                    ws_graficos.add_chart(pie_chart_1, 'A10')
                     
-                    # ===== GRÁFICO 2: Faltas por Setor - GLOBAL =====
+                    # ===== GRÁFICO 2: Faltas por Setor (DINÂMICO) =====
                     col_grafico_setor = 5
                     ws_graficos.cell(row=row_grafico, column=col_grafico_setor, value='Faltas por Setor').font = Font(bold=True, size=11)
                     
@@ -1447,45 +1473,27 @@ with col_btn_processar:
                     ws_graficos.cell(row=row_data, column=col_grafico_setor).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     ws_graficos.cell(row=row_data, column=col_grafico_setor+1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
-                    # Conta faltas por setor - GLOBAL
-                    faltas_ma_bloq_global = 0
-                    faltas_crdk_de_global = 0
-                    
-                    for col_data in mapa_datas.values():
-                        if col_data in df_mest.columns:
-                            # M&A / BLOQ faltas
-                            faltas_ma_bloq_global += (
-                                df_mest[
-                                    (df_mest['AREA'].astype(str).str.contains('PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM|MOVIMENTACAO E ARMAZENAGEM|BLOQ|CD-RJ \| FOB', case=False, na=False, regex=True)) &
-                                    ((df_mest[col_data] == 'FI') | (df_mest[col_data] == 'FA'))
-                                ].shape[0]
-                            )
-                            
-                            # CRDK / D&E faltas
-                            faltas_crdk_de_global += (
-                                df_mest[
-                                    (df_mest['AREA'].astype(str).str.contains('CROSSDOCK DISTRIBUICAO E EXPEDICAO|CRDK D&E\|CD-RJ HB|DISTRIBUICAO E EXPEDICAO', case=False, na=False, regex=True)) &
-                                    ((df_mest[col_data] == 'FI') | (df_mest[col_data] == 'FA'))
-                                ].shape[0]
-                            )
-                    
+                    # Dados M&A / BLOQ
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=col_grafico_setor, value='M&A / BLOQ').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor+1, value=faltas_ma_bloq_global)
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor).fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor+1).fill = PatternFill(start_color='FFE8F5E0', end_color='FFE8F5E0', fill_type='solid')
+                    cell_ma = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
+                    # Fórmula para M&A / BLOQ (linha 9 das porcentagens)
+                    cell_ma.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+0),0)'
+                    cell_ma.fill = PatternFill(start_color='FFE8F5E0', end_color='FFE8F5E0', fill_type='solid')
                     
+                    # Dados CRDK / D&E
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=col_grafico_setor, value='CRDK / D&E').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor+1, value=faltas_crdk_de_global)
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor).fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor+1).fill = PatternFill(start_color='FFE6F2FF', end_color='FFE6F2FF', fill_type='solid')
+                    cell_crdk = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
+                    # Fórmula para CRDK / D&E (linha 11 das porcentagens)
+                    cell_crdk.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+2),0)'
+                    cell_crdk.fill = PatternFill(start_color='FFE6F2FF', end_color='FFE6F2FF', fill_type='solid')
                     
                     row_setor_data = row_data
                     
                     # Cria gráfico de pizza para setores
                     pie_chart_2 = PieChart()
-                    pie_chart_2.title = 'Distribuição de Faltas por Setor'
+                    pie_chart_2.title = 'Faltas por Setor (Data Selecionada)'
                     pie_chart_2.style = 10
                     labels_2 = Reference(ws_graficos, min_col=col_grafico_setor, min_row=row_grafico+2, max_row=row_setor_data)
                     data_2 = Reference(ws_graficos, min_col=col_grafico_setor+1, min_row=row_grafico+1, max_row=row_setor_data)
@@ -1493,84 +1501,7 @@ with col_btn_processar:
                     pie_chart_2.set_categories(labels_2)
                     pie_chart_2.height = 10
                     pie_chart_2.width = 13
-                    ws_graficos.add_chart(pie_chart_2, 'E14')
-                    
-                    # ===== SEÇÃO 2: Gráficos por Data Específica =====
-                    row_secao_2 = 28
-                    ws_graficos.merge_cells(f'A{row_secao_2}:H{row_secao_2}')
-                    titulo_secao_2 = ws_graficos.cell(row=row_secao_2, column=1, value='Análise por Data Específica')
-                    titulo_secao_2.font = Font(bold=True, size=12, color='FFFFFF')
-                    titulo_secao_2.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
-                    ws_graficos.row_dimensions[row_secao_2].height = 20
-                    
-                    # Cria gráficos para cada data
-                    col_data_grafico = 1
-                    row_data_grafico = row_secao_2 + 2
-                    
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys())):
-                        col_data = mapa_datas[data_obj]
-                        data_formatada = data_obj.strftime('%d/%m')
-                        
-                        if col_data in df_mest.columns:
-                            # Se chegou no final das colunas, vai para próxima linha
-                            if col_data_grafico > 8:
-                                col_data_grafico = 1
-                                row_data_grafico += 15
-                            
-                            # Título da data
-                            titulo_data = ws_graficos.cell(row=row_data_grafico, column=col_data_grafico, value=f'Data: {data_formatada}')
-                            titulo_data.font = Font(bold=True, size=10)
-                            titulo_data.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
-                            
-                            # Dados FI e FA para esta data
-                            fi_count = (df_mest[col_data] == 'FI').sum()
-                            fa_count = (df_mest[col_data] == 'FA').sum()
-                            
-                            # M&A / BLOQ faltas nesta data
-                            df_ma_bloq_data = df_mest[
-                                (df_mest['AREA'].astype(str).str.contains('PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM|MOVIMENTACAO E ARMAZENAGEM|BLOQ|CD-RJ \| FOB', case=False, na=False, regex=True))
-                            ]
-                            faltas_ma_bloq_data = ((df_ma_bloq_data[col_data] == 'FI') | (df_ma_bloq_data[col_data] == 'FA')).sum()
-                            
-                            # CRDK / D&E faltas nesta data
-                            df_crdk_de_data = df_mest[
-                                (df_mest['AREA'].astype(str).str.contains('CROSSDOCK DISTRIBUICAO E EXPEDICAO|CRDK D&E\|CD-RJ HB|DISTRIBUICAO E EXPEDICAO', case=False, na=False, regex=True))
-                            ]
-                            faltas_crdk_de_data = ((df_crdk_de_data[col_data] == 'FI') | (df_crdk_de_data[col_data] == 'FA')).sum()
-                            
-                            # Dados para gráfico de tipo
-                            row_tipo = row_data_grafico + 1
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico, value='Tipo').font = Font(bold=True, size=9)
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1, value='Qtd').font = Font(bold=True, size=9)
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
-                            
-                            row_tipo += 1
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico, value='FI')
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1, value=fi_count)
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico).fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1).fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
-                            
-                            row_tipo += 1
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico, value='FA')
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1, value=fa_count)
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico).fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1).fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
-                            
-                            # Gráfico de pizza para tipo nesta data
-                            if fi_count > 0 or fa_count > 0:
-                                pie_chart_data = PieChart()
-                                pie_chart_data.title = f'Faltas - {data_formatada}'
-                                pie_chart_data.style = 10
-                                labels_data = Reference(ws_graficos, min_col=col_data_grafico, min_row=row_data_grafico+2, max_row=row_tipo)
-                                data_pie_data = Reference(ws_graficos, min_col=col_data_grafico+1, min_row=row_data_grafico+1, max_row=row_tipo)
-                                pie_chart_data.add_data(data_pie_data, titles_from_data=True)
-                                pie_chart_data.set_categories(labels_data)
-                                pie_chart_data.height = 8
-                                pie_chart_data.width = 10
-                                ws_graficos.add_chart(pie_chart_data, f'{get_column_letter(col_data_grafico)}{row_tipo+2}')
-                            
-                            col_data_grafico += 3
+                    ws_graficos.add_chart(pie_chart_2, 'E10')
                     
                     # Ajusta largura das colunas
                     ws_graficos.column_dimensions['A'].width = 25
