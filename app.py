@@ -1437,16 +1437,16 @@ with col_btn_processar:
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FI - Injustificadas').font = Font(bold=True)
                     cell_fi = ws_graficos.cell(row=row_data, column=2)
-                    # Referência direta à célula B15
-                    cell_fi.value = "='Porcentagens ABS'!B15"
+                    # Fórmula que busca a coluna da data selecionada dinamicamente
+                    cell_fi.value = "=INDIRECT(\"'Porcentagens ABS'!\"&ADDRESS(15,COLUMN(INDIRECT(\"'Porcentagens ABS'!\"&B3&\"8\"))))"
                     cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
                     
                     # Dados FA
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FA - Atestado').font = Font(bold=True)
                     cell_fa = ws_graficos.cell(row=row_data, column=2)
-                    # Referência direta à célula B16
-                    cell_fa.value = "='Porcentagens ABS'!B16"
+                    # Fórmula que busca a coluna da data selecionada dinamicamente
+                    cell_fa.value = "=INDIRECT(\"'Porcentagens ABS'!\"&ADDRESS(16,COLUMN(INDIRECT(\"'Porcentagens ABS'!\"&B3&\"8\"))))"
                     cell_fa.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
                     
                     row_fi_fa_data = row_data
@@ -1477,16 +1477,16 @@ with col_btn_processar:
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=col_grafico_setor, value='M&A / BLOQ').font = Font(bold=True)
                     cell_ma = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
-                    # Referência direta à célula B9
-                    cell_ma.value = "='Porcentagens ABS'!B9"
+                    # Fórmula que busca a coluna da data selecionada dinamicamente
+                    cell_ma.value = "=INDIRECT(\"'Porcentagens ABS'!\"&ADDRESS(9,COLUMN(INDIRECT(\"'Porcentagens ABS'!\"&B3&\"8\"))))"
                     cell_ma.fill = PatternFill(start_color='FFE8F5E0', end_color='FFE8F5E0', fill_type='solid')
                     
                     # Dados CRDK / D&E
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=col_grafico_setor, value='CRDK / D&E').font = Font(bold=True)
                     cell_crdk = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
-                    # Referência direta à célula B11
-                    cell_crdk.value = "='Porcentagens ABS'!B11"
+                    # Fórmula que busca a coluna da data selecionada dinamicamente
+                    cell_crdk.value = "=INDIRECT(\"'Porcentagens ABS'!\"&ADDRESS(11,COLUMN(INDIRECT(\"'Porcentagens ABS'!\"&B3&\"8\"))))"
                     cell_crdk.fill = PatternFill(start_color='FFE6F2FF', end_color='FFE6F2FF', fill_type='solid')
                     
                     row_setor_data = row_data
