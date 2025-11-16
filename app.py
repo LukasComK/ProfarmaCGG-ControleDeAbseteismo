@@ -1287,10 +1287,16 @@ with col_btn_processar:
                     cell_hc_total_label.font = Font(bold=True)
                     cell_hc_total_label.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Replica o HC Total em todas as colunas de data
-                    for data_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
+                    # Replica o HC Total em todas as colunas de data (subtraindo DESLIGADOS)
+                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                        col_data = mapa_datas[data_obj]
+                        data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                        data_col_letter = get_column_letter(data_col_idx)
+                        
                         cell_hc_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
-                        cell_hc_data.value = '=B4+B5'
+                        # Fórmula: HC Total (B4+B5) menos a contagem de DESLIGADO nesta data
+                        # COUNTIF insensível a maiúsculas/minúsculas
+                        cell_hc_data.value = f'=(B4+B5)-COUNTIF(Dados!{data_col_letter}:${data_col_letter},"DESLIGADO")'
                         cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                         cell_hc_data.font = Font(bold=True)
                         cell_hc_data.alignment = Alignment(horizontal='center', vertical='center')
