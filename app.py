@@ -980,20 +980,39 @@ with col_btn_processar:
                                 dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
                                 dia_semana = dias_semana_pt.get(dia_en, dia_en)
                                 
-                                # M&A / BLOQ
-                                # Cria fórmulas SUMPRODUCT para contar com múltiplos critérios
+                                # M&A / BLOQ - Usar ordem específica para evitar duplicação
+                                # 1. PROJETO INTERPRISE (mais específico)
+                                # 2. MOVIMENTACAO (mas EXCLUI PROJETO INTERPRISE)
+                                # 3. BLOQ
+                                # 4. CD-RJ | FOB
                                 fi_ma_bloq_formula = (
-                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'=SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                    f'+SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                    f'+SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                    f'+SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter}))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
                                 )
                                 fa_ma_bloq_formula = (
-                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'=SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                    f'+SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                    f'+SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                    f'+SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter}))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
                                 )
                                 
@@ -1161,9 +1180,13 @@ with col_btn_processar:
                                 f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[2]}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
                             )
                         else:
-                            # Para M&A/BLOQ: simples OR lógico
-                            formula_parts = [f'ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))' for keyword in keywords_setor if keyword]
-                            formula_sumproduct = f"=SUMPRODUCT(({'+'.join(formula_parts)})*1)"
+                            # Para M&A/BLOQ: excluir PROJETO INTERPRISE de MOVIMENTACAO
+                            formula_sumproduct = (
+                                f'=SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[0]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[1]}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[2]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[3]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                            )
                         
                         cell_hc.value = formula_sumproduct
                         cell_hc.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
