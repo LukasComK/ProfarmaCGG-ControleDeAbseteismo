@@ -1437,16 +1437,16 @@ with col_btn_processar:
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FI - Injustificadas').font = Font(bold=True)
                     cell_fi = ws_graficos.cell(row=row_data, column=2)
-                    # Fórmula para buscar FI dinamicamente baseado na data selecionada
-                    cell_fi.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+7),0)'
+                    # Fórmula para buscar FI dinamicamente: busca a coluna da data selecionada na linha 16 (FI)
+                    cell_fi.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!16:16,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
                     cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
                     
                     # Dados FA
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FA - Atestado').font = Font(bold=True)
                     cell_fa = ws_graficos.cell(row=row_data, column=2)
-                    # Fórmula para buscar FA dinamicamente baseado na data selecionada
-                    cell_fa.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+8),0)'
+                    # Fórmula para buscar FA dinamicamente: busca a coluna da data selecionada na linha 17 (FA)
+                    cell_fa.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!17:17,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
                     cell_fa.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
                     
                     row_fi_fa_data = row_data
@@ -1477,16 +1477,16 @@ with col_btn_processar:
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=col_grafico_setor, value='M&A / BLOQ').font = Font(bold=True)
                     cell_ma = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
-                    # Fórmula para M&A / BLOQ (linha 9 das porcentagens)
-                    cell_ma.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+0),0)'
+                    # Fórmula para M&A / BLOQ: busca coluna da data selecionada na linha 9 (M&A / BLOQ)
+                    cell_ma.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!9:9,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
                     cell_ma.fill = PatternFill(start_color='FFE8F5E0', end_color='FFE8F5E0', fill_type='solid')
                     
                     # Dados CRDK / D&E
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=col_grafico_setor, value='CRDK / D&E').font = Font(bold=True)
                     cell_crdk = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
-                    # Fórmula para CRDK / D&E (linha 11 das porcentagens)
-                    cell_crdk.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!$B:$B,MATCH(B$3,\'Porcentagens ABS\'!$B$8:$B$100,0)+2),0)'
+                    # Fórmula para CRDK / D&E: busca coluna da data selecionada na linha 11 (CRDK / D&E)
+                    cell_crdk.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!11:11,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
                     cell_crdk.fill = PatternFill(start_color='FFE6F2FF', end_color='FFE6F2FF', fill_type='solid')
                     
                     row_setor_data = row_data
