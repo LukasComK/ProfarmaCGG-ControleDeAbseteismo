@@ -1230,6 +1230,119 @@ with col_btn_processar:
                     ws_porcentagens.column_dimensions['E'].width = 20
                     ws_porcentagens.column_dimensions['F'].width = 20
                     
+                    # ===== CRIAR GUIA PORCENTAGENS DIÁRIAS =====
+                    ws_pct_diarias = w.book.create_sheet('Porcentagens Diárias')
+                    
+                    # Linha 1: Título
+                    ws_pct_diarias.merge_cells('A1:Z1')
+                    titulo_diarias = ws_pct_diarias.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO - DIÁRIO')
+                    titulo_diarias.font = Font(bold=True, size=14, color='FFFFFF')
+                    titulo_diarias.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                    
+                    # Linha 3: Headers com datas
+                    ws_pct_diarias.cell(row=3, column=1, value='Área')
+                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                        data_formatada = data_obj.strftime('%d/%m') if isinstance(data_obj, datetime.date) else str(data_obj)
+                        cell_header = ws_pct_diarias.cell(row=3, column=data_idx, value=data_formatada)
+                        cell_header.font = Font(bold=True, color='FFFFFF', size=10)
+                        cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        cell_header.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Formata header coluna Área
+                    cell_area_header = ws_pct_diarias.cell(row=3, column=1)
+                    cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
+                    cell_area_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell_area_header.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Setores e suas keywords
+                    setores_info_pct = [
+                        ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
+                        ('M&A / BLOQ - Porcentagem', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
+                        ('CRDK / D&E', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', '']),
+                        ('CRDK / D&E - Porcentagem', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', ''])
+                    ]
+                    
+                    row_pct = 4
+                    area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
+                    
+                    # Dicionário para armazenar HCs para referência
+                    hc_ma_bloq = None
+                    hc_crdk_de = None
+                    
+                    for setor_idx, (setor_nome, keywords_setor) in enumerate(setores_info_pct):
+                        # Nome do setor
+                        cell_setor = ws_pct_diarias.cell(row=row_pct, column=1, value=setor_nome)
+                        if 'Porcentagem' in setor_nome:
+                            cell_setor.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
+                        else:
+                            cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                        cell_setor.font = Font(bold=True)
+                        
+                        # Preenche cada data
+                        for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                            col_data = mapa_datas[data_obj]
+                            data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                            data_col_letter = get_column_letter(data_col_idx)
+                            
+                            cell = ws_pct_diarias.cell(row=row_pct, column=data_idx)
+                            
+                            if 'Porcentagem' not in setor_nome:
+                                # Linhas de contagem FI+FA
+                                if setor_nome == 'M&A / BLOQ':
+                                    formula = (
+                                        f'=SUMPRODUCT('
+                                        f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
+                                        f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                    )
+                                else:  # CRDK / D&E
+                                    formula = (
+                                        f'=SUMPRODUCT('
+                                        f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
+                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                    )
+                                
+                                cell.value = formula
+                                cell.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                            else:
+                                # Linhas de porcentagem: (contagem / HC) * 100
+                                # Determina qual linha de contagem usar e qual HC usar
+                                if 'M&A / BLOQ - Porcentagem' in setor_nome:
+                                    contagem_row = row_pct - 1  # Linha anterior (M&A / BLOQ)
+                                    hc_formula = (
+                                        f'=SUMPRODUCT(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                        f'+SUMPRODUCT(ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                                        f'+SUMPRODUCT(ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                    )
+                                else:  # CRDK / D&E - Porcentagem
+                                    contagem_row = row_pct - 1  # Linha anterior (CRDK / D&E)
+                                    hc_formula = (
+                                        f'=SUMPRODUCT(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                        f'+SUMPRODUCT(ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                                    )
+                                
+                                # Fórmula de porcentagem: (contagem / HC) * 100
+                                col_letter = get_column_letter(data_idx)
+                                formula_pct = f'=IFERROR(({col_letter}{contagem_row}/({hc_formula}))*100,0)'
+                                cell.value = formula_pct
+                                cell.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                                cell.number_format = '0.00"%"'
+                            
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                        
+                        row_pct += 1
+                    
+                    # Ajusta largura das colunas
+                    ws_pct_diarias.column_dimensions['A'].width = 25
+                    for col_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
+                        ws_pct_diarias.column_dimensions[get_column_letter(col_idx)].width = 12
+                    
                     out.seek(0)
                 
                 # Gera nome do arquivo no padrão solicitado
