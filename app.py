@@ -1025,17 +1025,36 @@ with col_btn_processar:
                                 cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                 row_departamento += 1
                                 
-                                # CRDK / D&E
+                                # CRDK / D&E - Usar ordem específica para evitar duplicação
+                                # 1. CROSSDOCK (mais específico)
+                                # 2. CRDK D&E|CD-RJ HB
+                                # 3. DISTRIBUICAO E EXPEDICAO (mas EXCLUI o que já foi contado em CROSSDOCK)
                                 fi_crdk_de_formula = (
-                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'=SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                    f'+'
+                                    f'SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                    f'+'
+                                    f'SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
                                 )
                                 fa_crdk_de_formula = (
-                                    f'=SUMPRODUCT((ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'=SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                    f'+'
+                                    f'SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                    f'+'
+                                    f'SUMPRODUCT('
+                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*'
+                                    f'NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
                                 )
                                 
@@ -1116,10 +1135,11 @@ with col_btn_processar:
                     # Setores
                     setores_info = [
                         ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
-                        ('CRDK / D&E', ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'DISTRIBUICAO E EXPEDICAO', ''])
+                        ('CRDK / D&E', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', ''])
                     ]
                     
                     row_porcentagens = 4
+                    area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
                     
                     for setor_nome, keywords_setor in setores_info:
                         # Nome do setor (verde suave)
@@ -1127,15 +1147,23 @@ with col_btn_processar:
                         cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                         cell_setor.font = Font(bold=True)
                         
-                        # HC - Contar colaboradores únicos de cada setor
+                        # HC - Contar colaboradores únicos de cada setor (evitando duplicação por substring)
                         cell_hc = ws_porcentagens.cell(row=row_porcentagens, column=2)
                         
-                        # Construir fórmula usando SUMPRODUCT simples
-                        area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
-                        
-                        # Fórmula: soma dos critérios de busca por setor
-                        formula_parts = [f'ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))' for keyword in keywords_setor if keyword]
-                        formula_sumproduct = f"=SUMPRODUCT(({'+'.join(formula_parts)})*1)"
+                        # Para CRDK/D&E: precisa excluir "CROSSDOCK" de "DISTRIBUICAO" para evitar duplicação
+                        if setor_nome == 'CRDK / D&E':
+                            # Keyword 1: CROSSDOCK
+                            # Keyword 2: CRDK D&E
+                            # Keyword 3: DISTRIBUICAO (mas NÃO que contém CROSSDOCK)
+                            formula_sumproduct = (
+                                f'=SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[0]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[1]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[2]}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                            )
+                        else:
+                            # Para M&A/BLOQ: simples OR lógico
+                            formula_parts = [f'ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))' for keyword in keywords_setor if keyword]
+                            formula_sumproduct = f"=SUMPRODUCT(({'+'.join(formula_parts)})*1)"
                         
                         cell_hc.value = formula_sumproduct
                         cell_hc.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
