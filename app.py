@@ -1135,100 +1135,121 @@ with col_btn_processar:
                     titulo_cell = ws_porcentagens.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO')
                     titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
                     titulo_cell.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
-                    ws_porcentagens.merge_cells('A1:C1')
+                    ws_porcentagens.merge_cells('A1:F1')
                     
                     # Linha 3: Headers
                     ws_porcentagens.cell(row=3, column=1, value='Área')
-                    ws_porcentagens.cell(row=3, column=2, value='HC')
-                    ws_porcentagens.cell(row=3, column=3, value='Debug: Keyword 1')
-                    ws_porcentagens.cell(row=3, column=4, value='Debug: Keyword 2')
-                    ws_porcentagens.cell(row=3, column=5, value='Debug: Keyword 3')
-                    ws_porcentagens.cell(row=3, column=6, value='Debug: Keyword 4')
+                    area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
                     
-                    for col_idx in range(1, 7):
-                        cell = ws_porcentagens.cell(row=3, column=col_idx)
-                        cell.font = Font(bold=True, color='FFFFFF', size=10)
-                        cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
-                        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                    # Adiciona headers com datas
+                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                        data_formatada = data_obj.strftime('%d/%m') if isinstance(data_obj, datetime.date) else str(data_obj)
+                        cell_header = ws_porcentagens.cell(row=3, column=data_idx, value=data_formatada)
+                        cell_header.font = Font(bold=True, color='FFFFFF', size=10)
+                        cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        cell_header.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Setores
+                    # Formata header coluna Área
+                    cell_area_header = ws_porcentagens.cell(row=3, column=1)
+                    cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
+                    cell_area_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell_area_header.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Setores e suas keywords
                     setores_info = [
                         ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
                         ('CRDK / D&E', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', ''])
                     ]
                     
                     row_porcentagens = 4
-                    area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
+                    hc_row_map = {}  # Armazena linha do HC para cada setor
                     
+                    # Preenche linhas de dados (FI + FA) e porcentagens
                     for setor_nome, keywords_setor in setores_info:
-                        # Nome do setor (verde suave)
+                        # Linha 1: Nome do setor + valores FI+FA por data
                         cell_setor = ws_porcentagens.cell(row=row_porcentagens, column=1, value=setor_nome)
                         cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                         cell_setor.font = Font(bold=True)
                         
-                        # HC - Contar colaboradores únicos de cada setor (evitando duplicação por substring)
-                        cell_hc = ws_porcentagens.cell(row=row_porcentagens, column=2)
+                        # Armazena linha do HC para usar na porcentagem depois
+                        hc_row_map[setor_nome] = row_porcentagens
                         
-                        # Para CRDK/D&E: precisa excluir "CROSSDOCK" de "DISTRIBUICAO" para evitar duplicação
-                        if setor_nome == 'CRDK / D&E':
-                            # Keyword 1: CROSSDOCK
-                            # Keyword 2: CRDK D&E
-                            # Keyword 3: DISTRIBUICAO (mas NÃO que contém CROSSDOCK)
-                            formula_sumproduct = (
-                                f'=SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[0]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[1]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[2]}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
-                            )
-                        else:
-                            # Para M&A/BLOQ: excluir PROJETO INTERPRISE de MOVIMENTACAO
-                            formula_sumproduct = (
-                                f'=SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[0]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[1]}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
-                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[2]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                                f'+SUMPRODUCT(ISNUMBER(SEARCH("{keywords_setor[3]}",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                            )
+                        # Preenche cada data com formula de FI+FA
+                        for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                            col_data = mapa_datas[data_obj]
+                            data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                            data_col_letter = get_column_letter(data_col_idx)
+                            
+                            # Formula: Conta FI + FA para este setor nesta data
+                            if setor_nome == 'M&A / BLOQ':
+                                formula = (
+                                    f'=SUMPRODUCT('
+                                    f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
+                                    f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
+                                    f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
+                                    f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                )
+                            else:  # CRDK / D&E
+                                formula = (
+                                    f'=SUMPRODUCT('
+                                    f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
+                                    f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
+                                    f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
+                                    f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                )
+                            
+                            cell = ws_porcentagens.cell(row=row_porcentagens, column=data_idx, value=formula)
+                            cell.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
                         
-                        cell_hc.value = formula_sumproduct
-                        cell_hc.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
-                        cell_hc.alignment = Alignment(horizontal='center', vertical='center')
+                        row_porcentagens += 1
                         
-                        # DEBUG: Mostrar contagem individual de cada keyword
-                        for col_debug_idx, keyword in enumerate(keywords_setor, start=3):
-                            cell_debug = ws_porcentagens.cell(row=row_porcentagens, column=col_debug_idx)
-                            if keyword:
-                                # Aplica mesma lógica de exclusão no debug
-                                if setor_nome == 'CRDK / D&E' and col_debug_idx == 5:  # Keyword 3 para CRDK
-                                    formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
-                                elif setor_nome == 'M&A / BLOQ' and col_debug_idx == 3:  # Keyword 1 para M&A
-                                    formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
-                                elif setor_nome == 'M&A / BLOQ' and col_debug_idx == 4:  # Keyword 2 para M&A
-                                    formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                                else:
-                                    formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                                cell_debug.value = formula_debug
-                                cell_debug.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')  # Amarelo claro
-                                cell_debug.alignment = Alignment(horizontal='center', vertical='center')
+                        # Linha 2: Porcentagem = FI+FA / HC * 100
+                        cell_pct = ws_porcentagens.cell(row=row_porcentagens, column=1, value=f'{setor_nome} - Porcentagem')
+                        cell_pct.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
+                        cell_pct.font = Font(bold=True, italic=True)
+                        
+                        # Calcula HC do setor (para usar no denominador)
+                        hc_row = hc_row_map[setor_nome]
+                        
+                        # Preenche porcentagens
+                        for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                            # Formula: (Valor_FI_FA / HC) * 100
+                            formula_pct = f'=IFERROR({get_column_letter(data_idx)}{hc_row}/B$1*100,0)'
+                            
+                            # B$1 será preenchido com HC no final
+                            cell_pct_valor = ws_porcentagens.cell(row=row_porcentagens, column=data_idx, value=formula_pct)
+                            cell_pct_valor.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                            cell_pct_valor.number_format = '0.00"%"'
+                            cell_pct_valor.alignment = Alignment(horizontal='center', vertical='center')
                         
                         row_porcentagens += 1
                     
-                    # Linha de Total
-                    ws_porcentagens.cell(row=row_porcentagens, column=1, value='TOTAL')
-                    ws_porcentagens.cell(row=row_porcentagens, column=1).font = Font(bold=True)
-                    ws_porcentagens.cell(row=row_porcentagens, column=1).fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    # Adiciona HCs na primeira linha de dados (linha 1) para referência na fórmula de porcentagem
+                    # M&A / BLOQ HC
+                    hc_ma_bloq = (
+                        f'=SUMPRODUCT(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                        f'+SUMPRODUCT(ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                        f'+SUMPRODUCT(ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                    )
                     
-                    cell_total = ws_porcentagens.cell(row=row_porcentagens, column=2)
-                    cell_total.value = f'=SUM(B4:B{row_porcentagens-1})'
-                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                    cell_total.font = Font(bold=True)
-                    cell_total.alignment = Alignment(horizontal='center', vertical='center')
+                    # CRDK / D&E HC
+                    hc_crdk_de = (
+                        f'=SUMPRODUCT(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                        f'+SUMPRODUCT(ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                    )
+                    
+                    # Linha oculta para armazenar HCs (linha 2)
+                    ws_porcentagens.cell(row=1, column=2, value=hc_ma_bloq)  # B1 = HC M&A / BLOQ
+                    ws_porcentagens.cell(row=1, column=3, value=hc_crdk_de)   # C1 = HC CRDK / D&E
                     
                     # Ajusta largura das colunas
-                    ws_porcentagens.column_dimensions['A'].width = 20
-                    ws_porcentagens.column_dimensions['B'].width = 15
-                    ws_porcentagens.column_dimensions['C'].width = 20
-                    ws_porcentagens.column_dimensions['D'].width = 20
-                    ws_porcentagens.column_dimensions['E'].width = 20
-                    ws_porcentagens.column_dimensions['F'].width = 20
+                    ws_porcentagens.column_dimensions['A'].width = 25
+                    for col_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
+                        ws_porcentagens.column_dimensions[get_column_letter(col_idx)].width = 12
                     
                     out.seek(0)
                 
