@@ -1437,16 +1437,16 @@ with col_btn_processar:
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FI - Injustificadas').font = Font(bold=True)
                     cell_fi = ws_graficos.cell(row=row_data, column=2)
-                    # Fórmula para buscar FI dinamicamente: busca a coluna da data selecionada na linha 16 (FI)
-                    cell_fi.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!16:16,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
+                    # Fórmula para buscar FI dinamicamente: busca a coluna da data selecionada na linha 15 (FI)
+                    cell_fi.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!15:15,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
                     cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
                     
                     # Dados FA
                     row_data += 1
                     ws_graficos.cell(row=row_data, column=1, value='FA - Atestado').font = Font(bold=True)
                     cell_fa = ws_graficos.cell(row=row_data, column=2)
-                    # Fórmula para buscar FA dinamicamente: busca a coluna da data selecionada na linha 17 (FA)
-                    cell_fa.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!17:17,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
+                    # Fórmula para buscar FA dinamicamente: busca a coluna da data selecionada na linha 16 (FA)
+                    cell_fa.value = f'=IFERROR(INDEX(\'Porcentagens ABS\'!16:16,MATCH(B$3,\'Porcentagens ABS\'!$8:$8,0)),0)'
                     cell_fa.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
                     
                     row_fi_fa_data = row_data
