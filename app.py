@@ -936,8 +936,8 @@ with col_btn_processar:
                     ws_relatorio.merge_cells(f'A{row_departamento}:H{row_departamento}')
                     
                     # Mapeia setores para departamentos
-                    setores_ma_bloq = ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ']
-                    setores_crdk_de = ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'DISTRIBUICAO E EXPEDICAO', 'CD-RJ | FOB']
+                    setores_ma_bloq = ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']
+                    setores_crdk_de = ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'DISTRIBUICAO E EXPEDICAO']
                     
                     # Headers do resumo por departamento (com datas)
                     row_departamento += 1
@@ -985,13 +985,15 @@ with col_btn_processar:
                                 fi_ma_bloq_formula = (
                                     f'=SUMPRODUCT((ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
                                     f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
                                 )
                                 fa_ma_bloq_formula = (
                                     f'=SUMPRODUCT((ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
                                     f'ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))+'
+                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
                                 )
                                 
@@ -1027,15 +1029,13 @@ with col_btn_processar:
                                 fi_crdk_de_formula = (
                                     f'=SUMPRODUCT((ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))+'
                                     f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter})))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
                                 )
                                 fa_crdk_de_formula = (
                                     f'=SUMPRODUCT((ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))+'
                                     f'ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))+'
-                                    f'ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                    f'ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter})))*'
                                     f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
                                 )
                                 
@@ -1111,8 +1111,8 @@ with col_btn_processar:
                     
                     # Setores
                     setores_info = [
-                        ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ']),
-                        ('CRDK / D&E', ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'DISTRIBUICAO E EXPEDICAO', 'CD-RJ | FOB'])
+                        ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
+                        ('CRDK / D&E', ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'DISTRIBUICAO E EXPEDICAO'])
                     ]
                     
                     row_porcentagens = 4
