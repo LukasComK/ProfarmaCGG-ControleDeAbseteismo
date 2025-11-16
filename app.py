@@ -1196,7 +1196,13 @@ with col_btn_processar:
                         for col_debug_idx, keyword in enumerate(keywords_setor, start=3):
                             cell_debug = ws_porcentagens.cell(row=row_porcentagens, column=col_debug_idx)
                             if keyword:
-                                formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                # Aplica mesma lógica de exclusão no debug
+                                if setor_nome == 'CRDK / D&E' and col_debug_idx == 5:  # Keyword 3 para CRDK
+                                    formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                                elif setor_nome == 'M&A / BLOQ' and col_debug_idx == 4:  # Keyword 2 para M&A
+                                    formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                                else:
+                                    formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*1)'
                                 cell_debug.value = formula_debug
                                 cell_debug.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')  # Amarelo claro
                                 cell_debug.alignment = Alignment(horizontal='center', vertical='center')
