@@ -1376,12 +1376,12 @@ with col_btn_processar:
                     cell_meta_hc = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_meta_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
-                    # Valor 3% para todos os dias (AMARELO)
+                    # Valor 3% para todos os dias (VERDE FORTE)
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         cell_meta_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
                         cell_meta_data.value = 3
-                        cell_meta_data.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
-                        cell_meta_data.font = Font(bold=True)
+                        cell_meta_data.fill = PatternFill(start_color='FF70AD47', end_color='FF70AD47', fill_type='solid')
+                        cell_meta_data.font = Font(bold=True, color='FFFFFFFF')
                         cell_meta_data.number_format = '0.00"%"'
                         cell_meta_data.alignment = Alignment(horizontal='center', vertical='center')
                     
@@ -1389,12 +1389,12 @@ with col_btn_processar:
                     
                     # Linha de %Acumulado - TOTAL / HC Total
                     cell_acum_label = ws_porcentagens.cell(row=row_pct, column=1, value='%Acumulado')
-                    cell_acum_label.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                    cell_acum_label.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     cell_acum_label.font = Font(bold=True, color='FFFFFFFF')
                     
                     # Célula vazia em B
                     cell_acum_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_acum_hc.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                    cell_acum_hc.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     
                     # Soma acumulada de faltas / HC Total * 100
                     # Cores condicionais: Verde <3%, Amarelo 3-3.5%, Vermelho >3.5%
