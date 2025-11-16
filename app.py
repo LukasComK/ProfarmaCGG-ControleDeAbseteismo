@@ -1102,17 +1102,21 @@ with col_btn_processar:
                     # Linha 3: Headers
                     ws_porcentagens.cell(row=3, column=1, value='Área')
                     ws_porcentagens.cell(row=3, column=2, value='HC')
+                    ws_porcentagens.cell(row=3, column=3, value='Debug: Keyword 1')
+                    ws_porcentagens.cell(row=3, column=4, value='Debug: Keyword 2')
+                    ws_porcentagens.cell(row=3, column=5, value='Debug: Keyword 3')
+                    ws_porcentagens.cell(row=3, column=6, value='Debug: Keyword 4')
                     
-                    for col_idx in range(1, 3):
+                    for col_idx in range(1, 7):
                         cell = ws_porcentagens.cell(row=3, column=col_idx)
-                        cell.font = Font(bold=True, color='FFFFFF', size=11)
+                        cell.font = Font(bold=True, color='FFFFFF', size=10)
                         cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
-                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
                     
                     # Setores
                     setores_info = [
                         ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
-                        ('CRDK / D&E', ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'DISTRIBUICAO E EXPEDICAO'])
+                        ('CRDK / D&E', ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'DISTRIBUICAO E EXPEDICAO', ''])
                     ]
                     
                     row_porcentagens = 4
@@ -1129,13 +1133,22 @@ with col_btn_processar:
                         # Construir fórmula usando SUMPRODUCT simples
                         area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
                         
-                        # Fórmula: soma dos critérios de busca por setor (já conta apenas linhas que existem)
-                        formula_parts = [f'ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))' for keyword in keywords_setor]
+                        # Fórmula: soma dos critérios de busca por setor
+                        formula_parts = [f'ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))' for keyword in keywords_setor if keyword]
                         formula_sumproduct = f"=SUMPRODUCT(({'+'.join(formula_parts)})*1)"
                         
                         cell_hc.value = formula_sumproduct
                         cell_hc.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                         cell_hc.alignment = Alignment(horizontal='center', vertical='center')
+                        
+                        # DEBUG: Mostrar contagem individual de cada keyword
+                        for col_debug_idx, keyword in enumerate(keywords_setor, start=3):
+                            cell_debug = ws_porcentagens.cell(row=row_porcentagens, column=col_debug_idx)
+                            if keyword:
+                                formula_debug = f'=SUMPRODUCT(ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                cell_debug.value = formula_debug
+                                cell_debug.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')  # Amarelo claro
+                                cell_debug.alignment = Alignment(horizontal='center', vertical='center')
                         
                         row_porcentagens += 1
                     
@@ -1153,6 +1166,10 @@ with col_btn_processar:
                     # Ajusta largura das colunas
                     ws_porcentagens.column_dimensions['A'].width = 20
                     ws_porcentagens.column_dimensions['B'].width = 15
+                    ws_porcentagens.column_dimensions['C'].width = 20
+                    ws_porcentagens.column_dimensions['D'].width = 20
+                    ws_porcentagens.column_dimensions['E'].width = 20
+                    ws_porcentagens.column_dimensions['F'].width = 20
                     
                     out.seek(0)
                 
