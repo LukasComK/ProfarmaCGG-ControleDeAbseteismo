@@ -9,6 +9,7 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.utils import get_column_letter
 from difflib import SequenceMatcher
+import plotly.express as px
 
 def eh_fim_de_semana(data):
     """Retorna True se é sábado (5) ou domingo (6)"""
@@ -1500,6 +1501,28 @@ with col_btn_processar:
                     ws_graficos.column_dimensions['E'].width = 25
                     ws_graficos.column_dimensions['F'].width = 15
                     
+                    # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
+                    from openpyxl.styles import Border, Side
+                    
+                    # Define borda vazia
+                    no_border = Border(
+                        left=Side(style=None),
+                        right=Side(style=None),
+                        top=Side(style=None),
+                        bottom=Side(style=None)
+                    )
+                    white_fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
+                    
+                    # Aplica a todas as abas
+                    for ws in w.book.sheetnames:
+                        worksheet = w.book[ws]
+                        for row in worksheet.iter_rows():
+                            for cell in row:
+                                cell.border = no_border
+                                # Só muda background se não tiver cor específica atribuída (mantém cores de header e dados)
+                                if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
+                                    cell.fill = white_fill
+                    
                     out.seek(0)
                 
                 # Gera nome do arquivo no padrão solicitado
@@ -1510,6 +1533,82 @@ with col_btn_processar:
                 mes_nome = meses_nomes.get(mes, 'Mês')
                 nome_arquivo = f"{mes:02d}- Controle de Absenteismo - {mes_nome}.xlsx"
                 
+                st.divider()
+                st.subheader("📊 Análise de Gráficos")
+                
+                # Selectbox para escolher a data
+                datas_disponiveis = sorted(mapa_datas.keys())
+                datas_formatadas = [d.strftime('%d/%m/%Y - %A') for d in datas_disponiveis]
+                
+                col_select, col_spacer = st.columns([2, 3])
+                with col_select:
+                    data_selecionada_idx = st.selectbox(
+                        "📅 Selecione uma data para análise detalhada:",
+                        range(len(datas_disponiveis)),
+                        format_func=lambda i: datas_formatadas[i]
+                    )
+                
+                data_selecionada = datas_disponiveis[data_selecionada_idx]
+                col_data_selecionada = mapa_datas[data_selecionada]
+                
+                if col_data_selecionada in df_mest.columns:
+                    # Cria gráficos filtrados pela data selecionada
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Conta FI e FA para a data selecionada
+                        fi_data = (df_mest[col_data_selecionada] == 'FI').sum()
+                        fa_data = (df_mest[col_data_selecionada] == 'FA').sum()
+                        
+                        # Dados para o gráfico de pizza
+                        dados_tipo = pd.DataFrame({
+                            'Tipo': ['FI - Injustificadas', 'FA - Atestado'],
+                            'Quantidade': [fi_data, fa_data]
+                        })
+                        dados_tipo = dados_tipo[dados_tipo['Quantidade'] > 0]
+                        
+                        if not dados_tipo.empty:
+                            st.metric("📌 FI (Injustificadas)", fi_data)
+                            fig1 = px.pie(dados_tipo, values='Quantidade', names='Tipo', 
+                                         title=f"Faltas por Tipo - {data_selecionada.strftime('%d/%m/%Y')}",
+                                         color_discrete_map={'FI - Injustificadas': '#D32F2F', 'FA - Atestado': '#FBC02D'})
+                            st.plotly_chart(fig1, use_container_width=True)
+                        else:
+                            st.info("✅ Nenhuma falta registrada para esta data.")
+                    
+                    with col2:
+                        # Conta faltas por setor para a data selecionada
+                        area_col_idx = list(df_mest_final.columns).index('AREA') + 1
+                        area_col_letter = get_column_letter(area_col_idx)
+                        
+                        # M&A / BLOQ faltas
+                        df_ma_bloq = df_mest[
+                            (df_mest['AREA'].astype(str).str.contains('PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM|MOVIMENTACAO E ARMAZENAGEM|BLOQ|CD-RJ \\| FOB', case=False, na=False, regex=True))
+                        ]
+                        faltas_ma_bloq = ((df_ma_bloq[col_data_selecionada] == 'FI') | (df_ma_bloq[col_data_selecionada] == 'FA')).sum()
+                        
+                        # CRDK / D&E faltas
+                        df_crdk_de = df_mest[
+                            (df_mest['AREA'].astype(str).str.contains('CROSSDOCK DISTRIBUICAO E EXPEDICAO|CRDK D&E\\|CD-RJ HB|DISTRIBUICAO E EXPEDICAO', case=False, na=False, regex=True))
+                        ]
+                        faltas_crdk_de = ((df_crdk_de[col_data_selecionada] == 'FI') | (df_crdk_de[col_data_selecionada] == 'FA')).sum()
+                        
+                        dados_setor = pd.DataFrame({
+                            'Setor': ['M&A / BLOQ', 'CRDK / D&E'],
+                            'Faltas': [faltas_ma_bloq, faltas_crdk_de]
+                        })
+                        dados_setor = dados_setor[dados_setor['Faltas'] > 0]
+                        
+                        if not dados_setor.empty:
+                            st.metric("🏢 M&A / BLOQ", faltas_ma_bloq)
+                            fig2 = px.pie(dados_setor, values='Faltas', names='Setor',
+                                         title=f"Faltas por Setor - {data_selecionada.strftime('%d/%m/%Y')}",
+                                         color_discrete_map={'M&A / BLOQ': '#2E7D32', 'CRDK / D&E': '#1976D2'})
+                            st.plotly_chart(fig2, use_container_width=True)
+                        else:
+                            st.info("✅ Nenhuma falta registrada para esta data.")
+                
+                st.divider()
                 st.download_button(
                     "📥 Download - Planilha MESTRA Completa",
                     out.getvalue(),
