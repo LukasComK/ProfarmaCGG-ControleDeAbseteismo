@@ -865,10 +865,10 @@ with col_btn_processar:
                     ws_relatorio.cell(row=2, column=4, value=f"{mes:02d}/{ano}")
                     
                     # Linha 4: Resumo por Dia
-                    ws_relatorio.cell(row=4, column=1, value='RESUMO POR DIA')
-                    ws_relatorio.cell(row=4, column=1).font = Font(bold=True, size=12)
-                    ws_relatorio.cell(row=4, column=1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     ws_relatorio.merge_cells('A4:F4')
+                    cell_resumo = ws_relatorio.cell(row=4, column=1, value='RESUMO POR DIA')
+                    cell_resumo.font = Font(bold=True, size=12)
+                    cell_resumo.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
                     # Headers da tabela de resumo
                     headers_resumo = ['Data', 'Dia', 'FI', 'FA', 'FÉRIAS-BH', 'Total']
@@ -930,10 +930,10 @@ with col_btn_processar:
                     
                     # Linha de Resumo por Departamento (DIÁRIO)
                     row_departamento = row_idx + 2
-                    ws_relatorio.cell(row=row_departamento, column=1, value='RESUMO POR DEPARTAMENTO (DIÁRIO)')
-                    ws_relatorio.cell(row=row_departamento, column=1).font = Font(bold=True, size=12)
-                    ws_relatorio.cell(row=row_departamento, column=1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     ws_relatorio.merge_cells(f'A{row_departamento}:H{row_departamento}')
+                    cell_depto = ws_relatorio.cell(row=row_departamento, column=1, value='RESUMO POR DEPARTAMENTO (DIÁRIO)')
+                    cell_depto.font = Font(bold=True, size=12)
+                    cell_depto.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
                     # Mapeia setores para departamentos
                     setores_ma_bloq = ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']
@@ -1107,10 +1107,10 @@ with col_btn_processar:
                     
                     # Linha de Não Encontrados
                     row_nao_encontrados = row_departamento + 2
-                    ws_relatorio.cell(row=row_nao_encontrados, column=1, value='COLABORADORES NÃO ENCONTRADOS')
-                    ws_relatorio.cell(row=row_nao_encontrados, column=1).font = Font(bold=True, size=12)
-                    ws_relatorio.cell(row=row_nao_encontrados, column=1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     ws_relatorio.merge_cells(f'A{row_nao_encontrados}:D{row_nao_encontrados}')
+                    cell_nao_encontrados = ws_relatorio.cell(row=row_nao_encontrados, column=1, value='COLABORADORES NÃO ENCONTRADOS')
+                    cell_nao_encontrados.font = Font(bold=True, size=12)
+                    cell_nao_encontrados.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
                     row_nao_encontrados += 1
                     if colaboradores_nao_encontrados:
@@ -1132,10 +1132,10 @@ with col_btn_processar:
                     ws_porcentagens = w.book.create_sheet('Porcentagens ABS')
                     
                     # Linha 1: Título
+                    ws_porcentagens.merge_cells('A1:F1')
                     titulo_cell = ws_porcentagens.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO')
                     titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
                     titulo_cell.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
-                    ws_porcentagens.merge_cells('A1:F1')
                     
                     # Linha 3: Headers
                     ws_porcentagens.cell(row=3, column=1, value='Área')
