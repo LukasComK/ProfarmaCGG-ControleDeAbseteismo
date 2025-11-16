@@ -1324,12 +1324,12 @@ with col_btn_processar:
                     
                     # Linha de FI - Faltas Injustificadas
                     cell_fi_label = ws_porcentagens.cell(row=row_pct, column=1, value='FI - Faltas Injustificadas')
-                    cell_fi_label.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    cell_fi_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     cell_fi_label.font = Font(bold=True)
                     
                     # HC vazio para FI
                     cell_fi_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_fi_hc.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    cell_fi_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
                     # Soma de FI por data (soma das linhas 9 e 11 de FI apenas)
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
@@ -1347,12 +1347,12 @@ with col_btn_processar:
                     
                     # Linha de FA - Faltas por Atestado
                     cell_fa_label = ws_porcentagens.cell(row=row_pct, column=1, value='FA - Faltas por Atestado')
-                    cell_fa_label.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    cell_fa_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     cell_fa_label.font = Font(bold=True)
                     
                     # HC vazio para FA
                     cell_fa_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_fa_hc.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    cell_fa_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
                     # Soma de FA por data
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
@@ -1369,18 +1369,18 @@ with col_btn_processar:
                     
                     # Linha de META - sempre 3%
                     cell_meta_label = ws_porcentagens.cell(row=row_pct, column=1, value='META')
-                    cell_meta_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    cell_meta_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     cell_meta_label.font = Font(bold=True)
                     
                     # Célula vazia em B (não faz sentido HC para META)
                     cell_meta_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_meta_hc.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    cell_meta_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
-                    # Valor 3% para todos os dias
+                    # Valor 3% para todos os dias (AMARELO)
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         cell_meta_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
                         cell_meta_data.value = 3
-                        cell_meta_data.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                        cell_meta_data.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
                         cell_meta_data.font = Font(bold=True)
                         cell_meta_data.number_format = '0.00"%"'
                         cell_meta_data.alignment = Alignment(horizontal='center', vertical='center')
@@ -1389,24 +1389,46 @@ with col_btn_processar:
                     
                     # Linha de %Acumulado - TOTAL / HC Total
                     cell_acum_label = ws_porcentagens.cell(row=row_pct, column=1, value='%Acumulado')
-                    cell_acum_label.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
-                    cell_acum_label.font = Font(bold=True)
+                    cell_acum_label.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                    cell_acum_label.font = Font(bold=True, color='FFFFFFFF')
                     
                     # Célula vazia em B
                     cell_acum_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_acum_hc.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                    cell_acum_hc.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                     
                     # Soma acumulada de faltas / HC Total * 100
-                    # Usa o HC Total (row_total_hc) para dividir
+                    # Cores condicionais: Verde <3%, Amarelo 3-3.5%, Vermelho >3.5%
+                    row_acumulado = row_pct
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         cell_acum_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
                         col_letter = get_column_letter(data_idx)
                         # Referencia: célula do TOTAL (row_total_faltas) / HC Total (B4+B5 em row_total_hc) * 100
                         cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/B{row_total_hc})*100,0)'
-                        cell_acum_data.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
                         cell_acum_data.font = Font(bold=True)
                         cell_acum_data.number_format = '0.00"%"'
                         cell_acum_data.alignment = Alignment(horizontal='center', vertical='center')
+                        # Cor padrão: será sobrescrita pelas regras condicionais
+                        cell_acum_data.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                    
+                    # Adiciona regras condicionais para %Acumulado
+                    from openpyxl.formatting.rule import CellIsRule
+                    # Verde: < 3%
+                    green_fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                    green_rule = CellIsRule(operator='lessThan', formula=['3'], fill=green_fill)
+                    
+                    # Amarelo: >= 3% e <= 3.5%
+                    yellow_fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                    yellow_rule = CellIsRule(operator='between', formula=['3', '3.5'], fill=yellow_fill)
+                    
+                    # Vermelho: > 3.5%
+                    red_fill = PatternFill(start_color='FFFFCCCC', end_color='FFFFCCCC', fill_type='solid')
+                    red_rule = CellIsRule(operator='greaterThan', formula=['3.5'], fill=red_fill)
+                    
+                    # Aplica as regras ao intervalo de %Acumulado
+                    acum_range = f'{get_column_letter(2)}{row_acumulado}:{get_column_letter(len(sorted(mapa_datas.keys()))+1)}{row_acumulado}'
+                    ws_porcentagens.conditional_formatting.add(acum_range, green_rule)
+                    ws_porcentagens.conditional_formatting.add(acum_range, yellow_rule)
+                    ws_porcentagens.conditional_formatting.add(acum_range, red_rule)
                     
                     # Ajusta largura das colunas
                     ws_porcentagens.column_dimensions['A'].width = 25
