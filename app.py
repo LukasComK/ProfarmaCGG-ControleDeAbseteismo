@@ -1181,17 +1181,28 @@ with col_btn_processar:
                     cell_hc_crdk.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                     cell_hc_crdk.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Linha 7: Headers com datas para porcentagens
-                    ws_porcentagens.cell(row=7, column=1, value='Área')
+                    # Linha 6: TOTAL HC
+                    cell_total_hc_label = ws_porcentagens.cell(row=6, column=1, value='TOTAL HC')
+                    cell_total_hc_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    cell_total_hc_label.font = Font(bold=True)
+                    
+                    cell_total_hc_value = ws_porcentagens.cell(row=6, column=2)
+                    cell_total_hc_value.value = '=B4+B5'
+                    cell_total_hc_value.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_total_hc_value.font = Font(bold=True)
+                    cell_total_hc_value.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Linha 8: Headers com datas para porcentagens
+                    ws_porcentagens.cell(row=8, column=1, value='Área')
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         data_formatada = data_obj.strftime('%d/%m') if isinstance(data_obj, datetime.date) else str(data_obj)
-                        cell_header = ws_porcentagens.cell(row=7, column=data_idx, value=data_formatada)
+                        cell_header = ws_porcentagens.cell(row=8, column=data_idx, value=data_formatada)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
                         cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Formata header coluna Área
-                    cell_area_header = ws_porcentagens.cell(row=7, column=1)
+                    cell_area_header = ws_porcentagens.cell(row=8, column=1)
                     cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
                     cell_area_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     cell_area_header.alignment = Alignment(horizontal='center', vertical='center')
@@ -1204,7 +1215,7 @@ with col_btn_processar:
                         ('CRDK / D&E - Porcentagem', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', ''])
                     ]
                     
-                    row_pct = 8
+                    row_pct = 9
                     
                     for setor_idx, (setor_nome, keywords_setor) in enumerate(setores_info_pct):
                         # Nome do setor
@@ -1299,11 +1310,11 @@ with col_btn_processar:
                     cell_hc_total.font = Font(bold=True)
                     cell_hc_total.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Soma das faltas por data (linha 8 + linha 10)
+                    # Soma das faltas por data (linha 9 + linha 11)
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         cell_total_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
                         col_letter = get_column_letter(data_idx)
-                        cell_total_data.value = f'={col_letter}8+{col_letter}10'
+                        cell_total_data.value = f'={col_letter}9+{col_letter}11'
                         cell_total_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                         cell_total_data.font = Font(bold=True)
                         cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
