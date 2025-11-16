@@ -1442,6 +1442,108 @@ with col_btn_processar:
                     for col_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
                         ws_porcentagens.column_dimensions[get_column_letter(col_idx)].width = 12
                     
+                    # ===== CRIAR GUIA DE GRÁFICOS =====
+                    ws_graficos = w.book.create_sheet('Gráficos')
+                    
+                    # Linha 1: Título
+                    ws_graficos.merge_cells('A1:D1')
+                    titulo_graficos = ws_graficos.cell(row=1, column=1, value='📊 GRÁFICOS DE ABSENTEÍSMO')
+                    titulo_graficos.font = Font(bold=True, size=14, color='FFFFFF')
+                    titulo_graficos.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                    
+                    # Prepara dados para gráficos
+                    from openpyxl.chart import PieChart, Reference
+                    
+                    # ===== GRÁFICO 1: Faltas por Tipo (FI, FA) =====
+                    row_grafico = 3
+                    ws_graficos.cell(row=row_grafico, column=1, value='Faltas por Tipo')
+                    ws_graficos.cell(row=row_grafico, column=1).font = Font(bold=True, size=12)
+                    
+                    row_data = row_grafico + 1
+                    ws_graficos.cell(row=row_data, column=1, value='Tipo')
+                    ws_graficos.cell(row=row_data, column=2, value='Quantidade')
+                    
+                    # Conta FI e FA globais
+                    total_fi_global = 0
+                    total_fa_global = 0
+                    for col_data in mapa_datas.values():
+                        if col_data in df_mest.columns:
+                            total_fi_global += (df_mest[col_data] == 'FI').sum()
+                            total_fa_global += (df_mest[col_data] == 'FA').sum()
+                    
+                    row_data += 1
+                    ws_graficos.cell(row=row_data, column=1, value='FI - Injustificadas')
+                    ws_graficos.cell(row=row_data, column=2, value=total_fi_global)
+                    
+                    row_data += 1
+                    ws_graficos.cell(row=row_data, column=1, value='FA - Atestado')
+                    ws_graficos.cell(row=row_data, column=2, value=total_fa_global)
+                    
+                    # Cria gráfico de pizza para tipos de faltas
+                    pie_chart_1 = PieChart()
+                    pie_chart_1.title = 'Faltas por Tipo'
+                    pie_chart_1.style = 10
+                    labels = Reference(ws_graficos, min_col=1, min_row=row_data-1, max_row=row_data)
+                    data = Reference(ws_graficos, min_col=2, min_row=row_data-2, max_row=row_data)
+                    pie_chart_1.add_data(data, titles_from_data=True)
+                    pie_chart_1.set_categories(labels)
+                    ws_graficos.add_chart(pie_chart_1, 'A10')
+                    
+                    # ===== GRÁFICO 2: Faltas por Setor =====
+                    row_grafico = 3
+                    col_grafico = 5
+                    ws_graficos.cell(row=row_grafico, column=col_grafico, value='Faltas por Setor')
+                    ws_graficos.cell(row=row_grafico, column=col_grafico).font = Font(bold=True, size=12)
+                    
+                    row_data = row_grafico + 1
+                    ws_graficos.cell(row=row_data, column=col_grafico, value='Setor')
+                    ws_graficos.cell(row=row_data, column=col_grafico+1, value='Faltas')
+                    
+                    # Conta faltas por setor
+                    area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
+                    
+                    faltas_ma_bloq = 0
+                    faltas_crdk_de = 0
+                    
+                    for col_data in mapa_datas.values():
+                        if col_data in df_mest.columns:
+                            data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                            data_col_letter = get_column_letter(data_col_idx)
+                            
+                            # M&A / BLOQ faltas
+                            faltas_ma_bloq += (
+                                df_mest[
+                                    (df_mest['AREA'].astype(str).str.contains('PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM|MOVIMENTACAO E ARMAZENAGEM|BLOQ|CD-RJ \| FOB', case=False, na=False, regex=True)) &
+                                    ((df_mest[col_data] == 'FI') | (df_mest[col_data] == 'FA'))
+                                ].shape[0]
+                            )
+                            
+                            # CRDK / D&E faltas
+                            faltas_crdk_de += (
+                                df_mest[
+                                    (df_mest['AREA'].astype(str).str.contains('CROSSDOCK DISTRIBUICAO E EXPEDICAO|CRDK D&E\|CD-RJ HB|DISTRIBUICAO E EXPEDICAO', case=False, na=False, regex=True)) &
+                                    ((df_mest[col_data] == 'FI') | (df_mest[col_data] == 'FA'))
+                                ].shape[0]
+                            )
+                    
+                    row_data += 1
+                    ws_graficos.cell(row=row_data, column=col_grafico, value='M&A / BLOQ')
+                    ws_graficos.cell(row=row_data, column=col_grafico+1, value=faltas_ma_bloq)
+                    
+                    row_data += 1
+                    ws_graficos.cell(row=row_data, column=col_grafico, value='CRDK / D&E')
+                    ws_graficos.cell(row=row_data, column=col_grafico+1, value=faltas_crdk_de)
+                    
+                    # Cria gráfico de pizza para setores
+                    pie_chart_2 = PieChart()
+                    pie_chart_2.title = 'Faltas por Setor'
+                    pie_chart_2.style = 10
+                    labels_2 = Reference(ws_graficos, min_col=col_grafico, min_row=row_data-1, max_row=row_data)
+                    data_2 = Reference(ws_graficos, min_col=col_grafico+1, min_row=row_data-2, max_row=row_data)
+                    pie_chart_2.add_data(data_2, titles_from_data=True)
+                    pie_chart_2.set_categories(labels_2)
+                    ws_graficos.add_chart(pie_chart_2, 'E10')
+                    
                     out.seek(0)
                 
                 # Gera nome do arquivo no padrão solicitado
