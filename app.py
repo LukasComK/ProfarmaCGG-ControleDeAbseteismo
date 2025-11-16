@@ -1402,14 +1402,14 @@ with col_btn_processar:
                     cell_acum_hc = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_acum_hc.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     
-                    # Soma acumulada de faltas / HC Total * 100
+                    # Soma acumulada de faltas / HC do dia respectivo * 100
                     # Cores condicionais: Verde <3%, Amarelo 3-3.5%, Vermelho >3.5%
                     row_acumulado = row_pct
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         cell_acum_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
                         col_letter = get_column_letter(data_idx)
-                        # Referencia: célula do TOTAL (row_total_faltas) / HC Total (B4+B5 em row_total_hc) * 100
-                        cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/B{row_total_hc})*100,0)'
+                        # Referencia: célula do TOTAL (row_total_faltas) / HC da data respectiva (mesmo col_letter em row_total_hc) * 100
+                        cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/{col_letter}{row_total_hc})*100,0)'
                         cell_acum_data.font = Font(bold=True)
                         cell_acum_data.number_format = '0.00"%"'
                         cell_acum_data.alignment = Alignment(horizontal='center', vertical='center')
