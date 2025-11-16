@@ -1123,17 +1123,15 @@ with col_btn_processar:
                         cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                         cell_setor.font = Font(bold=True)
                         
-                        # HC - Fórmula SUMPRODUCT para contar colaboradores ÚNICOS por setor
+                        # HC - Contar colaboradores únicos de cada setor
                         cell_hc = ws_porcentagens.cell(row=row_porcentagens, column=2)
                         
-                        # Construir fórmula para contar apenas colaboradores únicos (por linha/NOME único)
-                        # Usando SUMPRODUCT com 1/COUNTIF para evitar duplicatas
+                        # Construir fórmula usando SUMPRODUCT simples
                         area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
-                        nome_col_letter = get_column_letter(list(df_mest_final.columns).index('NOME') + 1)
                         
-                        # Fórmula: conta cada colaborador UMA VEZ se pertencer ao setor
+                        # Fórmula: soma dos critérios de busca por setor (já conta apenas linhas que existem)
                         formula_parts = [f'ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))' for keyword in keywords_setor]
-                        formula_sumproduct = f"=SUMPRODUCT(({'+'.join(formula_parts)})/COUNTIFS(Dados!{nome_col_letter}:${nome_col_letter},Dados!{nome_col_letter}:${nome_col_letter},{'+'.join(formula_parts)},TRUE))"
+                        formula_sumproduct = f"=SUMPRODUCT(({'+'.join(formula_parts)})*1)"
                         
                         cell_hc.value = formula_sumproduct
                         cell_hc.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
