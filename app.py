@@ -1495,6 +1495,83 @@ with col_btn_processar:
                     pie_chart_2.width = 13
                     ws_graficos.add_chart(pie_chart_2, 'E14')
                     
+                    # ===== SEÇÃO 2: Gráficos por Data Específica =====
+                    row_secao_2 = 28
+                    ws_graficos.merge_cells(f'A{row_secao_2}:H{row_secao_2}')
+                    titulo_secao_2 = ws_graficos.cell(row=row_secao_2, column=1, value='Análise por Data Específica')
+                    titulo_secao_2.font = Font(bold=True, size=12, color='FFFFFF')
+                    titulo_secao_2.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    ws_graficos.row_dimensions[row_secao_2].height = 20
+                    
+                    # Cria gráficos para cada data
+                    col_data_grafico = 1
+                    row_data_grafico = row_secao_2 + 2
+                    
+                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys())):
+                        col_data = mapa_datas[data_obj]
+                        data_formatada = data_obj.strftime('%d/%m')
+                        
+                        if col_data in df_mest.columns:
+                            # Se chegou no final das colunas, vai para próxima linha
+                            if col_data_grafico > 8:
+                                col_data_grafico = 1
+                                row_data_grafico += 15
+                            
+                            # Título da data
+                            titulo_data = ws_graficos.cell(row=row_data_grafico, column=col_data_grafico, value=f'Data: {data_formatada}')
+                            titulo_data.font = Font(bold=True, size=10)
+                            titulo_data.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                            
+                            # Dados FI e FA para esta data
+                            fi_count = (df_mest[col_data] == 'FI').sum()
+                            fa_count = (df_mest[col_data] == 'FA').sum()
+                            
+                            # M&A / BLOQ faltas nesta data
+                            df_ma_bloq_data = df_mest[
+                                (df_mest['AREA'].astype(str).str.contains('PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM|MOVIMENTACAO E ARMAZENAGEM|BLOQ|CD-RJ \| FOB', case=False, na=False, regex=True))
+                            ]
+                            faltas_ma_bloq_data = ((df_ma_bloq_data[col_data] == 'FI') | (df_ma_bloq_data[col_data] == 'FA')).sum()
+                            
+                            # CRDK / D&E faltas nesta data
+                            df_crdk_de_data = df_mest[
+                                (df_mest['AREA'].astype(str).str.contains('CROSSDOCK DISTRIBUICAO E EXPEDICAO|CRDK D&E\|CD-RJ HB|DISTRIBUICAO E EXPEDICAO', case=False, na=False, regex=True))
+                            ]
+                            faltas_crdk_de_data = ((df_crdk_de_data[col_data] == 'FI') | (df_crdk_de_data[col_data] == 'FA')).sum()
+                            
+                            # Dados para gráfico de tipo
+                            row_tipo = row_data_grafico + 1
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico, value='Tipo').font = Font(bold=True, size=9)
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1, value='Qtd').font = Font(bold=True, size=9)
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
+                            
+                            row_tipo += 1
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico, value='FI')
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1, value=fi_count)
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico).fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1).fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
+                            
+                            row_tipo += 1
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico, value='FA')
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1, value=fa_count)
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico).fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            ws_graficos.cell(row=row_tipo, column=col_data_grafico+1).fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
+                            
+                            # Gráfico de pizza para tipo nesta data
+                            if fi_count > 0 or fa_count > 0:
+                                pie_chart_data = PieChart()
+                                pie_chart_data.title = f'Faltas - {data_formatada}'
+                                pie_chart_data.style = 10
+                                labels_data = Reference(ws_graficos, min_col=col_data_grafico, min_row=row_data_grafico+2, max_row=row_tipo)
+                                data_pie_data = Reference(ws_graficos, min_col=col_data_grafico+1, min_row=row_data_grafico+1, max_row=row_tipo)
+                                pie_chart_data.add_data(data_pie_data, titles_from_data=True)
+                                pie_chart_data.set_categories(labels_data)
+                                pie_chart_data.height = 8
+                                pie_chart_data.width = 10
+                                ws_graficos.add_chart(pie_chart_data, f'{get_column_letter(col_data_grafico)}{row_tipo+2}')
+                            
+                            col_data_grafico += 3
+                    
                     # Ajusta largura das colunas
                     ws_graficos.column_dimensions['A'].width = 25
                     ws_graficos.column_dimensions['B'].width = 15
@@ -1532,81 +1609,6 @@ with col_btn_processar:
                 }
                 mes_nome = meses_nomes.get(mes, 'Mês')
                 nome_arquivo = f"{mes:02d}- Controle de Absenteismo - {mes_nome}.xlsx"
-                
-                st.divider()
-                st.subheader("📊 Análise de Gráficos")
-                
-                # Selectbox para escolher a data
-                datas_disponiveis = sorted(mapa_datas.keys())
-                datas_formatadas = [d.strftime('%d/%m/%Y - %A') for d in datas_disponiveis]
-                
-                col_select, col_spacer = st.columns([2, 3])
-                with col_select:
-                    data_selecionada_idx = st.selectbox(
-                        "📅 Selecione uma data para análise detalhada:",
-                        range(len(datas_disponiveis)),
-                        format_func=lambda i: datas_formatadas[i]
-                    )
-                
-                data_selecionada = datas_disponiveis[data_selecionada_idx]
-                col_data_selecionada = mapa_datas[data_selecionada]
-                
-                if col_data_selecionada in df_mest.columns:
-                    # Cria gráficos filtrados pela data selecionada
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        # Conta FI e FA para a data selecionada
-                        fi_data = (df_mest[col_data_selecionada] == 'FI').sum()
-                        fa_data = (df_mest[col_data_selecionada] == 'FA').sum()
-                        
-                        # Dados para o gráfico de pizza
-                        dados_tipo = pd.DataFrame({
-                            'Tipo': ['FI - Injustificadas', 'FA - Atestado'],
-                            'Quantidade': [fi_data, fa_data]
-                        })
-                        dados_tipo = dados_tipo[dados_tipo['Quantidade'] > 0]
-                        
-                        if not dados_tipo.empty:
-                            st.metric("📌 FI (Injustificadas)", fi_data)
-                            fig1 = px.pie(dados_tipo, values='Quantidade', names='Tipo', 
-                                         title=f"Faltas por Tipo - {data_selecionada.strftime('%d/%m/%Y')}",
-                                         color_discrete_map={'FI - Injustificadas': '#D32F2F', 'FA - Atestado': '#FBC02D'})
-                            st.plotly_chart(fig1, use_container_width=True)
-                        else:
-                            st.info("✅ Nenhuma falta registrada para esta data.")
-                    
-                    with col2:
-                        # Conta faltas por setor para a data selecionada
-                        area_col_idx = list(df_mest_final.columns).index('AREA') + 1
-                        area_col_letter = get_column_letter(area_col_idx)
-                        
-                        # M&A / BLOQ faltas
-                        df_ma_bloq = df_mest[
-                            (df_mest['AREA'].astype(str).str.contains('PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM|MOVIMENTACAO E ARMAZENAGEM|BLOQ|CD-RJ \\| FOB', case=False, na=False, regex=True))
-                        ]
-                        faltas_ma_bloq = ((df_ma_bloq[col_data_selecionada] == 'FI') | (df_ma_bloq[col_data_selecionada] == 'FA')).sum()
-                        
-                        # CRDK / D&E faltas
-                        df_crdk_de = df_mest[
-                            (df_mest['AREA'].astype(str).str.contains('CROSSDOCK DISTRIBUICAO E EXPEDICAO|CRDK D&E\\|CD-RJ HB|DISTRIBUICAO E EXPEDICAO', case=False, na=False, regex=True))
-                        ]
-                        faltas_crdk_de = ((df_crdk_de[col_data_selecionada] == 'FI') | (df_crdk_de[col_data_selecionada] == 'FA')).sum()
-                        
-                        dados_setor = pd.DataFrame({
-                            'Setor': ['M&A / BLOQ', 'CRDK / D&E'],
-                            'Faltas': [faltas_ma_bloq, faltas_crdk_de]
-                        })
-                        dados_setor = dados_setor[dados_setor['Faltas'] > 0]
-                        
-                        if not dados_setor.empty:
-                            st.metric("🏢 M&A / BLOQ", faltas_ma_bloq)
-                            fig2 = px.pie(dados_setor, values='Faltas', names='Setor',
-                                         title=f"Faltas por Setor - {data_selecionada.strftime('%d/%m/%Y')}",
-                                         color_discrete_map={'M&A / BLOQ': '#2E7D32', 'CRDK / D&E': '#1976D2'})
-                            st.plotly_chart(fig2, use_container_width=True)
-                        else:
-                            st.info("✅ Nenhuma falta registrada para esta data.")
                 
                 st.divider()
                 st.download_button(
