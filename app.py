@@ -864,31 +864,16 @@ with col_btn_processar:
                     ws_relatorio.cell(row=2, column=3, value='Mês/Ano:')
                     ws_relatorio.cell(row=2, column=4, value=f"{mes:02d}/{ano}")
                     
-                    # Linha 4: Resumo Geral
-                    ws_relatorio.cell(row=4, column=1, value='RESUMO GERAL')
+                    # Linha 4: Resumo por Dia
+                    ws_relatorio.cell(row=4, column=1, value='RESUMO POR DIA')
                     ws_relatorio.cell(row=4, column=1).font = Font(bold=True, size=12)
                     ws_relatorio.cell(row=4, column=1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
-                    ws_relatorio.merge_cells('A4:D4')
-                    
-                    ws_relatorio.cell(row=5, column=1, value='Total de Lançamentos Processados:')
-                    ws_relatorio.cell(row=5, column=2, value=f'=SUM(F11:F{row_idx-1})')
-                    
-                    ws_relatorio.cell(row=6, column=1, value='Total de Colaboradores Únicos:')
-                    ws_relatorio.cell(row=6, column=2, value=len(total_nomes_unicos))
-                    
-                    ws_relatorio.cell(row=7, column=1, value='Total de Não Encontrados:')
-                    ws_relatorio.cell(row=7, column=2, value=len(set(total_erros)))
-                    
-                    # Linha 9: Resumo por Dia
-                    ws_relatorio.cell(row=9, column=1, value='RESUMO POR DIA')
-                    ws_relatorio.cell(row=9, column=1).font = Font(bold=True, size=12)
-                    ws_relatorio.cell(row=9, column=1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
-                    ws_relatorio.merge_cells('A9:F9')
+                    ws_relatorio.merge_cells('A4:F4')
                     
                     # Headers da tabela de resumo
                     headers_resumo = ['Data', 'Dia', 'FI', 'FA', 'FÉRIAS-BH', 'Total']
                     for col_idx, header in enumerate(headers_resumo, 1):
-                        cell = ws_relatorio.cell(row=10, column=col_idx, value=header)
+                        cell = ws_relatorio.cell(row=5, column=col_idx, value=header)
                         cell.font = Font(bold=True, color='FFFFFF')
                         cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     
@@ -898,7 +883,7 @@ with col_btn_processar:
                         'FRI': 'SEX', 'SAT': 'SÁB', 'SUN': 'DOM'
                     }
                     
-                    row_idx = 11
+                    row_idx = 6
                     for data_obj in sorted(mapa_datas.keys()):
                         col_data = mapa_datas[data_obj]
                         if col_data in df_mest.columns:
@@ -1100,6 +1085,73 @@ with col_btn_processar:
                     ws_relatorio.column_dimensions['D'].width = 10
                     ws_relatorio.column_dimensions['E'].width = 15
                     ws_relatorio.column_dimensions['F'].width = 10
+                    
+                    # ===== CRIAR GUIA PORCENTAGENS ABS =====
+                    ws_porcentagens = w.book.create_sheet('Porcentagens ABS')
+                    
+                    # Linha 1: Título
+                    titulo_cell = ws_porcentagens.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO')
+                    titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
+                    titulo_cell.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                    ws_porcentagens.merge_cells('A1:C1')
+                    
+                    # Linha 3: Headers
+                    ws_porcentagens.cell(row=3, column=1, value='Área')
+                    ws_porcentagens.cell(row=3, column=2, value='HC')
+                    
+                    for col_idx in range(1, 3):
+                        cell = ws_porcentagens.cell(row=3, column=col_idx)
+                        cell.font = Font(bold=True, color='FFFFFF', size=11)
+                        cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Setores
+                    setores_info = [
+                        ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ']),
+                        ('CRDK / D&E', ['CRDK D&E|CD-RJ HB', 'CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CD-RJ | FOB'])
+                    ]
+                    
+                    row_porcentagens = 4
+                    
+                    for setor_nome, keywords_setor in setores_info:
+                        # Nome do setor (verde suave)
+                        cell_setor = ws_porcentagens.cell(row=row_porcentagens, column=1, value=setor_nome)
+                        cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                        cell_setor.font = Font(bold=True)
+                        
+                        # HC - Fórmula SUMPRODUCT para contar colaboradores únicos por setor
+                        cell_hc = ws_porcentagens.cell(row=row_porcentagens, column=2)
+                        
+                        # Construir fórmula para contar linhas (colaboradores) que contêm qualquer uma das keywords
+                        area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
+                        
+                        # Fórmula que conta quantas linhas têm AREA que contém qualquer uma das keywords
+                        formula_parts = [f'ISNUMBER(SEARCH("{keyword}",Dados!{area_col_letter}:${area_col_letter}))' for keyword in keywords_setor]
+                        formula = f"=COUNTA(IF({'+'.join(formula_parts)},Dados!{area_col_letter}:${area_col_letter}))"
+                        
+                        # Usar SUMPRODUCT para contagem
+                        formula_sumproduct = f"=SUMPRODUCT({'+'.join(formula_parts)}*1)"
+                        
+                        cell_hc.value = formula_sumproduct
+                        cell_hc.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                        cell_hc.alignment = Alignment(horizontal='center', vertical='center')
+                        
+                        row_porcentagens += 1
+                    
+                    # Linha de Total
+                    ws_porcentagens.cell(row=row_porcentagens, column=1, value='TOTAL')
+                    ws_porcentagens.cell(row=row_porcentagens, column=1).font = Font(bold=True)
+                    ws_porcentagens.cell(row=row_porcentagens, column=1).fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    
+                    cell_total = ws_porcentagens.cell(row=row_porcentagens, column=2)
+                    cell_total.value = f'=SUM(B4:B{row_porcentagens-1})'
+                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_total.font = Font(bold=True)
+                    cell_total.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Ajusta largura das colunas
+                    ws_porcentagens.column_dimensions['A'].width = 20
+                    ws_porcentagens.column_dimensions['B'].width = 15
                     
                     out.seek(0)
                 
