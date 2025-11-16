@@ -1322,20 +1322,65 @@ with col_btn_processar:
                     row_total_faltas = row_pct
                     row_pct += 1
                     
+                    # Linha de FI - Faltas Injustificadas
+                    cell_fi_label = ws_porcentagens.cell(row=row_pct, column=1, value='FI - Faltas Injustificadas')
+                    cell_fi_label.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    cell_fi_label.font = Font(bold=True)
+                    
+                    # HC vazio para FI
+                    cell_fi_hc = ws_porcentagens.cell(row=row_pct, column=2)
+                    cell_fi_hc.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    
+                    # Soma de FI por data (soma das linhas 9 e 11 de FI apenas)
+                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                        col_data = mapa_datas[data_obj]
+                        data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                        data_col_letter = get_column_letter(data_col_idx)
+                        
+                        cell_fi_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
+                        # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
+                        cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
+                        cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                        cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    row_pct += 1
+                    
+                    # Linha de FA - Faltas por Atestado
+                    cell_fa_label = ws_porcentagens.cell(row=row_pct, column=1, value='FA - Faltas por Atestado')
+                    cell_fa_label.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    cell_fa_label.font = Font(bold=True)
+                    
+                    # HC vazio para FA
+                    cell_fa_hc = ws_porcentagens.cell(row=row_pct, column=2)
+                    cell_fa_hc.fill = PatternFill(start_color='FFE7E6E6', end_color='FFE7E6E6', fill_type='solid')
+                    
+                    # Soma de FA por data
+                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
+                        col_data = mapa_datas[data_obj]
+                        data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                        data_col_letter = get_column_letter(data_col_idx)
+                        
+                        cell_fa_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
+                        cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
+                        cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                        cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    row_pct += 1
+                    
                     # Linha de META - sempre 3%
                     cell_meta_label = ws_porcentagens.cell(row=row_pct, column=1, value='META')
-                    cell_meta_label.fill = PatternFill(start_color='FFFFC7CE', end_color='FFFFC7CE', fill_type='solid')
+                    cell_meta_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                     cell_meta_label.font = Font(bold=True)
                     
                     # Célula vazia em B (não faz sentido HC para META)
                     cell_meta_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_meta_hc.fill = PatternFill(start_color='FFFFC7CE', end_color='FFFFC7CE', fill_type='solid')
+                    cell_meta_hc.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                     
                     # Valor 3% para todos os dias
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         cell_meta_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
                         cell_meta_data.value = 3
-                        cell_meta_data.fill = PatternFill(start_color='FFFFC7CE', end_color='FFFFC7CE', fill_type='solid')
+                        cell_meta_data.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                         cell_meta_data.font = Font(bold=True)
                         cell_meta_data.number_format = '0.00"%"'
                         cell_meta_data.alignment = Alignment(horizontal='center', vertical='center')
