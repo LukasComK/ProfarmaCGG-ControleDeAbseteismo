@@ -1264,6 +1264,29 @@ with col_btn_processar:
                         
                         row_pct += 1
                     
+                    # Linha de TOTAL HC - mostrar HC total em todas as colunas
+                    cell_total_hc_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL HC')
+                    cell_total_hc_label.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_total_hc_label.font = Font(bold=True)
+                    
+                    # HC Total (soma de B4 e B5) - mostra em todas as datas também
+                    cell_hc_total_label = ws_porcentagens.cell(row=row_pct, column=2)
+                    cell_hc_total_label.value = '=B4+B5'
+                    cell_hc_total_label.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_hc_total_label.font = Font(bold=True)
+                    cell_hc_total_label.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Replica o HC Total em todas as colunas de data
+                    for data_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
+                        cell_hc_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
+                        cell_hc_data.value = '=B4+B5'
+                        cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                        cell_hc_data.font = Font(bold=True)
+                        cell_hc_data.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    row_total_hc = row_pct
+                    row_pct += 1
+                    
                     # Linha de TOTAL - soma de todas as faltas
                     cell_total_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL')
                     cell_total_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
@@ -1285,6 +1308,7 @@ with col_btn_processar:
                         cell_total_data.font = Font(bold=True)
                         cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
                     
+                    row_total_faltas = row_pct
                     row_pct += 1
                     
                     # Linha de META - sempre 3%
@@ -1317,12 +1341,12 @@ with col_btn_processar:
                     cell_acum_hc.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
                     
                     # Soma acumulada de faltas / HC Total * 100
+                    # Usa o HC Total (row_total_hc) para dividir
                     for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
                         cell_acum_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
                         col_letter = get_column_letter(data_idx)
-                        # Referencia: célula do TOTAL (row_pct-2) / HC Total (row_pct-2, coluna B) * 100
-                        total_row = row_pct - 2
-                        cell_acum_data.value = f'=IFERROR(({col_letter}{total_row}/B{total_row})*100,0)'
+                        # Referencia: célula do TOTAL (row_total_faltas) / HC Total (B4+B5 em row_total_hc) * 100
+                        cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/B{row_total_hc})*100,0)'
                         cell_acum_data.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
                         cell_acum_data.font = Font(bold=True)
                         cell_acum_data.number_format = '0.00"%"'
