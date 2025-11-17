@@ -1467,6 +1467,7 @@ with col_btn_processar:
                     cell_selector = ws_graficos.cell(row=row_selector, column=2, value=datas_lista[0].strftime('%d/%m'))
                     cell_selector.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
                     cell_selector.font = Font(bold=True, size=11)
+                    cell_selector.number_format = '@'  # Formato de texto para manter como "dd/mm"
                     dv.add(cell_selector)
                     
                     # ===== SEÇÃO 2: Gráficos Dinâmicos =====
