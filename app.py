@@ -1038,8 +1038,121 @@ with col_btn_processar:
                                 cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                 row_departamento += 1
                     
+                    # ===== RESUMO POR TURNO, DIA E SETOR =====
+                    # Verifica se coluna TURNO existe
+                    if 'TURNO' in df_mest.columns:
+                        row_turno_section = row_departamento + 2
+                        ws_relatorio.merge_cells(f'A{row_turno_section}:H{row_turno_section}')
+                        cell_turno_title = ws_relatorio.cell(row=row_turno_section, column=1, value='RESUMO POR TURNO (DIÁRIO)')
+                        cell_turno_title.font = Font(bold=True, size=12)
+                        cell_turno_title.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
+                        
+                        # Headers do resumo por turno
+                        row_turno_section += 1
+                        headers_turno = ['Turno', 'Data', 'Dia', 'Setor', 'FI', 'FA', 'Total']
+                        for col_idx, header in enumerate(headers_turno, 1):
+                            cell = ws_relatorio.cell(row=row_turno_section, column=col_idx, value=header)
+                            cell.font = Font(bold=True, color='FFFFFF')
+                            cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        
+                        row_turno_section += 1
+                        turno_col_idx = list(df_mest_final.columns).index('TURNO') + 1
+                        turno_col_letter = get_column_letter(turno_col_idx)
+                        
+                        # Para cada turno
+                        for turno_num in [1, 2, 3]:
+                            turno_label = f'TURNO {turno_num}'
+                            
+                            # Para cada data
+                            for data_obj in sorted(mapa_datas.keys()):
+                                col_data = mapa_datas[data_obj]
+                                if col_data in df_mest.columns:
+                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                                    data_col_letter = get_column_letter(data_col_idx)
+                                    
+                                    data_formatada = data_obj.strftime('%d/%m/%Y') if isinstance(data_obj, datetime.date) else str(data_obj)
+                                    dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
+                                    dia_semana = dias_semana_pt.get(dia_en, dia_en)
+                                    
+                                    # Para cada setor
+                                    setores_turno = [
+                                        ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
+                                        ('CRDK / D&E', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO'])
+                                    ]
+                                    
+                                    for setor_nome, keywords_setor in setores_turno:
+                                        # Turno (azul claro)
+                                        cell_turno = ws_relatorio.cell(row=row_turno_section, column=1, value=turno_label)
+                                        cell_turno.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                                        cell_turno.font = Font(bold=True)
+                                        
+                                        # Data (cinza)
+                                        cell_data = ws_relatorio.cell(row=row_turno_section, column=2, value=data_formatada)
+                                        cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                        
+                                        # Dia (cinza)
+                                        cell_dia = ws_relatorio.cell(row=row_turno_section, column=3, value=dia_semana)
+                                        cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                        
+                                        # Setor (verde suave)
+                                        cell_setor = ws_relatorio.cell(row=row_turno_section, column=4, value=setor_nome)
+                                        cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                        
+                                        # FI - Fórmula com TURNO
+                                        cell_fi = ws_relatorio.cell(row=row_turno_section, column=5)
+                                        if setor_nome == 'M&A / BLOQ':
+                                            cell_fi.value = (
+                                                f'=SUMPRODUCT('
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
+                                                f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                                f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                            )
+                                        else:  # CRDK / D&E
+                                            cell_fi.value = (
+                                                f'=SUMPRODUCT('
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
+                                                f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
+                                            )
+                                        cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                        
+                                        # FA - Fórmula com TURNO
+                                        cell_fa = ws_relatorio.cell(row=row_turno_section, column=6)
+                                        if setor_nome == 'M&A / BLOQ':
+                                            cell_fa.value = (
+                                                f'=SUMPRODUCT('
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
+                                                f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                                f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                            )
+                                        else:  # CRDK / D&E
+                                            cell_fa.value = (
+                                                f'=SUMPRODUCT('
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
+                                                f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
+                                                f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
+                                            )
+                                        cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                        
+                                        # Total (cinza)
+                                        cell_total_turno = ws_relatorio.cell(row=row_turno_section, column=7)
+                                        cell_total_turno.value = f'=E{row_turno_section}+F{row_turno_section}'
+                                        cell_total_turno.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                        
+                                        row_turno_section += 1
+                    
                     # Linha de Não Encontrados
-                    row_nao_encontrados = row_departamento + 2
+                    row_nao_encontrados = row_turno_section + 2 if 'TURNO' in df_mest.columns else row_departamento + 2
                     ws_relatorio.merge_cells(f'A{row_nao_encontrados}:D{row_nao_encontrados}')
                     cell_nao_encontrados = ws_relatorio.cell(row=row_nao_encontrados, column=1, value='COLABORADORES NÃO ENCONTRADOS')
                     cell_nao_encontrados.font = Font(bold=True, size=12)
@@ -1430,6 +1543,138 @@ with col_btn_processar:
                     ws_porcentagens.column_dimensions['B'].width = 15
                     for col_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
                         ws_porcentagens.column_dimensions[get_column_letter(col_idx)].width = 12
+                    
+                    # ===== PORCENTAGENS POR TURNO =====
+                    # Cria uma nova aba para porcentagens por turno
+                    if 'TURNO' in df_mest.columns:
+                        ws_turno = w.book.create_sheet('Porcentagens TURNO')
+                        
+                        # Linha 1: Título
+                        ws_turno.merge_cells('A1:Z1')
+                        titulo_turno = ws_turno.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO POR TURNO')
+                        titulo_turno.font = Font(bold=True, size=14, color='FFFFFF')
+                        titulo_turno.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                        
+                        row_turno = 3
+                        
+                        # Para cada turno (1, 2, 3)
+                        for turno_num in [1, 2, 3]:
+                            turno_label = f'TURNO {turno_num}'
+                            
+                            # Título do turno
+                            ws_turno.merge_cells(f'A{row_turno}:Z{row_turno}')
+                            cell_turno_header = ws_turno.cell(row=row_turno, column=1, value=turno_label)
+                            cell_turno_header.font = Font(bold=True, size=12, color='FFFFFF')
+                            cell_turno_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                            row_turno += 1
+                            
+                            # HC por Turno
+                            ws_turno.cell(row=row_turno, column=1, value='Área')
+                            ws_turno.cell(row=row_turno, column=2, value='HC')
+                            
+                            for col_num in [1, 2]:
+                                cell_hc_header = ws_turno.cell(row=row_turno, column=col_num)
+                                cell_hc_header.font = Font(bold=True, color='FFFFFF', size=10)
+                                cell_hc_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                            row_turno += 1
+                            
+                            # M&A / BLOQ HC para turno
+                            ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
+                            cell_hc_ma_turno = ws_turno.cell(row=row_turno, column=2)
+                            cell_hc_ma_turno.value = (
+                                f'=SUMPRODUCT('
+                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
+                                f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
+                                f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
+                                f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))'
+                                f')'
+                            )
+                            row_turno += 1
+                            
+                            # CRDK / D&E HC para turno
+                            ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
+                            cell_hc_crdk_turno = ws_turno.cell(row=row_turno, column=2)
+                            cell_hc_crdk_turno.value = (
+                                f'=SUMPRODUCT('
+                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
+                                f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
+                                f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))'
+                                f')'
+                            )
+                            row_turno += 2  # Espaço vazio
+                            
+                            # Headers com datas
+                            ws_turno.cell(row=row_turno, column=1, value='Área')
+                            for dia in range(1, dias_no_mes + 1):
+                                data_formatada = f"{dia:02d}/{mes_dados:02d}"
+                                col_idx = dia + 1
+                                cell_header_data = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
+                                cell_header_data.font = Font(bold=True, color='FFFFFF', size=9)
+                                cell_header_data.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                                cell_header_data.alignment = Alignment(horizontal='center', vertical='center')
+                            row_turno += 1
+                            
+                            # M&A / BLOQ faltas
+                            ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ').font = Font(bold=True)
+                            for dia in range(1, dias_no_mes + 1):
+                                col_idx = dia + 1
+                                data_obj = datetime.date(ano_dados, mes_dados, dia)
+                                cell_ma_turno = ws_turno.cell(row=row_turno, column=col_idx)
+                                
+                                if data_obj in mapa_datas:
+                                    col_data = mapa_datas[data_obj]
+                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                                    data_col_letter = get_column_letter(data_col_idx)
+                                    
+                                    cell_ma_turno.value = (
+                                        f'=SUMPRODUCT('
+                                        f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                        f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
+                                        f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                    )
+                                else:
+                                    cell_ma_turno.value = 0
+                                
+                                cell_ma_turno.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                                cell_ma_turno.alignment = Alignment(horizontal='center', vertical='center')
+                            row_turno += 1
+                            
+                            # CRDK / D&E faltas
+                            ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E').font = Font(bold=True)
+                            for dia in range(1, dias_no_mes + 1):
+                                col_idx = dia + 1
+                                data_obj = datetime.date(ano_dados, mes_dados, dia)
+                                cell_crdk_turno = ws_turno.cell(row=row_turno, column=col_idx)
+                                
+                                if data_obj in mapa_datas:
+                                    col_data = mapa_datas[data_obj]
+                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                                    data_col_letter = get_column_letter(data_col_idx)
+                                    
+                                    cell_crdk_turno.value = (
+                                        f'=SUMPRODUCT('
+                                        f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                        f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
+                                        f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
+                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                    )
+                                else:
+                                    cell_crdk_turno.value = 0
+                                
+                                cell_crdk_turno.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                                cell_crdk_turno.alignment = Alignment(horizontal='center', vertical='center')
+                            row_turno += 3  # Espaço entre turnos
+                        
+                        # Ajusta largura das colunas
+                        ws_turno.column_dimensions['A'].width = 25
+                        for col_idx in range(2, dias_no_mes + 2):
+                            ws_turno.column_dimensions[get_column_letter(col_idx)].width = 10
                     
                     # ===== CRIAR GUIA DE GRÁFICOS =====
                     ws_graficos = w.book.create_sheet('Gráficos')
