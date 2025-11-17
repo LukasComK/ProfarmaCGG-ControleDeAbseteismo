@@ -1585,21 +1585,16 @@ with col_btn_processar:
                     )
                     white_fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
                     
-                    # Aplica a todas as abas
-                    for ws in w.book.sheetnames:
-                        worksheet = w.book[ws]
-                        for row in worksheet.iter_rows():
-                            for cell in row:
-                                cell.border = no_border
-                                # Só muda background se não tiver cor específica atribuída (mantém cores de header e dados)
-                                if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
-                                    cell.fill = white_fill
-                    
-                    # Preenche colunas A até T até linha 30 com background branco
-                    for row_num in range(1, 31):
-                        for col_num in range(1, 21):  # Colunas A (1) até T (20)
-                            cell = ws_graficos.cell(row=row_num, column=col_num)
-                            cell.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
+                    # Aplica a todas as abas EXCETO Gráficos
+                    for ws_name in w.book.sheetnames:
+                        if ws_name != 'Gráficos':  # Ignora a aba de Gráficos
+                            worksheet = w.book[ws_name]
+                            for row in worksheet.iter_rows():
+                                for cell in row:
+                                    cell.border = no_border
+                                    # Só muda background se não tiver cor específica atribuída (mantém cores de header e dados)
+                                    if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
+                                        cell.fill = white_fill
                     
                     out.seek(0)
                 
