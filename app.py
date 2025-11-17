@@ -1565,7 +1565,7 @@ with col_btn_processar:
                     pie_chart_2.set_categories(labels_2)
                     pie_chart_2.height = 10
                     pie_chart_2.width = 13
-                    ws_graficos.add_chart(pie_chart_2, 'E10')
+                    ws_graficos.add_chart(pie_chart_2, 'I10')
                     
                     # Ajusta largura das colunas
                     ws_graficos.column_dimensions['A'].width = 25
