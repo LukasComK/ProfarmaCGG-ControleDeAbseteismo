@@ -1094,49 +1094,19 @@ with col_btn_processar:
                                         
                                         # FI - Fórmula com TURNO
                                         cell_fi = ws_relatorio.cell(row=row_turno_section, column=4)
-                                        turno_value = f"TURNO {turno_num}"
+                                        turno_text = f"TURNO {turno_num}"
                                         if setor_nome == 'M&A / BLOQ':
-                                            cell_fi.value = (
-                                                f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                                f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
-                                                f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
-                                                f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
-                                            )
+                                            cell_fi.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*' + '(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + ')))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
                                         else:  # CRDK / D&E
-                                            cell_fi.value = (
-                                                f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                                f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
-                                                f'(Dados!{data_col_letter}:${data_col_letter}="FI"))'
-                                            )
+                                            cell_fi.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*' + '(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + '))))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
                                         cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                         
                                         # FA - Fórmula com TURNO
                                         cell_fa = ws_relatorio.cell(row=row_turno_section, column=5)
                                         if setor_nome == 'M&A / BLOQ':
-                                            cell_fa.value = (
-                                                f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                                f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
-                                                f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
-                                                f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
-                                            )
+                                            cell_fa.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*' + '(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + ')))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
                                         else:  # CRDK / D&E
-                                            cell_fa.value = (
-                                                f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                                f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
-                                                f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
-                                                f'(Dados!{data_col_letter}:${data_col_letter}="FA"))'
-                                            )
+                                            cell_fa.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*' + '(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + '))))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
                                         cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                         
                                         # Total (cinza)
@@ -1577,28 +1547,14 @@ with col_btn_processar:
                             # M&A / BLOQ HC para turno
                             ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
                             cell_hc_ma_turno = ws_turno.cell(row=row_turno, column=2)
-                            cell_hc_ma_turno.value = (
-                                f'=SUMPRODUCT('
-                                f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
-                                f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
-                                f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
-                                f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))'
-                                f')'
-                            )
+                            turno_text = f"TURNO {turno_num}"
+                            cell_hc_ma_turno.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + '))))'
                             row_turno += 1
                             
                             # CRDK / D&E HC para turno
                             ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
                             cell_hc_crdk_turno = ws_turno.cell(row=row_turno, column=2)
-                            cell_hc_crdk_turno.value = (
-                                f'=SUMPRODUCT('
-                                f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
-                                f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
-                                f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))'
-                                f')'
-                            )
+                            cell_hc_crdk_turno.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + ')))))'
                             row_turno += 2  # Espaço vazio
                             
                             # Headers com datas
@@ -1624,15 +1580,7 @@ with col_btn_processar:
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
-                                    cell_ma_turno.value = (
-                                        f'=SUMPRODUCT('
-                                        f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                        f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
-                                        f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
-                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
-                                    )
+                                    cell_ma_turno.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + ')))*(( Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
                                 else:
                                     cell_ma_turno.value = 0
                                 
@@ -1652,14 +1600,7 @@ with col_btn_processar:
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
-                                    cell_crdk_turno.value = (
-                                        f'=SUMPRODUCT('
-                                        f'(Dados!{turno_col_letter}:${turno_col_letter}="{turno_value}")*'
-                                        f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
-                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
-                                    )
+                                    cell_crdk_turno.value = '=SUMPRODUCT((Dados!' + turno_col_letter + ':$' + turno_col_letter + '="' + turno_text + '")*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + '))))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
                                 else:
                                     cell_crdk_turno.value = 0
                                 
