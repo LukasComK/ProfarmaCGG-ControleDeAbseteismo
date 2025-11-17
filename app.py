@@ -1243,16 +1243,25 @@ with col_btn_processar:
                     cell_hc_total_label.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Replica o HC Total em todas as colunas de data (subtraindo DESLIGADOS)
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                        col_data = mapa_datas[data_obj]
-                        data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                        data_col_letter = get_column_letter(data_col_idx)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
+                        data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
-                        cell_hc_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
-                        # Fórmula: HC Total (B4+B5) menos a contagem de DESLIGADO nesta data
-                        # COUNTIF insensível a maiúsculas/minúsculas
-                        cell_hc_data.value = f'=(B4+B5)-COUNTIF(Dados!{data_col_letter}:${data_col_letter},"DESLIGADO")'
-                        cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                        if data_obj in mapa_datas:
+                            col_data = mapa_datas[data_obj]
+                            data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                            data_col_letter = get_column_letter(data_col_idx)
+                            
+                            cell_hc_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            # Fórmula: HC Total (B4+B5) menos a contagem de DESLIGADO nesta data
+                            # COUNTIF insensível a maiúsculas/minúsculas
+                            cell_hc_data.value = f'=(B4+B5)-COUNTIF(Dados!{data_col_letter}:${data_col_letter},"DESLIGADO")'
+                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                        else:
+                            # Se não tem dados, coloca 0
+                            cell_hc_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            cell_hc_data.value = '=B4+B5'
+                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                         cell_hc_data.font = Font(bold=True)
                         cell_hc_data.alignment = Alignment(horizontal='center', vertical='center')
                     
@@ -1272,9 +1281,10 @@ with col_btn_processar:
                     cell_hc_total.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Soma das faltas por data (linha 9 + linha 11)
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                        cell_total_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
-                        col_letter = get_column_letter(data_idx)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
+                        cell_total_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                        col_letter = get_column_letter(col_idx)
                         cell_total_data.value = f'={col_letter}9+{col_letter}11'
                         cell_total_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                         cell_total_data.font = Font(bold=True)
@@ -1293,16 +1303,26 @@ with col_btn_processar:
                     cell_fi_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
                     # Soma de FI por data (soma das linhas 9 e 11 de FI apenas)
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                        col_data = mapa_datas[data_obj]
-                        data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                        data_col_letter = get_column_letter(data_col_idx)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
+                        data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
-                        cell_fi_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
-                        # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
-                        cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
-                        cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                        cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
+                        if data_obj in mapa_datas:
+                            col_data = mapa_datas[data_obj]
+                            data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                            data_col_letter = get_column_letter(data_col_idx)
+                            
+                            cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
+                            cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
+                            cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
+                        else:
+                            # Se não tem dados, coloca 0
+                            cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            cell_fi_data.value = 0
+                            cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_pct += 1
                     
@@ -1316,15 +1336,25 @@ with col_btn_processar:
                     cell_fa_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
                     # Soma de FA por data
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                        col_data = mapa_datas[data_obj]
-                        data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                        data_col_letter = get_column_letter(data_col_idx)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
+                        data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
-                        cell_fa_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
-                        cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
-                        cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                        cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
+                        if data_obj in mapa_datas:
+                            col_data = mapa_datas[data_obj]
+                            data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                            data_col_letter = get_column_letter(data_col_idx)
+                            
+                            cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
+                            cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
+                        else:
+                            # Se não tem dados, coloca 0
+                            cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            cell_fa_data.value = 0
+                            cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_pct += 1
                     
@@ -1338,8 +1368,9 @@ with col_btn_processar:
                     cell_meta_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
                     # Valor 3% para todos os dias (VERDE FORTE)
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                        cell_meta_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
+                        cell_meta_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         cell_meta_data.value = 3
                         cell_meta_data.fill = PatternFill(start_color='FF70AD47', end_color='FF70AD47', fill_type='solid')
                         cell_meta_data.font = Font(bold=True, color='FFFFFFFF')
@@ -1360,9 +1391,10 @@ with col_btn_processar:
                     # Soma acumulada de faltas / HC do dia respectivo * 100
                     # Cores condicionais: Verde <3%, Amarelo 3-3.5%, Vermelho >3.5%
                     row_acumulado = row_pct
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                        cell_acum_data = ws_porcentagens.cell(row=row_pct, column=data_idx)
-                        col_letter = get_column_letter(data_idx)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
+                        cell_acum_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                        col_letter = get_column_letter(col_idx)
                         # Referencia: célula do TOTAL (row_total_faltas) / HC da data respectiva (mesmo col_letter em row_total_hc) * 100
                         cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/{col_letter}{row_total_hc})*100,0)'
                         cell_acum_data.font = Font(bold=True)
