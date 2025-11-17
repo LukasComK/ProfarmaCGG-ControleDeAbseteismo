@@ -1559,6 +1559,9 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fi = ws_turno.cell(row=row_turno, column=col_idx)
                                 
+                                # Detecta se é sábado (5) ou domingo (6)
+                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
@@ -1568,7 +1571,12 @@ with col_btn_processar:
                                 else:
                                     cell_fi.value = 0
                                 
-                                cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
+                                if eh_fim_semana:
+                                    cell_fi.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fi.font = Font(color='FFFFFFFF', bold=True)
+                                else:
+                                    cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
+                                    cell_fi.font = Font(bold=True, color='FF2C3E50')
                                 cell_fi.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
@@ -1581,6 +1589,9 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fa = ws_turno.cell(row=row_turno, column=col_idx)
                                 
+                                # Detecta se é sábado (5) ou domingo (6)
+                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
@@ -1590,7 +1601,12 @@ with col_btn_processar:
                                 else:
                                     cell_fa.value = 0
                                 
-                                cell_fa.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
+                                if eh_fim_semana:
+                                    cell_fa.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fa.font = Font(color='FFFFFFFF', bold=True)
+                                else:
+                                    cell_fa.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
+                                    cell_fa.font = Font(bold=True, color='FF2C3E50')
                                 cell_fa.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
@@ -1600,14 +1616,24 @@ with col_btn_processar:
                             cell_total_ma_label.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
+                                data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_total_ma = ws_turno.cell(row=row_turno, column=col_idx)
+                                
+                                # Detecta se é sábado (5) ou domingo (6)
+                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                
                                 # Soma FI + FA da linha anterior
                                 prev_row_fi = row_turno - 2
                                 prev_row_fa = row_turno - 1
                                 col_letter = get_column_letter(col_idx)
                                 cell_total_ma.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
-                                cell_total_ma.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
-                                cell_total_ma.font = Font(color='FFFFFF', bold=True)
+                                
+                                if eh_fim_semana:
+                                    cell_total_ma.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
+                                else:
+                                    cell_total_ma.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
+                                    cell_total_ma.font = Font(color='FFFFFF', bold=True)
                                 cell_total_ma.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 2  # Espaço
                             
@@ -1635,6 +1661,9 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fi_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
+                                # Detecta se é sábado (5) ou domingo (6)
+                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
@@ -1644,7 +1673,12 @@ with col_btn_processar:
                                 else:
                                     cell_fi_crdk.value = 0
                                 
-                                cell_fi_crdk.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
+                                if eh_fim_semana:
+                                    cell_fi_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fi_crdk.font = Font(color='FFFFFFFF', bold=True)
+                                else:
+                                    cell_fi_crdk.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
+                                    cell_fi_crdk.font = Font(bold=True, color='FF2C3E50')
                                 cell_fi_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
@@ -1657,6 +1691,9 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fa_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
+                                # Detecta se é sábado (5) ou domingo (6)
+                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
@@ -1666,7 +1703,12 @@ with col_btn_processar:
                                 else:
                                     cell_fa_crdk.value = 0
                                 
-                                cell_fa_crdk.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
+                                if eh_fim_semana:
+                                    cell_fa_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fa_crdk.font = Font(color='FFFFFFFF', bold=True)
+                                else:
+                                    cell_fa_crdk.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
+                                    cell_fa_crdk.font = Font(bold=True, color='FF2C3E50')
                                 cell_fa_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
@@ -1676,14 +1718,24 @@ with col_btn_processar:
                             cell_total_crdk_label.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
+                                data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_total_crdk = ws_turno.cell(row=row_turno, column=col_idx)
+                                
+                                # Detecta se é sábado (5) ou domingo (6)
+                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                
                                 # Soma FI + FA da linha anterior
                                 prev_row_fi = row_turno - 2
                                 prev_row_fa = row_turno - 1
                                 col_letter = get_column_letter(col_idx)
                                 cell_total_crdk.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
-                                cell_total_crdk.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
-                                cell_total_crdk.font = Font(color='FFFFFF', bold=True)
+                                
+                                if eh_fim_semana:
+                                    cell_total_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_total_crdk.font = Font(color='FFFFFFFF', bold=True)
+                                else:
+                                    cell_total_crdk.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
+                                    cell_total_crdk.font = Font(color='FFFFFF', bold=True)
                                 cell_total_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 3  # Espaço entre turnos
                         
