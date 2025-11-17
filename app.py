@@ -497,13 +497,17 @@ with col_btn_processar:
                 if len(mapa_datas) == 0:
                     st.warning("⚠️ Nenhuma coluna de data encontrada! Colunas disponíveis: " + str(list(df_mest.columns)))
                 
-                # Pré-preenche TODOS os sábados e domingos com "D" (Descanso)
-                st.info("🗓️ Pré-preenchendo todos os fins de semana com 'D'...")
+                # Pré-preenche APENAS sábados e domingos VAZIOS com "D" (Descanso)
+                st.info("🗓️ Pré-preenchendo fins de semana vazios com 'D'...")
                 for data_obj, col_data_obj in mapa_datas.items():
                     # data_obj já é uma datetime.date, col_data_obj é o nome da coluna
                     if eh_fim_de_semana(data_obj):
                         for idx in df_mest.index:
-                            df_mest.at[idx, col_data_obj] = 'D'
+                            # Verifica se a célula está vazia antes de preencher
+                            valor_atual = df_mest.at[idx, col_data_obj]
+                            # Considera vazio: None, 'nan', '', string com só espaços, NaN
+                            if pd.isna(valor_atual) or str(valor_atual).strip() in ['', 'nan', 'None', '<NA>']:
+                                df_mest.at[idx, col_data_obj] = 'D'
                 
                 # Processa CADA arquivo de encarregado
                 total_sucesso = 0
