@@ -1049,7 +1049,7 @@ with col_btn_processar:
                         
                         # Headers do resumo por turno
                         row_turno_section += 1
-                        headers_turno = ['Turno', 'Data', 'Dia', 'Setor', 'FI', 'FA', 'Total']
+                        headers_turno = ['Turno', 'Data', 'Setor', 'FI', 'FA', 'Total']
                         for col_idx, header in enumerate(headers_turno, 1):
                             cell = ws_relatorio.cell(row=row_turno_section, column=col_idx, value=header)
                             cell.font = Font(bold=True, color='FFFFFF')
@@ -1071,8 +1071,6 @@ with col_btn_processar:
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     data_formatada = data_obj.strftime('%d/%m/%Y') if isinstance(data_obj, datetime.date) else str(data_obj)
-                                    dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
-                                    dia_semana = dias_semana_pt.get(dia_en, dia_en)
                                     
                                     # Para cada setor
                                     setores_turno = [
@@ -1090,20 +1088,16 @@ with col_btn_processar:
                                         cell_data = ws_relatorio.cell(row=row_turno_section, column=2, value=data_formatada)
                                         cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                         
-                                        # Dia (cinza)
-                                        cell_dia = ws_relatorio.cell(row=row_turno_section, column=3, value=dia_semana)
-                                        cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                        
                                         # Setor (verde suave)
-                                        cell_setor = ws_relatorio.cell(row=row_turno_section, column=4, value=setor_nome)
+                                        cell_setor = ws_relatorio.cell(row=row_turno_section, column=3, value=setor_nome)
                                         cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                                         
                                         # FI - Fórmula com TURNO
-                                        cell_fi = ws_relatorio.cell(row=row_turno_section, column=5)
+                                        cell_fi = ws_relatorio.cell(row=row_turno_section, column=4)
                                         if setor_nome == 'M&A / BLOQ':
                                             cell_fi.value = (
                                                 f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                                 f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
                                                 f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
                                                 f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
@@ -1113,7 +1107,7 @@ with col_btn_processar:
                                         else:  # CRDK / D&E
                                             cell_fi.value = (
                                                 f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                                 f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
                                                 f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
                                                 f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
@@ -1122,11 +1116,11 @@ with col_btn_processar:
                                         cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                         
                                         # FA - Fórmula com TURNO
-                                        cell_fa = ws_relatorio.cell(row=row_turno_section, column=6)
+                                        cell_fa = ws_relatorio.cell(row=row_turno_section, column=5)
                                         if setor_nome == 'M&A / BLOQ':
                                             cell_fa.value = (
                                                 f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                                 f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
                                                 f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
                                                 f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
@@ -1136,7 +1130,7 @@ with col_btn_processar:
                                         else:  # CRDK / D&E
                                             cell_fa.value = (
                                                 f'=SUMPRODUCT('
-                                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                                f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                                 f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
                                                 f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
                                                 f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
@@ -1145,8 +1139,8 @@ with col_btn_processar:
                                         cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                         
                                         # Total (cinza)
-                                        cell_total_turno = ws_relatorio.cell(row=row_turno_section, column=7)
-                                        cell_total_turno.value = f'=E{row_turno_section}+F{row_turno_section}'
+                                        cell_total_turno = ws_relatorio.cell(row=row_turno_section, column=6)
+                                        cell_total_turno.value = f'=D{row_turno_section}+E{row_turno_section}'
                                         cell_total_turno.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                         
                                         row_turno_section += 1
@@ -1583,7 +1577,7 @@ with col_btn_processar:
                             cell_hc_ma_turno = ws_turno.cell(row=row_turno, column=2)
                             cell_hc_ma_turno.value = (
                                 f'=SUMPRODUCT('
-                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                 f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
                                 f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
                                 f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
@@ -1597,7 +1591,7 @@ with col_btn_processar:
                             cell_hc_crdk_turno = ws_turno.cell(row=row_turno, column=2)
                             cell_hc_crdk_turno.value = (
                                 f'=SUMPRODUCT('
-                                f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                 f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
                                 f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
                                 f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))'
@@ -1630,7 +1624,7 @@ with col_btn_processar:
                                     
                                     cell_ma_turno.value = (
                                         f'=SUMPRODUCT('
-                                        f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                        f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                         f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
                                         f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
                                         f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
@@ -1658,7 +1652,7 @@ with col_btn_processar:
                                     
                                     cell_crdk_turno.value = (
                                         f'=SUMPRODUCT('
-                                        f'(Dados!{turno_col_letter}:${turno_col_letter}={turno_num})*'
+                                        f'(Dados!{turno_col_letter}:${turno_col_letter}="TURNO {turno_num}")*'
                                         f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
                                         f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
                                         f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
