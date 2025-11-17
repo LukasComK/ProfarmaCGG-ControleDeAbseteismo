@@ -1523,8 +1523,8 @@ with col_btn_processar:
                     data = Reference(ws_graficos, min_col=2, min_row=row_grafico+1, max_row=row_fi_fa_data)
                     pie_chart_1.add_data(data, titles_from_data=True)
                     pie_chart_1.set_categories(labels)
-                    pie_chart_1.height = 10
-                    pie_chart_1.width = 13
+                    pie_chart_1.height = 8.5
+                    pie_chart_1.width = 11.05
                     ws_graficos.add_chart(pie_chart_1, 'A10')
                     
                     # ===== GRÁFICO 2: Faltas por Setor (DINÂMICO) =====
@@ -1563,8 +1563,8 @@ with col_btn_processar:
                     data_2 = Reference(ws_graficos, min_col=col_grafico_setor+1, min_row=row_grafico+1, max_row=row_setor_data)
                     pie_chart_2.add_data(data_2, titles_from_data=True)
                     pie_chart_2.set_categories(labels_2)
-                    pie_chart_2.height = 10
-                    pie_chart_2.width = 13
+                    pie_chart_2.height = 8.5
+                    pie_chart_2.width = 11.05
                     ws_graficos.add_chart(pie_chart_2, 'F10')
                     
                     # Ajusta largura das colunas
@@ -1585,19 +1585,20 @@ with col_btn_processar:
                     )
                     white_fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
                     
-                    # Aplica a todas as abas
+                    # PRIMEIRO: Pinta TUDO de branco (inclusive ws_graficos)
                     for ws in w.book.sheetnames:
                         worksheet = w.book[ws]
                         for row in worksheet.iter_rows():
                             for cell in row:
                                 cell.border = no_border
-                                # Só muda background se não tiver cor específica atribuída (mantém cores de header e dados)
-                                if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
-                                    cell.fill = white_fill
+                                cell.fill = white_fill
                     
-                    # Preenche colunas A até T até linha 30 com background branco
+                    # DEPOIS: Re-aplica as cores específicas dos dados (Dados, Relatório, Porcentagens ABS)
+                    # Aqui o Streamlit vai recriar as cores dos setores, headers, etc que foram adicionadas anteriormente
+                    
+                    # Coluna Z para trás com background branco na aba Gráficos (Z é coluna 26)
                     for row_num in range(1, 31):
-                        for col_num in range(1, 21):  # Colunas A (1) até T (20)
+                        for col_num in range(26, 100):  # Coluna Z (26) em diante
                             cell = ws_graficos.cell(row=row_num, column=col_num)
                             cell.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
                     
