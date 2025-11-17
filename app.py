@@ -1595,10 +1595,11 @@ with col_btn_processar:
                                 if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
                                     cell.fill = white_fill
                     
-                    # Preenche coluna T até linha 30 com background branco
+                    # Preenche colunas A até T até linha 30 com background branco
                     for row_num in range(1, 31):
-                        cell_t = ws_graficos.cell(row=row_num, column=20)  # Coluna T é a 20ª coluna
-                        cell_t.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
+                        for col_num in range(1, 21):  # Colunas A (1) até T (20)
+                            cell = ws_graficos.cell(row=row_num, column=col_num)
+                            cell.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
                     
                     out.seek(0)
                 
