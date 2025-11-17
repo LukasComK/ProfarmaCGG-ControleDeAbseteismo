@@ -1565,7 +1565,7 @@ with col_btn_processar:
                     pie_chart_2.set_categories(labels_2)
                     pie_chart_2.height = 10
                     pie_chart_2.width = 13
-                    ws_graficos.add_chart(pie_chart_2, 'I10')
+                    ws_graficos.add_chart(pie_chart_2, 'F10')
                     
                     # Ajusta largura das colunas
                     ws_graficos.column_dimensions['A'].width = 25
@@ -1594,6 +1594,11 @@ with col_btn_processar:
                                 # Só muda background se não tiver cor específica atribuída (mantém cores de header e dados)
                                 if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
                                     cell.fill = white_fill
+                    
+                    # Preenche coluna T até linha 30 com background branco
+                    for row_num in range(1, 31):
+                        cell_t = ws_graficos.cell(row=row_num, column=20)  # Coluna T é a 20ª coluna
+                        cell_t.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
                     
                     out.seek(0)
                 
