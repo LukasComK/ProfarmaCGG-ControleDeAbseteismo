@@ -1518,7 +1518,7 @@ with col_btn_processar:
                         ws_turno.merge_cells('A1:Z1')
                         titulo_turno = ws_turno.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO POR TURNO')
                         titulo_turno.font = Font(bold=True, size=14, color='FFFFFF')
-                        titulo_turno.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                        titulo_turno.fill = PatternFill(start_color='FF2C3E50', end_color='FF2C3E50', fill_type='solid')
                         
                         row_turno = 3
                         
@@ -1531,34 +1531,35 @@ with col_btn_processar:
                             ws_turno.merge_cells(f'A{row_turno}:Z{row_turno}')
                             cell_turno_header = ws_turno.cell(row=row_turno, column=1, value=turno_label)
                             cell_turno_header.font = Font(bold=True, size=12, color='FFFFFF')
-                            cell_turno_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                            cell_turno_header.fill = PatternFill(start_color='FF34495E', end_color='FF34495E', fill_type='solid')
                             row_turno += 1
                             
                             # Headers com datas
                             ws_turno.cell(row=row_turno, column=1, value='Área')
                             cell_area_header = ws_turno.cell(row=row_turno, column=1)
                             cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
-                            cell_area_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                            cell_area_header.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
                             
                             for dia in range(1, dias_no_mes + 1):
                                 data_formatada = f"{dia:02d}/{mes_dados:02d}"
                                 col_idx = dia + 1
                                 cell_header_data = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
                                 cell_header_data.font = Font(bold=True, color='FFFFFF', size=9)
-                                cell_header_data.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                                cell_header_data.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
                                 cell_header_data.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # ===== M&A / BLOQ =====
                             # Label M&A / BLOQ
                             cell_ma_label = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
-                            cell_ma_label.font = Font(bold=True)
-                            cell_ma_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                            cell_ma_label.font = Font(bold=True, color='FF2C3E50')
+                            cell_ma_label.fill = PatternFill(start_color='FFE8E8E8', end_color='FFE8E8E8', fill_type='solid')
                             row_turno += 1
                             
                             # FI
                             cell_fi_label = ws_turno.cell(row=row_turno, column=1, value='FI')
-                            cell_fi_label.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
+                            cell_fi_label.font = Font(bold=True, color='FF2C3E50')
+                            cell_fi_label.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
                             turno_text = f"TURNO {turno_num}"
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
@@ -1580,7 +1581,8 @@ with col_btn_processar:
                             
                             # FA
                             cell_fa_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_label.fill = PatternFill(start_color='FFFFFF99', end_color='FFFFFF99', fill_type='solid')
+                            cell_fa_label.font = Font(bold=True, color='FF2C3E50')
+                            cell_fa_label.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -1595,13 +1597,14 @@ with col_btn_processar:
                                 else:
                                     cell_fa.value = 0
                                 
-                                cell_fa.fill = PatternFill(start_color='FFFFFF99', end_color='FFFFFF99', fill_type='solid')
+                                cell_fa.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
                                 cell_fa.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # TOTAL M&A
                             cell_total_ma_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
-                            cell_total_ma_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            cell_total_ma_label.font = Font(bold=True, color='FFFFFF')
+                            cell_total_ma_label.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 cell_total_ma = ws_turno.cell(row=row_turno, column=col_idx)
@@ -1610,20 +1613,22 @@ with col_btn_processar:
                                 prev_row_fa = row_turno - 1
                                 col_letter = get_column_letter(col_idx)
                                 cell_total_ma.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
-                                cell_total_ma.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                cell_total_ma.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
+                                cell_total_ma.font = Font(color='FFFFFF', bold=True)
                                 cell_total_ma.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 2  # Espaço
                             
                             # ===== CRDK / D&E =====
                             # Label CRDK / D&E
                             cell_crdk_label = ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
-                            cell_crdk_label.font = Font(bold=True)
-                            cell_crdk_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                            cell_crdk_label.font = Font(bold=True, color='FF2C3E50')
+                            cell_crdk_label.fill = PatternFill(start_color='FFE8E8E8', end_color='FFE8E8E8', fill_type='solid')
                             row_turno += 1
                             
                             # FI CRDK
                             cell_fi_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FI')
-                            cell_fi_crdk_label.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
+                            cell_fi_crdk_label.font = Font(bold=True, color='FF2C3E50')
+                            cell_fi_crdk_label.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -1638,13 +1643,14 @@ with col_btn_processar:
                                 else:
                                     cell_fi_crdk.value = 0
                                 
-                                cell_fi_crdk.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
+                                cell_fi_crdk.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
                                 cell_fi_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # FA CRDK
                             cell_fa_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_crdk_label.fill = PatternFill(start_color='FFFFFF99', end_color='FFFFFF99', fill_type='solid')
+                            cell_fa_crdk_label.font = Font(bold=True, color='FF2C3E50')
+                            cell_fa_crdk_label.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -1659,13 +1665,14 @@ with col_btn_processar:
                                 else:
                                     cell_fa_crdk.value = 0
                                 
-                                cell_fa_crdk.fill = PatternFill(start_color='FFFFFF99', end_color='FFFFFF99', fill_type='solid')
+                                cell_fa_crdk.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
                                 cell_fa_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # TOTAL CRDK
                             cell_total_crdk_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
-                            cell_total_crdk_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            cell_total_crdk_label.font = Font(bold=True, color='FFFFFF')
+                            cell_total_crdk_label.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 cell_total_crdk = ws_turno.cell(row=row_turno, column=col_idx)
@@ -1674,7 +1681,8 @@ with col_btn_processar:
                                 prev_row_fa = row_turno - 1
                                 col_letter = get_column_letter(col_idx)
                                 cell_total_crdk.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
-                                cell_total_crdk.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                cell_total_crdk.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
+                                cell_total_crdk.font = Font(color='FFFFFF', bold=True)
                                 cell_total_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 3  # Espaço entre turnos
                         
