@@ -1550,10 +1550,18 @@ with col_btn_processar:
                             row_turno += 1
                             
                             # ===== M&A / BLOQ =====
-                            # Label M&A / BLOQ
-                            cell_ma_label = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
-                            cell_ma_label.font = Font(bold=True, color='FF2C3E50')
-                            cell_ma_label.fill = PatternFill(start_color='FFE8E8E8', end_color='FFE8E8E8', fill_type='solid')
+                            # Header M&A / BLOQ com datas
+                            cell_ma_header = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
+                            cell_ma_header.font = Font(bold=True, color='FFFFFF', size=10)
+                            cell_ma_header.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                            
+                            for dia in range(1, dias_no_mes + 1):
+                                data_formatada = f"{dia:02d}/{mes_dados:02d}"
+                                col_idx = dia + 1
+                                cell_header_data_ma = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
+                                cell_header_data_ma.font = Font(bold=True, color='FFFFFF', size=9)
+                                cell_header_data_ma.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                                cell_header_data_ma.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # FI
@@ -1619,10 +1627,18 @@ with col_btn_processar:
                             row_turno += 2  # Espaço
                             
                             # ===== CRDK / D&E =====
-                            # Label CRDK / D&E
-                            cell_crdk_label = ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
-                            cell_crdk_label.font = Font(bold=True, color='FF2C3E50')
-                            cell_crdk_label.fill = PatternFill(start_color='FFE8E8E8', end_color='FFE8E8E8', fill_type='solid')
+                            # Header CRDK / D&E com datas
+                            cell_crdk_header = ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
+                            cell_crdk_header.font = Font(bold=True, color='FFFFFF', size=10)
+                            cell_crdk_header.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                            
+                            for dia in range(1, dias_no_mes + 1):
+                                data_formatada = f"{dia:02d}/{mes_dados:02d}"
+                                col_idx = dia + 1
+                                cell_header_data_crdk = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
+                                cell_header_data_crdk.font = Font(bold=True, color='FFFFFF', size=9)
+                                cell_header_data_crdk.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                                cell_header_data_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # FI CRDK
