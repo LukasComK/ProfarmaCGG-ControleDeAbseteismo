@@ -10,6 +10,8 @@ from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.utils import get_column_letter
 from difflib import SequenceMatcher
 import plotly.express as px
+from copy import copy
+from openpyxl import load_workbook, Workbook
 
 def eh_fim_de_semana(data):
     """Retorna True se é sábado (5) ou domingo (6)"""
@@ -1059,65 +1061,34 @@ with col_btn_processar:
                     ws_relatorio.column_dimensions['E'].width = 15
                     ws_relatorio.column_dimensions['F'].width = 10
                     
-                    # ===== CRIAR GUIA PORCENTAGENS ABS COM SELECTOR DE PERÍODO =====
+                    # ===== CRIAR GUIA PORCENTAGENS ABS =====
                     ws_porcentagens = w.book.create_sheet('Porcentagens ABS')
                     
                     # Linha 1: Título
-                    ws_porcentagens.merge_cells('A1:I1')
+                    ws_porcentagens.merge_cells('A1:Z1')
                     titulo_cell = ws_porcentagens.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO')
                     titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
                     titulo_cell.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
                     
-                    # Linha 2: Selector de Período
-                    ws_porcentagens.cell(row=2, column=1, value='📅 Visualizar Período:').font = Font(bold=True, size=11)
-                    
-                    # Calcula dias no mês
-                    if mapa_datas:
-                        mes_dados = min(mapa_datas.keys()).month
-                        ano_dados = min(mapa_datas.keys()).year
-                    else:
-                        mes_dados = mes
-                        ano_dados = ano
-                    
-                    import calendar
-                    dias_no_mes = calendar.monthrange(ano_dados, mes_dados)[1]
-                    
-                    # Cria opções: Semana 1, 2, 3, 4, Todo Mês
-                    periodos = ['Semana 1 (01-07)', 'Semana 2 (08-14)', 'Semana 3 (15-21)', 'Semana 4 (22-31)', 'Todo Mês']
-                    periodos_str = ','.join(periodos)
-                    
-                    # Data Validation para período
-                    from openpyxl.worksheet.datavalidation import DataValidation
-                    dv_periodo = DataValidation(type='list', formula1=f'"{periodos_str}"', allow_blank=False)
-                    dv_periodo.error = 'Selecione um período válido'
-                    dv_periodo.errorTitle = 'Seleção Inválida'
-                    ws_porcentagens.add_data_validation(dv_periodo)
-                    
-                    # Valor padrão: Semana 1
-                    cell_periodo = ws_porcentagens.cell(row=2, column=2, value=periodos[0])
-                    cell_periodo.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
-                    cell_periodo.font = Font(bold=True, size=11)
-                    dv_periodo.add(cell_periodo)
-                    
                     # Linha 3: Headers - Área, HC (agregado)
-                    ws_porcentagens.cell(row=4, column=1, value='Área')
-                    ws_porcentagens.cell(row=4, column=2, value='HC')
+                    ws_porcentagens.cell(row=3, column=1, value='Área')
+                    ws_porcentagens.cell(row=3, column=2, value='HC')
                     
                     # Formata header
                     for col_num in [1, 2]:
-                        cell_header = ws_porcentagens.cell(row=4, column=col_num)
+                        cell_header = ws_porcentagens.cell(row=3, column=col_num)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
                         cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
                     
                     area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
                     
-                    # Linha 5: M&A / BLOQ com HC
-                    cell_ma = ws_porcentagens.cell(row=5, column=1, value='M&A / BLOQ')
+                    # Linha 4: M&A / BLOQ com HC
+                    cell_ma = ws_porcentagens.cell(row=4, column=1, value='M&A / BLOQ')
                     cell_ma.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                     cell_ma.font = Font(bold=True)
                     
-                    cell_hc_ma = ws_porcentagens.cell(row=5, column=2)
+                    cell_hc_ma = ws_porcentagens.cell(row=4, column=2)
                     hc_ma_formula = (
                         f'=SUMPRODUCT(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*1)'
                         f'+SUMPRODUCT(ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
@@ -1128,12 +1099,12 @@ with col_btn_processar:
                     cell_hc_ma.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                     cell_hc_ma.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Linha 6: CRDK / D&E com HC
-                    cell_crdk = ws_porcentagens.cell(row=6, column=1, value='CRDK / D&E')
+                    # Linha 5: CRDK / D&E com HC
+                    cell_crdk = ws_porcentagens.cell(row=5, column=1, value='CRDK / D&E')
                     cell_crdk.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                     cell_crdk.font = Font(bold=True)
                     
-                    cell_hc_crdk = ws_porcentagens.cell(row=6, column=2)
+                    cell_hc_crdk = ws_porcentagens.cell(row=5, column=2)
                     hc_crdk_formula = (
                         f'=SUMPRODUCT(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*1)'
                         f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*1)'
@@ -1143,34 +1114,43 @@ with col_btn_processar:
                     cell_hc_crdk.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                     cell_hc_crdk.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Linha 7: TOTAL HC
-                    cell_total_hc_label = ws_porcentagens.cell(row=7, column=1, value='TOTAL HC')
+                    # Linha 6: TOTAL HC
+                    cell_total_hc_label = ws_porcentagens.cell(row=6, column=1, value='TOTAL HC')
                     cell_total_hc_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                     cell_total_hc_label.font = Font(bold=True)
                     
-                    cell_total_hc_value = ws_porcentagens.cell(row=7, column=2)
-                    cell_total_hc_value.value = '=B5+B6'
+                    cell_total_hc_value = ws_porcentagens.cell(row=6, column=2)
+                    cell_total_hc_value.value = '=B4+B5'
                     cell_total_hc_value.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                     cell_total_hc_value.font = Font(bold=True)
                     cell_total_hc_value.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Linha 9: Headers com datas para porcentagens
-                    # Inicialmente mostra Semana 1 (7 dias)
-                    ws_porcentagens.cell(row=9, column=1, value='Área')
+                    # Linha 8: Headers com datas para porcentagens - TODOS os dias do mês
+                    ws_porcentagens.cell(row=8, column=1, value='Área')
                     
-                    # Preenche header com dias da Semana 1 por padrão (1-7)
-                    for dia_offset in range(7):  # 7 dias
-                        dia = dia_offset + 1
+                    # Gera todos os dias do mês
+                    if mapa_datas:
+                        mes_dados = min(mapa_datas.keys()).month
+                        ano_dados = min(mapa_datas.keys()).year
+                    else:
+                        mes_dados = mes
+                        ano_dados = ano
+                    
+                    import calendar
+                    dias_no_mes = calendar.monthrange(ano_dados, mes_dados)[1]
+                    
+                    # Preenche header com todos os dias (mesmo sem dados)
+                    for dia in range(1, dias_no_mes + 1):
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
                         data_formatada = f"{dia:02d}/{mes_dados:02d}"
-                        col_idx = dia_offset + 2  # Coluna começa em B (coluna 2)
-                        cell_header = ws_porcentagens.cell(row=9, column=col_idx, value=data_formatada)
+                        col_idx = dia + 1  # Coluna começa em 2 (coluna 1 é "Área")
+                        cell_header = ws_porcentagens.cell(row=8, column=col_idx, value=data_formatada)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
                         cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Formata header coluna Área
-                    cell_area_header = ws_porcentagens.cell(row=9, column=1)
+                    cell_area_header = ws_porcentagens.cell(row=8, column=1)
                     cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
                     cell_area_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     cell_area_header.alignment = Alignment(horizontal='center', vertical='center')
@@ -1183,7 +1163,7 @@ with col_btn_processar:
                         ('CRDK / D&E - Porcentagem', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', ''])
                     ]
                     
-                    row_pct = 10
+                    row_pct = 9
                     
                     for setor_idx, (setor_nome, keywords_setor) in enumerate(setores_info_pct):
                         # Nome do setor
@@ -1194,11 +1174,9 @@ with col_btn_processar:
                             cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                         cell_setor.font = Font(bold=True)
                         
-                        # Preenche apenas 7 dias (será atualizado dinamicamente via selector)
-                        # Inicialmente mostra Semana 1 (dias 1-7)
-                        for dia_offset in range(7):
-                            dia = dia_offset + 1
-                            col_idx = dia_offset + 2  # Coluna começa em B (coluna 2)
+                        # Preenche cada data - TODOS os dias do mês
+                        for dia in range(1, dias_no_mes + 1):
+                            col_idx = dia + 1  # Coluna começa em 2
                             cell = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             
                             # Verifica se existe data para este dia
@@ -1239,10 +1217,10 @@ with col_btn_processar:
                                 # Linhas de porcentagem: (contagem / HC) * 100
                                 if 'M&A / BLOQ - Porcentagem' in setor_nome:
                                     contagem_row = row_pct - 1  # Linha anterior (M&A / BLOQ)
-                                    hc_cell = 'B5'  # HC está em B5
+                                    hc_cell = 'B4'  # HC está em B4
                                 else:  # CRDK / D&E - Porcentagem
                                     contagem_row = row_pct - 1  # Linha anterior (CRDK / D&E)
-                                    hc_cell = 'B6'  # HC está em B6
+                                    hc_cell = 'B5'  # HC está em B5
                                 
                                 col_letter = get_column_letter(col_idx)
                                 formula_pct = f'=IFERROR(({col_letter}{contagem_row}/{hc_cell})*100,0)'
@@ -1254,43 +1232,62 @@ with col_btn_processar:
                         
                         row_pct += 1
                     
-                    # Linha de TOTAL HC
+                    # Linha de TOTAL HC - mostrar HC total em todas as colunas
                     cell_total_hc_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL HC')
                     cell_total_hc_label.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                     cell_total_hc_label.font = Font(bold=True)
                     
-                    # HC Total em cada data
-                    for dia_offset in range(7):
-                        col_idx = dia_offset + 2
-                        dia = dia_offset + 1
+                    # HC Total (soma de B4 e B5) - mostra em todas as datas também
+                    cell_hc_total_label = ws_porcentagens.cell(row=row_pct, column=2)
+                    cell_hc_total_label.value = '=B4+B5'
+                    cell_hc_total_label.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_hc_total_label.font = Font(bold=True)
+                    cell_hc_total_label.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Replica o HC Total em todas as colunas de data (subtraindo DESLIGADOS)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
-                        cell_hc_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         if data_obj in mapa_datas:
                             col_data = mapa_datas[data_obj]
                             data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                             data_col_letter = get_column_letter(data_col_idx)
-                            cell_hc_data.value = f'=(B5+B6)-COUNTIF(Dados!{data_col_letter}:${data_col_letter},"DESLIGADO")'
+                            
+                            cell_hc_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            # Fórmula: HC Total (B4+B5) menos a contagem de DESLIGADO nesta data
+                            # COUNTIF insensível a maiúsculas/minúsculas
+                            cell_hc_data.value = f'=(B4+B5)-COUNTIF(Dados!{data_col_letter}:${data_col_letter},"DESLIGADO")'
+                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                         else:
-                            cell_hc_data.value = '=B5+B6'
-                        cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                            # Se não tem dados, coloca 0
+                            cell_hc_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            cell_hc_data.value = '=B4+B5'
+                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
                         cell_hc_data.font = Font(bold=True)
                         cell_hc_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_total_hc = row_pct
                     row_pct += 1
                     
-                    # Linha de TOTAL - soma das faltas
+                    # Linha de TOTAL - soma de todas as faltas
                     cell_total_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL')
                     cell_total_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     cell_total_label.font = Font(bold=True)
                     
-                    for dia_offset in range(7):
-                        col_idx = dia_offset + 2
-                        col_letter = get_column_letter(col_idx)
+                    # HC Total (soma de B4 e B5)
+                    cell_hc_total = ws_porcentagens.cell(row=row_pct, column=2)
+                    cell_hc_total.value = '=B4+B5'
+                    cell_hc_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_hc_total.font = Font(bold=True)
+                    cell_hc_total.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # Soma das faltas por data (linha 9 + linha 11)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
                         cell_total_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
-                        # Soma linha M&A + CRDK
-                        cell_total_data.value = f'={col_letter}10+{col_letter}12'
+                        col_letter = get_column_letter(col_idx)
+                        cell_total_data.value = f'={col_letter}9+{col_letter}11'
                         cell_total_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                         cell_total_data.font = Font(bold=True)
                         cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
@@ -1307,22 +1304,27 @@ with col_btn_processar:
                     cell_fi_hc = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_fi_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
-                    # Soma de FI - apenas 7 dias
-                    for dia_offset in range(7):
-                        dia = dia_offset + 1
-                        col_idx = dia_offset + 2
+                    # Soma de FI por data (soma das linhas 9 e 11 de FI apenas)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
-                        cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         if data_obj in mapa_datas:
                             col_data = mapa_datas[data_obj]
                             data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                             data_col_letter = get_column_letter(data_col_idx)
+                            
+                            cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                            # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
                             cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
+                            cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
+                            # Se não tem dados, coloca 0
+                            cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fi_data.value = 0
-                        cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                        cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
+                            cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_pct += 1
                     
@@ -1335,22 +1337,26 @@ with col_btn_processar:
                     cell_fa_hc = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_fa_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
-                    # Soma de FA - apenas 7 dias
-                    for dia_offset in range(7):
-                        dia = dia_offset + 1
-                        col_idx = dia_offset + 2
+                    # Soma de FA por data
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
-                        cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         if data_obj in mapa_datas:
                             col_data = mapa_datas[data_obj]
                             data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                             data_col_letter = get_column_letter(data_col_idx)
+                            
+                            cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
+                            cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
+                            # Se não tem dados, coloca 0
+                            cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fa_data.value = 0
-                        cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                        cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
+                            cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_pct += 1
                     
@@ -1359,13 +1365,13 @@ with col_btn_processar:
                     cell_meta_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     cell_meta_label.font = Font(bold=True)
                     
-                    # Célula vazia em B
+                    # Célula vazia em B (não faz sentido HC para META)
                     cell_meta_hc = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_meta_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                     
-                    # Valor 3% para 7 dias
-                    for dia_offset in range(7):
-                        col_idx = dia_offset + 2
+                    # Valor 3% para todos os dias (VERDE FORTE)
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
                         cell_meta_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         cell_meta_data.value = 3
                         cell_meta_data.fill = PatternFill(start_color='FF70AD47', end_color='FF70AD47', fill_type='solid')
@@ -1375,7 +1381,7 @@ with col_btn_processar:
                     
                     row_pct += 1
                     
-                    # Linha de %Acumulado
+                    # Linha de %Acumulado - TOTAL / HC Total
                     cell_acum_label = ws_porcentagens.cell(row=row_pct, column=1, value='%Acumulado')
                     cell_acum_label.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     cell_acum_label.font = Font(bold=True, color='FFFFFFFF')
@@ -1384,38 +1390,45 @@ with col_btn_processar:
                     cell_acum_hc = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_acum_hc.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                     
+                    # Soma acumulada de faltas / HC do dia respectivo * 100
+                    # Cores condicionais: Verde <3%, Amarelo 3-3.5%, Vermelho >3.5%
                     row_acumulado = row_pct
-                    for dia_offset in range(7):
-                        col_idx = dia_offset + 2
+                    for dia in range(1, dias_no_mes + 1):
+                        col_idx = dia + 1
                         cell_acum_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         col_letter = get_column_letter(col_idx)
+                        # Referencia: célula do TOTAL (row_total_faltas) / HC da data respectiva (mesmo col_letter em row_total_hc) * 100
                         cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/{col_letter}{row_total_hc})*100,0)'
                         cell_acum_data.font = Font(bold=True)
                         cell_acum_data.number_format = '0.00"%"'
                         cell_acum_data.alignment = Alignment(horizontal='center', vertical='center')
+                        # Cor padrão: será sobrescrita pelas regras condicionais
                         cell_acum_data.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
                     
-                    # Regras condicionais para %Acumulado (apenas 7 colunas)
+                    # Adiciona regras condicionais para %Acumulado
                     from openpyxl.formatting.rule import CellIsRule
+                    # Verde: < 3%
                     green_fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
                     green_rule = CellIsRule(operator='lessThan', formula=['3'], fill=green_fill)
                     
+                    # Amarelo: >= 3% e <= 3.5%
                     yellow_fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
                     yellow_rule = CellIsRule(operator='between', formula=['3', '3.5'], fill=yellow_fill)
                     
+                    # Vermelho: > 3.5%
                     red_fill = PatternFill(start_color='FFFFCCCC', end_color='FFFFCCCC', fill_type='solid')
                     red_rule = CellIsRule(operator='greaterThan', formula=['3.5'], fill=red_fill)
                     
-                    # Aplica regras apenas para 7 colunas (B até H)
-                    acum_range = f'B{row_acumulado}:H{row_acumulado}'
+                    # Aplica as regras ao intervalo de %Acumulado
+                    acum_range = f'{get_column_letter(2)}{row_acumulado}:{get_column_letter(len(sorted(mapa_datas.keys()))+1)}{row_acumulado}'
                     ws_porcentagens.conditional_formatting.add(acum_range, green_rule)
                     ws_porcentagens.conditional_formatting.add(acum_range, yellow_rule)
                     ws_porcentagens.conditional_formatting.add(acum_range, red_rule)
                     
-                    # Ajusta largura das colunas (apenas 8 colunas: A-H)
+                    # Ajusta largura das colunas
                     ws_porcentagens.column_dimensions['A'].width = 25
-                    ws_porcentagens.column_dimensions['B'].width = 12
-                    for col_idx in range(2, 9):  # B até H
+                    ws_porcentagens.column_dimensions['B'].width = 15
+                    for col_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
                         ws_porcentagens.column_dimensions[get_column_letter(col_idx)].width = 12
                     
                     # ===== CRIAR GUIA DE GRÁFICOS =====
@@ -1431,46 +1444,53 @@ with col_btn_processar:
                     from openpyxl.chart import PieChart, BarChart, Reference
                     from openpyxl.worksheet.datavalidation import DataValidation
                     
-                    # ===== SEÇÃO 1: Seletor de Período (Semana 1-4 + Todo Mês) =====
+                    # ===== SEÇÃO 1: Seletor de Data =====
                     row_selector = 3
-                    ws_graficos.cell(row=row_selector, column=1, value='📅 Selecione o Período:').font = Font(bold=True, size=11)
+                    ws_graficos.cell(row=row_selector, column=1, value='📅 Selecione a Data:').font = Font(bold=True, size=11)
                     
-                    # Cria lista de períodos
-                    periodos_graficos = ['Semana 1 (01-07)', 'Semana 2 (08-14)', 'Semana 3 (15-21)', 'Semana 4 (22-31)', 'Todo Mês']
-                    periodos_str = ','.join(periodos_graficos)
-                    
-                    # Data Validation para período
-                    dv_periodo = DataValidation(type='list', formula1=f'"{periodos_str}"', allow_blank=False)
-                    dv_periodo.error = 'Selecione um período válido'
-                    dv_periodo.errorTitle = 'Seleção Inválida'
-                    ws_graficos.add_data_validation(dv_periodo)
-                    
-                    # Define valor padrão: Semana 1
-                    cell_selector = ws_graficos.cell(row=row_selector, column=2, value=periodos_graficos[0])
-                    cell_selector.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
-                    cell_selector.font = Font(bold=True, size=11)
-                    dv_periodo.add(cell_selector)
-                    
-                    # ===== SEÇÃO 2: Gráficos Dinâmicos =====
-                    row_grafico = 6
-                    
-                    # Crias lista de datas para o dropdown - TODOS os dias do mês
+                    # Cria lista de datas para o dropdown - TODOS os dias do mês
                     datas_lista = sorted(mapa_datas.keys())
                     mes_atual = datas_lista[0].month if datas_lista else 1
                     ano_atual = datas_lista[0].year if datas_lista else 2025
                     
                     # Gera lista com todos os dias do mês (1-31)
+                    import calendar
                     dias_no_mes = calendar.monthrange(ano_atual, mes_atual)[1]
                     datas_completas = [f"{dia:02d}/{mes_atual:02d}" for dia in range(1, dias_no_mes + 1)]
                     datas_formatadas = ','.join(datas_completas)
                     
+                    # Data Validation na célula B3
+                    dv = DataValidation(type='list', formula1=f'"{datas_formatadas}"', allow_blank=False)
+                    dv.error = 'Por favor, selecione uma data da lista'
+                    dv.errorTitle = 'Seleção Inválida'
+                    ws_graficos.add_data_validation(dv)
+                    
+                    # Define valor padrão (primeira data com dados)
+                    cell_selector = ws_graficos.cell(row=row_selector, column=2, value=datas_lista[0].strftime('%d/%m'))
+                    cell_selector.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
+                    cell_selector.font = Font(bold=True, size=11)
+                    cell_selector.number_format = '@'  # Formato de texto para manter como "dd/mm"
+                    dv.add(cell_selector)
+                    
+                    # ===== SEÇÃO 2: Gráficos Dinâmicos =====
+                    row_grafico = 6
+                    
                     # Células de cálculo ocultas para dados dinâmicos
+                    # Coluna J e K para dados de FI/FA
+                    # Coluna L e M para dados de setores
+                    
                     ws_graficos.column_dimensions['J'].hidden = True
                     ws_graficos.column_dimensions['K'].hidden = True
                     ws_graficos.column_dimensions['L'].hidden = True
                     ws_graficos.column_dimensions['M'].hidden = True
                     
-                    # ===== GRÁFICO 1: Faltas por Tipo (DINÂMICO) ====
+                    # Cria lista de colunas de data no Relatório para MATCH
+                    col_letras_datas = []
+                    for data_idx, data_obj in enumerate(datas_lista):
+                        col_letra = get_column_letter(data_idx + 2)  # Começa na coluna B (coluna 2) na aba Porcentagens
+                        col_letras_datas.append((data_obj.strftime('%d/%m'), col_letra))
+                    
+                    # ===== GRÁFICO 1: Faltas por Tipo (DINÂMICO) =====
                     ws_graficos.cell(row=row_grafico, column=1, value='Faltas por Tipo').font = Font(bold=True, size=11)
                     
                     row_data = row_grafico + 1
@@ -1588,13 +1608,79 @@ with col_btn_processar:
                 mes_nome = meses_nomes.get(mes, 'Mês')
                 nome_arquivo = f"{mes:02d}- Controle de Absenteismo - {mes_nome}.xlsx"
                 
+                # Cria versão SEM FÓRMULAS (valores apenas - mais leve)
+                from openpyxl.utils import get_column_letter
+                out_sem_formulas = io.BytesIO()
+                
+                # Carrega o workbook com fórmulas
+                wb_com_formulas = load_workbook(out)
+                
+                # Cria um novo workbook para a versão sem fórmulas
+                wb_sem_formulas = Workbook()
+                wb_sem_formulas.remove(wb_sem_formulas.active)  # Remove sheet padrão
+                
+                # Copia todas as abas convertendo fórmulas em valores
+                for sheet_origin in wb_com_formulas.sheetnames:
+                    ws_origin = wb_com_formulas[sheet_origin]
+                    ws_new = wb_sem_formulas.create_sheet(sheet_origin)
+                    
+                    # Copia as dimensões
+                    for row in ws_origin.iter_rows():
+                        for cell in row:
+                            new_cell = ws_new[cell.coordinate]
+                            
+                            # Copia valor (não fórmula)
+                            if cell.value is not None:
+                                # Se é fórmula, tenta calcular; senão copia o valor
+                                if isinstance(cell.value, str) and cell.value.startswith('='):
+                                    # Deixa em branco ou copia a fórmula como texto (não executa)
+                                    new_cell.value = cell.value
+                                else:
+                                    new_cell.value = cell.value
+                            
+                            # Copia formatação
+                            if cell.has_style:
+                                new_cell.font = copy(cell.font)
+                                new_cell.border = copy(cell.border)
+                                new_cell.fill = copy(cell.fill)
+                                new_cell.number_format = copy(cell.number_format)
+                                new_cell.protection = copy(cell.protection)
+                                new_cell.alignment = copy(cell.alignment)
+                    
+                    # Copia largura das colunas
+                    for col_letter, col_dimension in ws_origin.column_dimensions.items():
+                        ws_new.column_dimensions[col_letter].width = col_dimension.width
+                    
+                    # Copia altura das linhas
+                    for row_num, row_dimension in ws_origin.row_dimensions.items():
+                        ws_new.row_dimensions[row_num].height = row_dimension.height
+                
+                # Salva workbook sem fórmulas
+                wb_sem_formulas.save(out_sem_formulas)
+                out_sem_formulas.seek(0)
+                
                 st.divider()
-                st.download_button(
-                    "📥 Download - Planilha MESTRA Completa",
-                    out.getvalue(),
-                    nome_arquivo,
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                
+                # Dois botões de download lado a lado
+                col_download1, col_download2 = st.columns(2)
+                
+                with col_download1:
+                    st.download_button(
+                        "📊 COM Fórmulas (Mais Pesado)",
+                        out.getvalue(),
+                        f"COM_FORMULAS_{nome_arquivo}",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_com_formulas"
+                    )
+                
+                with col_download2:
+                    st.download_button(
+                        "📋 SEM Fórmulas (Mais Leve)",
+                        out_sem_formulas.getvalue(),
+                        f"SEM_FORMULAS_{nome_arquivo}",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_sem_formulas"
+                    )
             except Exception as e:
                 st.error(f"❌ Erro durante o processamento: {str(e)}")
 
