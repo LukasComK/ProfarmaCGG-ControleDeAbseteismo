@@ -1534,21 +1534,6 @@ with col_btn_processar:
                             cell_turno_header.fill = PatternFill(start_color='FF34495E', end_color='FF34495E', fill_type='solid')
                             row_turno += 1
                             
-                            # Headers com datas
-                            ws_turno.cell(row=row_turno, column=1, value='Área')
-                            cell_area_header = ws_turno.cell(row=row_turno, column=1)
-                            cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
-                            cell_area_header.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
-                            
-                            for dia in range(1, dias_no_mes + 1):
-                                data_formatada = f"{dia:02d}/{mes_dados:02d}"
-                                col_idx = dia + 1
-                                cell_header_data = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
-                                cell_header_data.font = Font(bold=True, color='FFFFFF', size=9)
-                                cell_header_data.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
-                                cell_header_data.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 1
-                            
                             # ===== M&A / BLOQ =====
                             # Header M&A / BLOQ com datas
                             cell_ma_header = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
