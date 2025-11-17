@@ -1096,17 +1096,17 @@ with col_btn_processar:
                                         cell_fi = ws_relatorio.cell(row=row_turno_section, column=4)
                                         turno_text = f"TURNO {turno_num}"
                                         if setor_nome == 'M&A / BLOQ':
-                                            cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + ')))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
+                                            cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")'
                                         else:  # CRDK / D&E
-                                            cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + '))))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
+                                            cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")'
                                         cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                         
                                         # FA - Fórmula com TURNO
                                         cell_fa = ws_relatorio.cell(row=row_turno_section, column=5)
                                         if setor_nome == 'M&A / BLOQ':
-                                            cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + ')))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
+                                            cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")'
                                         else:  # CRDK / D&E
-                                            cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + '))))*((Dados!' + data_col_letter + ':$' + data_col_letter + '="FI")+(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")))'
+                                            cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*' + '(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!' + data_col_letter + ':$' + data_col_letter + '="FA")'
                                         cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                         
                                         # Total (cinza)
@@ -1535,26 +1535,31 @@ with col_btn_processar:
                             row_turno += 1
                             
                             # HC por Turno
-                            ws_turno.cell(row=row_turno, column=1, value='Área')
-                            ws_turno.cell(row=row_turno, column=2, value='HC')
-                            
-                            for col_num in [1, 2]:
-                                cell_hc_header = ws_turno.cell(row=row_turno, column=col_num)
-                                cell_hc_header.font = Font(bold=True, color='FFFFFF', size=10)
-                                cell_hc_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                            cell_area_h = ws_turno.cell(row=row_turno, column=1, value='Área')
+                            cell_area_h.font = Font(bold=True, color='FFFFFF', size=10)
+                            cell_area_h.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                            cell_hc_h = ws_turno.cell(row=row_turno, column=2, value='HC')
+                            cell_hc_h.font = Font(bold=True, color='FFFFFF', size=10)
+                            cell_hc_h.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                             row_turno += 1
                             
                             # M&A / BLOQ HC para turno
-                            ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
+                            cell_ma_label = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
+                            cell_ma_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                             cell_hc_ma_turno = ws_turno.cell(row=row_turno, column=2)
                             turno_text = f"TURNO {turno_num}"
                             cell_hc_ma_turno.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!' + area_col_letter + ':$' + area_col_letter + '))))'
+                            cell_hc_ma_turno.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                            cell_hc_ma_turno.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # CRDK / D&E HC para turno
-                            ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
+                            cell_crdk_label = ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
+                            cell_crdk_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                             cell_hc_crdk_turno = ws_turno.cell(row=row_turno, column=2)
                             cell_hc_crdk_turno.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '",Dados!' + turno_col_letter + ':' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!' + area_col_letter + ':$' + area_col_letter + ')))))'
+                            cell_hc_crdk_turno.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                            cell_hc_crdk_turno.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 2  # Espaço vazio
                             
                             # Headers com datas
@@ -1569,7 +1574,9 @@ with col_btn_processar:
                             row_turno += 1
                             
                             # M&A / BLOQ faltas
-                            ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ').font = Font(bold=True)
+                            cell_ma_faltas = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
+                            cell_ma_faltas.font = Font(bold=True)
+                            cell_ma_faltas.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -1589,7 +1596,9 @@ with col_btn_processar:
                             row_turno += 1
                             
                             # CRDK / D&E faltas
-                            ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E').font = Font(bold=True)
+                            cell_crdk_faltas = ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
+                            cell_crdk_faltas.font = Font(bold=True)
+                            cell_crdk_faltas.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
