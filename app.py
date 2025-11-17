@@ -1123,11 +1123,26 @@ with col_btn_processar:
                     cell_total_hc_value.font = Font(bold=True)
                     cell_total_hc_value.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Linha 8: Headers com datas para porcentagens
+                    # Linha 8: Headers com datas para porcentagens - TODOS os dias do mês
                     ws_porcentagens.cell(row=8, column=1, value='Área')
-                    for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                        data_formatada = data_obj.strftime('%d/%m') if isinstance(data_obj, datetime.date) else str(data_obj)
-                        cell_header = ws_porcentagens.cell(row=8, column=data_idx, value=data_formatada)
+                    
+                    # Gera todos os dias do mês
+                    if mapa_datas:
+                        mes_dados = min(mapa_datas.keys()).month
+                        ano_dados = min(mapa_datas.keys()).year
+                    else:
+                        mes_dados = mes
+                        ano_dados = ano
+                    
+                    import calendar
+                    dias_no_mes = calendar.monthrange(ano_dados, mes_dados)[1]
+                    
+                    # Preenche header com todos os dias (mesmo sem dados)
+                    for dia in range(1, dias_no_mes + 1):
+                        data_obj = datetime.date(ano_dados, mes_dados, dia)
+                        data_formatada = f"{dia:02d}/{mes_dados:02d}"
+                        col_idx = dia + 1  # Coluna começa em 2 (coluna 1 é "Área")
+                        cell_header = ws_porcentagens.cell(row=8, column=col_idx, value=data_formatada)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
                         cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
@@ -1157,35 +1172,44 @@ with col_btn_processar:
                             cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                         cell_setor.font = Font(bold=True)
                         
-                        # Preenche cada data
-                        for data_idx, data_obj in enumerate(sorted(mapa_datas.keys()), start=2):
-                            col_data = mapa_datas[data_obj]
-                            data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                            data_col_letter = get_column_letter(data_col_idx)
+                        # Preenche cada data - TODOS os dias do mês
+                        for dia in range(1, dias_no_mes + 1):
+                            col_idx = dia + 1  # Coluna começa em 2
+                            cell = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             
-                            cell = ws_porcentagens.cell(row=row_pct, column=data_idx)
+                            # Verifica se existe data para este dia
+                            data_obj = datetime.date(ano_dados, mes_dados, dia)
                             
                             if 'Porcentagem' not in setor_nome:
                                 # Linhas de contagem FI+FA
-                                if setor_nome == 'M&A / BLOQ':
-                                    formula = (
-                                        f'=SUMPRODUCT('
-                                        f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
-                                        f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
-                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
-                                    )
-                                else:  # CRDK / D&E
-                                    formula = (
-                                        f'=SUMPRODUCT('
-                                        f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
-                                        f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
-                                        f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
-                                    )
+                                if data_obj in mapa_datas:
+                                    col_data = mapa_datas[data_obj]
+                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
+                                    data_col_letter = get_column_letter(data_col_idx)
+                                    
+                                    if setor_nome == 'M&A / BLOQ':
+                                        formula = (
+                                            f'=SUMPRODUCT('
+                                            f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
+                                            f'+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))'
+                                            f'+ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))'
+                                            f'+ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter})))*'
+                                            f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                        )
+                                    else:  # CRDK / D&E
+                                        formula = (
+                                            f'=SUMPRODUCT('
+                                            f'(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))'
+                                            f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
+                                            f'+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter}))))*'
+                                            f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
+                                        )
+                                    
+                                    cell.value = formula
+                                else:
+                                    # Se não tem dados para este dia, deixa vazio ou 0
+                                    cell.value = 0
                                 
-                                cell.value = formula
                                 cell.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
                             else:
                                 # Linhas de porcentagem: (contagem / HC) * 100
@@ -1196,7 +1220,7 @@ with col_btn_processar:
                                     contagem_row = row_pct - 1  # Linha anterior (CRDK / D&E)
                                     hc_cell = 'B5'  # HC está em B5
                                 
-                                col_letter = get_column_letter(data_idx)
+                                col_letter = get_column_letter(col_idx)
                                 formula_pct = f'=IFERROR(({col_letter}{contagem_row}/{hc_cell})*100,0)'
                                 cell.value = formula_pct
                                 cell.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
