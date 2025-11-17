@@ -505,8 +505,19 @@ with col_btn_processar:
                         for idx in df_mest.index:
                             # Verifica se a célula está vazia antes de preencher
                             valor_atual = df_mest.at[idx, col_data_obj]
-                            # Considera vazio: None, 'nan', '', string com só espaços, NaN
-                            if pd.isna(valor_atual) or str(valor_atual).strip() in ['', 'nan', 'None', '<NA>']:
+                            
+                            # Converte para string e limpa espaços
+                            valor_str = str(valor_atual).strip() if valor_atual is not None else ''
+                            
+                            # Considera vazio se for: '', 'nan', 'none', '<na>', ou se for NaN
+                            eh_vazio = (
+                                valor_str == '' or 
+                                valor_str.lower() in ['nan', 'none', '<na>', 'nat'] or 
+                                pd.isna(valor_atual)
+                            )
+                            
+                            # Só preenche se estiver realmente vazio
+                            if eh_vazio:
                                 df_mest.at[idx, col_data_obj] = 'D'
                 
                 # Processa CADA arquivo de encarregado
