@@ -522,7 +522,7 @@ with col_btn_processar:
                 
                 # Processa CADA arquivo de encarregado
                 total_sucesso = 0
-                total_erros = []
+                total_erros = []  # Agora será uma lista de tuplas: (nome_colaborador, nome_arquivo)
                 total_nomes_unicos = set()
                 total_linhas_processadas = set()
                 
@@ -671,12 +671,11 @@ with col_btn_processar:
                                 for idx in linhas_processadas:
                                     df_mest.at[idx, 'GESTOR'] = nome_encarregado
                         
-                        # Agrega erros locais para o total
-                        total_erros.extend(erros)
+                        # Agrega erros locais para o total com nome do arquivo
+                        for erro_nome in erros:
+                            total_erros.append((erro_nome, file_enc.name))
                         
                         st.success(f"  ✅ {sucesso} lançamentos | 👥 {len(nomes_unicos)} colaboradores únicos")
-                        if erros:
-                            st.warning(f"  ⚠️ {len(erros)} colaboradores não encontrados na Mestra")
                         total_sucesso += sucesso
                 
                 st.divider()
@@ -693,20 +692,18 @@ with col_btn_processar:
                 
                 # Seção 1: Colaboradores não processados
                 st.subheader("❌ Colaboradores não encontrados")
-                colaboradores_nao_encontrados = set(total_erros)
                 
-                if colaboradores_nao_encontrados:
+                if total_erros:
                     col1, col2 = st.columns([2, 1])
                     with col1:
-                        st.write(f"**Total:** {len(colaboradores_nao_encontrados)} colaboradores")
+                        st.write(f"**Total:** {len(total_erros)} colaboradores")
                     with col2:
                         st.write(f"**Motivo:** Não encontrados na Planilha Mestra")
                     
-                    with st.expander(f"📋 Ver lista completa ({len(colaboradores_nao_encontrados)} nomes)"):
-                        cols_display = st.columns(2)
-                        for idx, nome in enumerate(sorted(colaboradores_nao_encontrados)):
-                            with cols_display[idx % 2]:
-                                st.write(f"• {nome}")
+                    with st.expander(f"📋 Ver lista completa ({len(total_erros)} nomes)"):
+                        # Cria uma tabela com nome e arquivo
+                        for nome_colaborador, nome_arquivo in sorted(total_erros):
+                            st.write(f"• **{nome_colaborador}** - Arquivo: `{nome_arquivo}`")
                 else:
                     st.success("✅ Todos os colaboradores foram encontrados e processados!")
                 
@@ -1144,9 +1141,20 @@ with col_btn_processar:
                     cell_nao_encontrados.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
                     row_nao_encontrados += 1
-                    if colaboradores_nao_encontrados:
-                        for nome in sorted(colaboradores_nao_encontrados):
-                            ws_relatorio.cell(row=row_nao_encontrados, column=1, value=nome)
+                    # Headers para a tabela
+                    cell_header_nome = ws_relatorio.cell(row=row_nao_encontrados, column=1, value='Colaborador')
+                    cell_header_arquivo = ws_relatorio.cell(row=row_nao_encontrados, column=2, value='Arquivo')
+                    cell_header_nome.font = Font(bold=True, color='FFFFFF')
+                    cell_header_arquivo.font = Font(bold=True, color='FFFFFF')
+                    cell_header_nome.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell_header_arquivo.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    
+                    row_nao_encontrados += 1
+                    if total_erros:
+                        # Ordena por nome do colaborador
+                        for nome_colaborador, nome_arquivo in sorted(total_erros, key=lambda x: x[0]):
+                            ws_relatorio.cell(row=row_nao_encontrados, column=1, value=nome_colaborador)
+                            ws_relatorio.cell(row=row_nao_encontrados, column=2, value=nome_arquivo)
                             row_nao_encontrados += 1
                     else:
                         ws_relatorio.cell(row=row_nao_encontrados, column=1, value='✅ Todos encontrados!')
