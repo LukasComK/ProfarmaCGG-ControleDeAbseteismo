@@ -616,6 +616,7 @@ with col_btn_processar:
                         
                         sucesso = 0
                         erros = []
+                        nomes_com_erro = set()  # Rastreia nomes únicos que não foram encontrados
                         linhas_processadas = set()
                         nomes_unicos = set()
                         
@@ -663,7 +664,10 @@ with col_btn_processar:
                                 
                                 sucesso += 1
                             else:
-                                erros.append(nome)
+                                # Só adiciona ao erro se não foi adicionado antes
+                                if nome not in nomes_com_erro:
+                                    erros.append(nome)
+                                    nomes_com_erro.add(nome)
                         
                         # Atualiza GESTOR para este arquivo (usa o nome_encarregado da configuração)
                         if nome_encarregado and nome_encarregado.strip() != '':
