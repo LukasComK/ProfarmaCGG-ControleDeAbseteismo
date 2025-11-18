@@ -97,6 +97,120 @@ def extrair_dia_do_cabecalho(label_dia, mes, ano):
 
     return None
 
+def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
+    """
+    Cria um sheet chamado 'Ofensores de ABS' que mostra por GESTOR
+    quantas faltas (FI e FA) seus colaboradores têm.
+    """
+    try:
+        # Extrai lista única de gestores (sem duplicatas, sem NaN)
+        gestores = df_mest['GESTOR'].dropna().unique()
+        gestores = sorted([g for g in gestores if str(g).strip()])
+        
+        # Cria o sheet
+        ws_ofensores = w.book.create_sheet('Ofensores de ABS', 1)  # Posição 1 (logo após Dados)
+        
+        # Header
+        titulo_cell = ws_ofensores['A1']
+        titulo_cell.value = '🚨 OFENSORES DE ABSENTEÍSMO POR GESTOR'
+        titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
+        titulo_cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')  # Vermelho
+        ws_ofensores.merge_cells('A1:G1')
+        
+        # SubHeader com info
+        ws_ofensores['A2'] = f"Período: {datetime.datetime.now().strftime('%d/%m/%Y')}"
+        
+        # Headers das colunas
+        headers = ['GESTOR', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% de Faltas', 'Status']
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws_ofensores.cell(row=4, column=col_idx)
+            cell.value = header
+            cell.font = Font(bold=True, color='FFFFFF', size=11)
+            cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')  # Azul
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        
+        # Processa cada GESTOR
+        row_idx = 5
+        for gestor in gestores:
+            # Filtra colaboradores deste GESTOR
+            colaboradores_gestor = df_mest[df_mest['GESTOR'] == gestor]
+            total_colab = len(colaboradores_gestor)
+            
+            # Conta faltas FI e FA para cada colaborador
+            faltas_fi = 0
+            faltas_fa = 0
+            colab_com_fi = 0
+            colab_com_fa = 0
+            
+            # Colunas de datas no dataframe
+            colunas_datas = [col for col in df_mest.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
+            
+            for idx, row in colaboradores_gestor.iterrows():
+                tem_fi = False
+                tem_fa = False
+                
+                for col_data in colunas_datas:
+                    valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
+                    
+                    if valor == 'FI':
+                        faltas_fi += 1
+                        tem_fi = True
+                    elif valor == 'FA':
+                        faltas_fa += 1
+                        tem_fa = True
+                
+                if tem_fi:
+                    colab_com_fi += 1
+                if tem_fa:
+                    colab_com_fa += 1
+            
+            total_faltas = faltas_fi + faltas_fa
+            percentual = (total_faltas / len(colunas_datas) / total_colab * 100) if total_colab > 0 and len(colunas_datas) > 0 else 0
+            
+            # Determina status (vermelho se > 20%, amarelo se > 10%)
+            if percentual > 20:
+                status = '🔴 CRÍTICO'
+                status_color = 'FFFF0000'  # Vermelho
+            elif percentual > 10:
+                status = '🟡 ATENÇÃO'
+                status_color = 'FFFFFF00'  # Amarelo
+            else:
+                status = '🟢 OK'
+                status_color = 'FF00B050'  # Verde
+            
+            # Preenche linha
+            ws_ofensores.cell(row=row_idx, column=1, value=gestor)
+            ws_ofensores.cell(row=row_idx, column=2, value=total_colab)
+            ws_ofensores.cell(row=row_idx, column=3, value=colab_com_fi)
+            ws_ofensores.cell(row=row_idx, column=4, value=colab_com_fa)
+            ws_ofensores.cell(row=row_idx, column=5, value=total_faltas)
+            
+            cell_perc = ws_ofensores.cell(row=row_idx, column=6, value=percentual)
+            cell_perc.number_format = '0.00"%"'
+            
+            cell_status = ws_ofensores.cell(row=row_idx, column=7, value=status)
+            cell_status.fill = PatternFill(start_color=status_color, end_color=status_color, fill_type='solid')
+            
+            # Alinhamento
+            for col_idx in range(1, 8):
+                ws_ofensores.cell(row=row_idx, column=col_idx).alignment = Alignment(horizontal='center', vertical='center')
+            
+            row_idx += 1
+        
+        # Ajusta largura das colunas
+        ws_ofensores.column_dimensions['A'].width = 25
+        ws_ofensores.column_dimensions['B'].width = 20
+        ws_ofensores.column_dimensions['C'].width = 18
+        ws_ofensores.column_dimensions['D'].width = 18
+        ws_ofensores.column_dimensions['E'].width = 16
+        ws_ofensores.column_dimensions['F'].width = 14
+        ws_ofensores.column_dimensions['G'].width = 16
+        
+        return True
+    except Exception as e:
+        st.error(f"Erro ao criar sheet de ofensores: {str(e)}")
+        return False
+
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
 
 # CSS para expandir containers em full width
@@ -1920,6 +2034,9 @@ with col_btn_processar:
                     ws_graficos.column_dimensions['B'].width = 15
                     ws_graficos.column_dimensions['E'].width = 25
                     ws_graficos.column_dimensions['F'].width = 15
+                    
+                    # ===== CRIAR SHEET DE OFENSORES DE ABS =====
+                    criar_sheet_ofensores_abs(df_mest_final, w, mapa_datas, MAPA_CORES)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     from openpyxl.styles import Border, Side
