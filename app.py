@@ -671,7 +671,12 @@ with col_btn_processar:
                                 for idx in linhas_processadas:
                                     df_mest.at[idx, 'GESTOR'] = nome_encarregado
                         
+                        # Agrega erros locais para o total
+                        total_erros.extend(erros)
+                        
                         st.success(f"  ✅ {sucesso} lançamentos | 👥 {len(nomes_unicos)} colaboradores únicos")
+                        if erros:
+                            st.warning(f"  ⚠️ {len(erros)} colaboradores não encontrados na Mestra")
                         total_sucesso += sucesso
                 
                 st.divider()
