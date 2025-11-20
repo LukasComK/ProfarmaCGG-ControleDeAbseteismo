@@ -99,116 +99,242 @@ def extrair_dia_do_cabecalho(label_dia, mes, ano):
 
 def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
     """
-    Cria um sheet chamado 'Ofensores de ABS' que mostra por GESTOR
-    quantas faltas (FI e FA) seus colaboradores têm.
+    Cria sheet 'Ofensores de ABS' mostrando por GESTOR e TURNO:
+    - PERÍODO INTEIRO
+    - Semana 1, 2, 3, 4 (dados na mesma sheet)
     """
     try:
-        # Extrai lista única de gestores (sem duplicatas, sem NaN)
+        from openpyxl.styles import Border, Side
+        
+        # Extrai lista única de gestores
         gestores = df_mest['GESTOR'].dropna().unique()
         gestores = sorted([g for g in gestores if str(g).strip()])
         
-        # Cria o sheet
-        ws_ofensores = w.book.create_sheet('Ofensores de ABS', 1)  # Posição 1 (logo após Dados)
+        # Colunas de datas no dataframe
+        colunas_datas = [col for col in df_mest.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
         
-        # Header
-        titulo_cell = ws_ofensores['A1']
+        # Define bordas para as células (MEDIUM para melhor visibilidade)
+        border_style = Side(style='medium', color='000000')
+        thin_border = Border(
+            left=border_style,
+            right=border_style,
+            top=border_style,
+            bottom=border_style
+        )
+        
+        # Cria o sheet
+        ws = w.book.create_sheet('Ofensores de ABS', 1)
+        
+        # Header principal
+        titulo_cell = ws['A1']
         titulo_cell.value = '🚨 OFENSORES DE ABSENTEÍSMO POR GESTOR'
         titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
-        titulo_cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')  # Vermelho
-        ws_ofensores.merge_cells('A1:G1')
+        titulo_cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+        ws.merge_cells('A1:F1')
+        titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
+        titulo_cell.border = thin_border
         
-        # SubHeader com info
-        ws_ofensores['A2'] = f"Período: {datetime.datetime.now().strftime('%d/%m/%Y')}"
+        # Agrupa datas por semana do calendário
+        datas_obj = sorted([d for d in mapa_datas.keys() if isinstance(d, datetime.date)])
+        semanas_dict = {1: [], 2: [], 3: [], 4: [], 5: []}
         
-        # Headers das colunas
-        headers = ['GESTOR', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% de Faltas', 'Status']
+        for data_obj in datas_obj:
+            semana_do_mes = (data_obj.day - 1) // 7 + 1
+            if semana_do_mes <= 5:
+                semanas_dict[semana_do_mes].append(mapa_datas[data_obj])
+        
+        # Função para processar análise
+        def processar_analise(colunas_processar):
+            dados_gestores = []
+            
+            for gestor in gestores:
+                colaboradores_gestor = df_mest[df_mest['GESTOR'] == gestor]
+                total_colab = len(colaboradores_gestor)
+                
+                # Extrai TURNO (coluna H, índice 7)
+                turno = colaboradores_gestor.iloc[0, 7] if len(colaboradores_gestor) > 0 else 'N/A'
+                turno = str(turno).strip() if pd.notna(turno) else 'N/A'
+                
+                total_fi = 0
+                total_fa = 0
+                
+                for idx, row in colaboradores_gestor.iterrows():
+                    for col_data in colunas_processar:
+                        if col_data not in df_mest.columns:
+                            continue
+                        
+                        valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
+                        
+                        if valor == 'FI':
+                            total_fi += 1
+                        elif valor == 'FA':
+                            total_fa += 1
+                
+                total_faltas = total_fi + total_fa
+                dias_uteis = len(colunas_processar)
+                percentual = (total_faltas / dias_uteis / total_colab * 100) if total_colab > 0 and dias_uteis > 0 else 0
+                
+                if percentual > 20:
+                    status = '🔴 CRÍTICO'
+                    status_color = 'FFFF0000'
+                elif percentual > 10:
+                    status = '🟡 ATENÇÃO'
+                    status_color = 'FFFFFF00'
+                else:
+                    status = '🟢 OK'
+                    status_color = 'FF00B050'
+                
+                dados_gestores.append({
+                    'gestor': gestor,
+                    'turno': turno,
+                    'total_colab': total_colab,
+                    'total_fi': total_fi,
+                    'total_fa': total_fa,
+                    'total_faltas': total_faltas,
+                    'percentual': percentual,
+                    'status': status,
+                    'status_color': status_color
+                })
+            
+            # Ordena por total de faltas (descendente)
+            dados_gestores.sort(key=lambda x: x['total_faltas'], reverse=True)
+            return dados_gestores
+        
+        # PERÍODO INTEIRO
+        dados_periodo = processar_analise(colunas_datas)
+        
+        # SEMANAS
+        dados_semanas = {}
+        for num_semana in [1, 2, 3, 4]:
+            if semanas_dict[num_semana]:
+                dados_semanas[num_semana] = processar_analise(semanas_dict[num_semana])
+        
+        # Preenche o sheet com PERÍODO + SEMANAS
+        row_idx = 3
+        
+        # PERÍODO INTEIRO
+        ws.cell(row=row_idx, column=1, value='PERÍODO INTEIRO')
+        ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
+        ws.merge_cells(f'A{row_idx}:F{row_idx}')
+        ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
+        ws.cell(row=row_idx, column=1).border = thin_border
+        row_idx += 1
+        
+        # Headers
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas']
         for col_idx, header in enumerate(headers, 1):
-            cell = ws_ofensores.cell(row=4, column=col_idx)
+            cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
             cell.font = Font(bold=True, color='FFFFFF', size=11)
-            cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')  # Azul
+            cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = thin_border
         
-        # Processa cada GESTOR
-        row_idx = 5
-        for gestor in gestores:
-            # Filtra colaboradores deste GESTOR
-            colaboradores_gestor = df_mest[df_mest['GESTOR'] == gestor]
-            total_colab = len(colaboradores_gestor)
+        row_idx += 1
+        
+        # Dados do período
+        for dado in dados_periodo:
+            values = [dado['gestor'], dado['turno'], dado['total_colab'], dado['total_fi'], dado['total_fa'], dado['total_faltas']]
             
-            # Conta faltas FI e FA para cada colaborador
-            faltas_fi = 0
-            faltas_fa = 0
-            colab_com_fi = 0
-            colab_com_fa = 0
-            
-            # Colunas de datas no dataframe
-            colunas_datas = [col for col in df_mest.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
-            
-            for idx, row in colaboradores_gestor.iterrows():
-                tem_fi = False
-                tem_fa = False
+            for col_idx, value in enumerate(values, 1):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.value = value
+                cell.border = thin_border
                 
-                for col_data in colunas_datas:
-                    valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
-                    
-                    if valor == 'FI':
-                        faltas_fi += 1
-                        tem_fi = True
-                    elif valor == 'FA':
-                        faltas_fa += 1
-                        tem_fa = True
-                
-                if tem_fi:
-                    colab_com_fi += 1
-                if tem_fa:
-                    colab_com_fa += 1
-            
-            total_faltas = faltas_fi + faltas_fa
-            percentual = (total_faltas / len(colunas_datas) / total_colab * 100) if total_colab > 0 and len(colunas_datas) > 0 else 0
-            
-            # Determina status (vermelho se > 20%, amarelo se > 10%)
-            if percentual > 20:
-                status = '🔴 CRÍTICO'
-                status_color = 'FFFF0000'  # Vermelho
-            elif percentual > 10:
-                status = '🟡 ATENÇÃO'
-                status_color = 'FFFFFF00'  # Amarelo
-            else:
-                status = '🟢 OK'
-                status_color = 'FF00B050'  # Verde
-            
-            # Preenche linha
-            ws_ofensores.cell(row=row_idx, column=1, value=gestor)
-            ws_ofensores.cell(row=row_idx, column=2, value=total_colab)
-            ws_ofensores.cell(row=row_idx, column=3, value=colab_com_fi)
-            ws_ofensores.cell(row=row_idx, column=4, value=colab_com_fa)
-            ws_ofensores.cell(row=row_idx, column=5, value=total_faltas)
-            
-            cell_perc = ws_ofensores.cell(row=row_idx, column=6, value=percentual)
-            cell_perc.number_format = '0.00"%"'
-            
-            cell_status = ws_ofensores.cell(row=row_idx, column=7, value=status)
-            cell_status.fill = PatternFill(start_color=status_color, end_color=status_color, fill_type='solid')
-            
-            # Alinhamento
-            for col_idx in range(1, 8):
-                ws_ofensores.cell(row=row_idx, column=col_idx).alignment = Alignment(horizontal='center', vertical='center')
+                # Cores condicionais
+                if col_idx == 1:  # GESTOR - azul pastel
+                    cell.alignment = Alignment(horizontal='left', vertical='center')
+                    cell.fill = PatternFill(start_color='FFC9DAF8', end_color='FFC9DAF8', fill_type='solid')
+                elif col_idx == 2:  # TURNO - verde pastel
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                elif col_idx == 3:  # Total de Colaboradores - verde pastel
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                elif col_idx == 4:  # FI - VERMELHO FORTE
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                    cell.font = Font(bold=True, color='FFFFFFFF')
+                elif col_idx == 5:  # FA - AMARELO FORTE
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    cell.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                    cell.font = Font(bold=True)
+                elif col_idx == 6:  # TOTAL - preto com texto branco
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                    cell.font = Font(bold=True, color='FFFFFFFF')
             
             row_idx += 1
         
-        # Ajusta largura das colunas
-        ws_ofensores.column_dimensions['A'].width = 25
-        ws_ofensores.column_dimensions['B'].width = 20
-        ws_ofensores.column_dimensions['C'].width = 18
-        ws_ofensores.column_dimensions['D'].width = 18
-        ws_ofensores.column_dimensions['E'].width = 16
-        ws_ofensores.column_dimensions['F'].width = 14
-        ws_ofensores.column_dimensions['G'].width = 16
+        # SEMANAS
+        for num_semana in [1, 2, 3, 4]:
+            if num_semana in dados_semanas:
+                row_idx += 1
+                ws.cell(row=row_idx, column=1, value=f'SEMANA {num_semana}')
+                ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
+                ws.merge_cells(f'A{row_idx}:F{row_idx}')
+                ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
+                ws.cell(row=row_idx, column=1).border = thin_border
+                row_idx += 1
+                
+                # Headers
+                for col_idx, header in enumerate(headers, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    cell.value = header
+                    cell.font = Font(bold=True, color='FFFFFF', size=11)
+                    cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                    cell.border = thin_border
+                
+                row_idx += 1
+                
+                # Dados da semana
+                for dado in dados_semanas[num_semana]:
+                    values = [dado['gestor'], dado['turno'], dado['total_colab'], dado['total_fi'], dado['total_fa'], dado['total_faltas']]
+                    
+                    for col_idx, value in enumerate(values, 1):
+                        cell = ws.cell(row=row_idx, column=col_idx)
+                        cell.value = value
+                        cell.border = thin_border
+                        
+                        # Cores condicionais
+                        if col_idx == 1:  # GESTOR - azul pastel
+                            cell.alignment = Alignment(horizontal='left', vertical='center')
+                            cell.fill = PatternFill(start_color='FFC9DAF8', end_color='FFC9DAF8', fill_type='solid')
+                        elif col_idx == 2:  # TURNO - verde pastel
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                            cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                        elif col_idx == 3:  # Total de Colaboradores - verde pastel
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                            cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                        elif col_idx == 4:  # FI - VERMELHO FORTE
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                            cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                            cell.font = Font(bold=True, color='FFFFFFFF')
+                        elif col_idx == 5:  # FA - AMARELO FORTE
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                            cell.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                            cell.font = Font(bold=True)
+                        elif col_idx == 6:  # TOTAL - preto com texto branco
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                            cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell.font = Font(bold=True, color='FFFFFFFF')
+                    
+                    row_idx += 1
+        
+        # Ajusta largura das colunas (A 30% maior)
+        ws.column_dimensions['A'].width = 25 * 1.3  # 30% maior
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 18
+        ws.column_dimensions['E'].width = 18
+        ws.column_dimensions['F'].width = 16
         
         return True
     except Exception as e:
         st.error(f"Erro ao criar sheet de ofensores: {str(e)}")
+        import traceback
+        st.write(traceback.format_exc())
         return False
 
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
@@ -1392,10 +1518,8 @@ with col_btn_processar:
                     for setor_idx, (setor_nome, keywords_setor) in enumerate(setores_info_pct):
                         # Nome do setor
                         cell_setor = ws_porcentagens.cell(row=row_pct, column=1, value=setor_nome)
-                        if 'Porcentagem' in setor_nome:
-                            cell_setor.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
-                        else:
-                            cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                        # Títulos em VERDE PASTEL
+                        cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
                         cell_setor.font = Font(bold=True)
                         
                         # Preenche cada data - TODOS os dias do mês
@@ -1436,7 +1560,7 @@ with col_btn_processar:
                                     # Se não tem dados para este dia, deixa vazio ou 0
                                     cell.value = 0
                                 
-                                cell.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                                cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
                             else:
                                 # Linhas de porcentagem: (contagem / HC) * 100
                                 if 'M&A / BLOQ - Porcentagem' in setor_nome:
@@ -1449,7 +1573,7 @@ with col_btn_processar:
                                 col_letter = get_column_letter(col_idx)
                                 formula_pct = f'=IFERROR(({col_letter}{contagem_row}/{hc_cell})*100,0)'
                                 cell.value = formula_pct
-                                cell.fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
+                                cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
                                 cell.number_format = '0.00"%"'
                             
                             cell.alignment = Alignment(horizontal='center', vertical='center')
@@ -1494,31 +1618,6 @@ with col_btn_processar:
                     row_total_hc = row_pct
                     row_pct += 1
                     
-                    # Linha de TOTAL - soma de todas as faltas
-                    cell_total_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL')
-                    cell_total_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                    cell_total_label.font = Font(bold=True)
-                    
-                    # HC Total (soma de B4 e B5)
-                    cell_hc_total = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_hc_total.value = '=B4+B5'
-                    cell_hc_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                    cell_hc_total.font = Font(bold=True)
-                    cell_hc_total.alignment = Alignment(horizontal='center', vertical='center')
-                    
-                    # Soma das faltas por data (linha 9 + linha 11)
-                    for dia in range(1, dias_no_mes + 1):
-                        col_idx = dia + 1
-                        cell_total_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
-                        col_letter = get_column_letter(col_idx)
-                        cell_total_data.value = f'={col_letter}9+{col_letter}11'
-                        cell_total_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                        cell_total_data.font = Font(bold=True)
-                        cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
-                    
-                    row_total_faltas = row_pct
-                    row_pct += 1
-                    
                     # Linha de FI - Faltas Injustificadas
                     cell_fi_label = ws_porcentagens.cell(row=row_pct, column=1, value='FI - Faltas Injustificadas')
                     cell_fi_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
@@ -1541,15 +1640,18 @@ with col_btn_processar:
                             cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
                             cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
-                            cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                            cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
                             # Se não tem dados, coloca 0
                             cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fi_data.value = 0
-                            cell_fi_data.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                            cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                            cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                     
+                    row_fi = row_pct
                     row_pct += 1
                     
                     # Linha de FA - Faltas por Atestado
@@ -1573,36 +1675,43 @@ with col_btn_processar:
                             
                             cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
-                            cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            cell_fa_data.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                            cell_fa_data.font = Font(bold=True)
                             cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
                             # Se não tem dados, coloca 0
                             cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fa_data.value = 0
-                            cell_fa_data.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                            cell_fa_data.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                            cell_fa_data.font = Font(bold=True)
                             cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                     
+                    row_fa = row_pct
                     row_pct += 1
                     
-                    # Linha de META - sempre 3%
-                    cell_meta_label = ws_porcentagens.cell(row=row_pct, column=1, value='META')
-                    cell_meta_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                    cell_meta_label.font = Font(bold=True)
+                    # Linha de TOTAL - soma de todas as faltas (AGORA APÓS FI E FA)
+                    cell_total_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL')
+                    cell_total_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_total_label.font = Font(bold=True)
                     
-                    # Célula vazia em B (não faz sentido HC para META)
-                    cell_meta_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_meta_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    # HC Total (soma de B4 e B5)
+                    cell_hc_total = ws_porcentagens.cell(row=row_pct, column=2)
+                    cell_hc_total.value = '=B4+B5'
+                    cell_hc_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_hc_total.font = Font(bold=True)
+                    cell_hc_total.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Valor 3% para todos os dias (VERDE FORTE)
+                    # Soma das faltas por data (linha 9 + linha 11)
                     for dia in range(1, dias_no_mes + 1):
                         col_idx = dia + 1
-                        cell_meta_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
-                        cell_meta_data.value = 3
-                        cell_meta_data.fill = PatternFill(start_color='FF70AD47', end_color='FF70AD47', fill_type='solid')
-                        cell_meta_data.font = Font(bold=True, color='FFFFFFFF')
-                        cell_meta_data.number_format = '0.00"%"'
-                        cell_meta_data.alignment = Alignment(horizontal='center', vertical='center')
+                        cell_total_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
+                        col_letter = get_column_letter(col_idx)
+                        cell_total_data.value = f'={col_letter}9+{col_letter}11'
+                        cell_total_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                        cell_total_data.font = Font(bold=True)
+                        cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
                     
+                    row_total_faltas = row_pct
                     row_pct += 1
                     
                     # Linha de %Acumulado - TOTAL / HC Total
@@ -1631,17 +1740,20 @@ with col_btn_processar:
                     
                     # Adiciona regras condicionais para %Acumulado
                     from openpyxl.formatting.rule import CellIsRule
-                    # Verde: < 3%
-                    green_fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
-                    green_rule = CellIsRule(operator='lessThan', formula=['3'], fill=green_fill)
+                    # Verde: < 3% (VERDE FORTE)
+                    green_fill = PatternFill(start_color='FF00B050', end_color='FF00B050', fill_type='solid')
+                    green_font = Font(bold=True, color='FFFFFFFF')
+                    green_rule = CellIsRule(operator='lessThan', formula=['3'], fill=green_fill, font=green_font)
                     
-                    # Amarelo: >= 3% e <= 3.5%
-                    yellow_fill = PatternFill(start_color='FFFFEB9C', end_color='FFFFEB9C', fill_type='solid')
-                    yellow_rule = CellIsRule(operator='between', formula=['3', '3.5'], fill=yellow_fill)
+                    # Amarelo: >= 3% e <= 3.5% (AMARELO FORTE)
+                    yellow_fill = PatternFill(start_color='FFFF9900', end_color='FFFF9900', fill_type='solid')
+                    yellow_font = Font(bold=True, color='FFFFFFFF')
+                    yellow_rule = CellIsRule(operator='between', formula=['3', '3.5'], fill=yellow_fill, font=yellow_font)
                     
-                    # Vermelho: > 3.5%
-                    red_fill = PatternFill(start_color='FFFFCCCC', end_color='FFFFCCCC', fill_type='solid')
-                    red_rule = CellIsRule(operator='greaterThan', formula=['3.5'], fill=red_fill)
+                    # Vermelho: > 3.5% (VERMELHO FORTE)
+                    red_fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                    red_font = Font(bold=True, color='FFFFFFFF')
+                    red_rule = CellIsRule(operator='greaterThan', formula=['3.5'], fill=red_fill, font=red_font)
                     
                     # Aplica as regras ao intervalo de %Acumulado
                     acum_range = f'{get_column_letter(2)}{row_acumulado}:{get_column_letter(len(sorted(mapa_datas.keys()))+1)}{row_acumulado}'
