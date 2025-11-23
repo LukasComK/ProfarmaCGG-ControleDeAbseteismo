@@ -143,6 +143,28 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
             if semana_do_mes <= 5:
                 semanas_dict[semana_do_mes].append(mapa_datas[data_obj])
         
+        # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
+        def tem_afastamento_fa(row, colunas_processar):
+            """
+            Verifica se há 15+ FA consecutivas ignorando D.
+            Retorna True se houver afastamento (15+ FA), False caso contrário.
+            """
+            fa_consecutivas = 0
+            for col_data in colunas_processar:
+                if col_data not in df_mest.columns:
+                    continue
+                valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
+                
+                if valor == 'FA':
+                    fa_consecutivas += 1
+                elif valor != 'D':  # Ignora D mas reseta se encontrar outro valor diferente
+                    if fa_consecutivas >= 15:
+                        return True
+                    fa_consecutivas = 0
+            
+            # Verifica se terminou com 15+ FA consecutivas
+            return fa_consecutivas >= 15
+        
         # Função para processar análise
         def processar_analise(colunas_processar):
             dados_gestores = []
@@ -159,6 +181,9 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                 total_fa = 0
                 
                 for idx, row in colaboradores_gestor.iterrows():
+                    # Verifica se o colaborador tem afastamento (15+ FA)
+                    tem_afastamento = tem_afastamento_fa(row, colunas_processar)
+                    
                     for col_data in colunas_processar:
                         if col_data not in df_mest.columns:
                             continue
@@ -168,7 +193,9 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                         if valor == 'FI':
                             total_fi += 1
                         elif valor == 'FA':
-                            total_fa += 1
+                            # Só conta FA se NÃO for afastamento
+                            if not tem_afastamento:
+                                total_fa += 1
                 
                 total_faltas = total_fi + total_fa
                 dias_uteis = len(colunas_processar)
