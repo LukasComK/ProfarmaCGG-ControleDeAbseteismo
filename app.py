@@ -134,14 +134,31 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
         titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
         titulo_cell.border = thin_border
         
-        # Agrupa datas por semana do calendário
+        # Agrupa datas por semana do calendário (segunda a domingo)
         datas_obj = sorted([d for d in mapa_datas.keys() if isinstance(d, datetime.date)])
         semanas_dict = {1: [], 2: [], 3: [], 4: [], 5: []}
         
-        for data_obj in datas_obj:
-            semana_do_mes = (data_obj.day - 1) // 7 + 1
-            if semana_do_mes <= 5:
-                semanas_dict[semana_do_mes].append(mapa_datas[data_obj])
+        if datas_obj:
+            ano_dados = datas_obj[0].year
+            mes_dados = datas_obj[0].month
+            
+            # Usa calendar.monthcalendar para obter semanas reais do mês
+            import calendar
+            cal = calendar.monthcalendar(ano_dados, mes_dados)
+            
+            # Para cada data, encontra em qual semana do calendário ela está
+            for data_obj in datas_obj:
+                dia = data_obj.day
+                
+                # Procura em qual semana (linha do calendário) o dia está
+                semana_num = 0
+                for semana_idx, semana_dias in enumerate(cal, 1):
+                    if dia in semana_dias:
+                        semana_num = semana_idx
+                        break
+                
+                if semana_num <= 5:
+                    semanas_dict[semana_num].append(mapa_datas[data_obj])
         
         # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
         def tem_afastamento_fa(row, colunas_processar):
