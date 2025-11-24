@@ -134,35 +134,38 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
         titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
         titulo_cell.border = thin_border
         
-        # Agrupa datas por semana real do calendário (segunda a domingo)
+        # Agrupa datas por período com labels de data (segunda a domingo, ou dias restantes)
         datas_obj = sorted([d for d in mapa_datas.keys() if isinstance(d, datetime.date)])
-        semanas_dict = {}
+        periodos_dict = {}  # {label: [colunas_datas], ...}
         
         if datas_obj:
+            import calendar
+            
             ano_dados = datas_obj[0].year
             mes_dados = datas_obj[0].month
             
-            import calendar
             # monthcalendar retorna semanas (segunda a domingo)
-            # 0 = dias do mês anterior/posterior
             cal = calendar.monthcalendar(ano_dados, mes_dados)
             
-            # Cria um dicionário de dia -> semana_num
-            dia_para_semana = {}
-            for semana_num, semana_dias in enumerate(cal, 1):
-                for dia in semana_dias:
-                    if dia != 0:  # Ignora 0 (dias de outros meses)
-                        dia_para_semana[dia] = semana_num
-            
-            # Agrupa as colunas de data por semana
-            for data_obj in datas_obj:
-                dia = data_obj.day
-                semana_num = dia_para_semana.get(dia, 999)  # 999 se não encontrar
+            # Processa cada semana do calendário
+            periodo_num = 1
+            for semana_dias in cal:
+                # Filtra apenas dias que existem em nosso dataset
+                dias_na_semana = [dia for dia in semana_dias if dia != 0]
                 
-                if semana_num not in semanas_dict:
-                    semanas_dict[semana_num] = []
+                # Encontra quais datas do nosso dataset estão nesta semana
+                datas_nesta_semana = [d for d in datas_obj if d.day in dias_na_semana]
                 
-                semanas_dict[semana_num].append(mapa_datas[data_obj])
+                if datas_nesta_semana:
+                    # Cria label com as datas (exemplo: "3/11 a 8/11")
+                    data_inicio = min(datas_nesta_semana)
+                    data_fim = max(datas_nesta_semana)
+                    
+                    label = f"{data_inicio.day}/{data_inicio.month:02d} a {data_fim.day}/{data_fim.month:02d}"
+                    
+                    # Adiciona colunas de data neste período
+                    periodos_dict[label] = [mapa_datas[d] for d in sorted(datas_nesta_semana)]
+                    periodo_num += 1
         
         # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
         def tem_afastamento_fa(row, colunas_processar):
@@ -251,13 +254,12 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
         # PERÍODO INTEIRO
         dados_periodo = processar_analise(colunas_datas)
         
-        # SEMANAS
-        dados_semanas = {}
-        for num_semana in [1, 2, 3, 4]:
-            if semanas_dict[num_semana]:
-                dados_semanas[num_semana] = processar_analise(semanas_dict[num_semana])
+        # PERÍODOS (com labels de datas)
+        dados_periodos = {}
+        for label, colunas_periodo in periodos_dict.items():
+            dados_periodos[label] = processar_analise(colunas_periodo)
         
-        # Preenche o sheet com PERÍODO + SEMANAS
+        # Preenche o sheet com PERÍODO + PERÍODOS
         row_idx = 3
         
         # PERÍODO INTEIRO
@@ -314,61 +316,60 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
             
             row_idx += 1
         
-        # SEMANAS
-        for num_semana in [1, 2, 3, 4]:
-            if num_semana in dados_semanas:
-                row_idx += 1
-                ws.cell(row=row_idx, column=1, value=f'SEMANA {num_semana}')
-                ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-                ws.merge_cells(f'A{row_idx}:F{row_idx}')
-                ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
-                ws.cell(row=row_idx, column=1).border = thin_border
-                row_idx += 1
+        # PERÍODOS (com labels de data)
+        for label, dados_periodo_especifico in dados_periodos.items():
+            row_idx += 1
+            ws.cell(row=row_idx, column=1, value=label)
+            ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
+            ws.merge_cells(f'A{row_idx}:F{row_idx}')
+            ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
+            ws.cell(row=row_idx, column=1).border = thin_border
+            row_idx += 1
+            
+            # Headers
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.value = header
+                cell.font = Font(bold=True, color='FFFFFF', size=11)
+                cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                cell.border = thin_border
+            
+            row_idx += 1
+            
+            # Dados do período
+            for dado in dados_periodo_especifico:
+                values = [dado['gestor'], dado['turno'], dado['total_colab'], dado['total_fi'], dado['total_fa'], dado['total_faltas']]
                 
-                # Headers
-                for col_idx, header in enumerate(headers, 1):
+                for col_idx, value in enumerate(values, 1):
                     cell = ws.cell(row=row_idx, column=col_idx)
-                    cell.value = header
-                    cell.font = Font(bold=True, color='FFFFFF', size=11)
-                    cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
-                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                    cell.value = value
                     cell.border = thin_border
+                    
+                    # Cores condicionais
+                    if col_idx == 1:  # GESTOR - azul pastel
+                        cell.alignment = Alignment(horizontal='left', vertical='center')
+                        cell.fill = PatternFill(start_color='FFC9DAF8', end_color='FFC9DAF8', fill_type='solid')
+                    elif col_idx == 2:  # TURNO - verde pastel
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                        cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    elif col_idx == 3:  # Total de Colaboradores - verde pastel
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                        cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    elif col_idx == 4:  # FI - VERMELHO FORTE
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                        cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                        cell.font = Font(bold=True, color='FFFFFFFF')
+                    elif col_idx == 5:  # FA - AMARELO FORTE
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                        cell.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                        cell.font = Font(bold=True)
+                    elif col_idx == 6:  # TOTAL - preto com texto branco
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                        cell.font = Font(bold=True, color='FFFFFFFF')
                 
                 row_idx += 1
-                
-                # Dados da semana
-                for dado in dados_semanas[num_semana]:
-                    values = [dado['gestor'], dado['turno'], dado['total_colab'], dado['total_fi'], dado['total_fa'], dado['total_faltas']]
-                    
-                    for col_idx, value in enumerate(values, 1):
-                        cell = ws.cell(row=row_idx, column=col_idx)
-                        cell.value = value
-                        cell.border = thin_border
-                        
-                        # Cores condicionais
-                        if col_idx == 1:  # GESTOR - azul pastel
-                            cell.alignment = Alignment(horizontal='left', vertical='center')
-                            cell.fill = PatternFill(start_color='FFC9DAF8', end_color='FFC9DAF8', fill_type='solid')
-                        elif col_idx == 2:  # TURNO - verde pastel
-                            cell.alignment = Alignment(horizontal='center', vertical='center')
-                            cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                        elif col_idx == 3:  # Total de Colaboradores - verde pastel
-                            cell.alignment = Alignment(horizontal='center', vertical='center')
-                            cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                        elif col_idx == 4:  # FI - VERMELHO FORTE
-                            cell.alignment = Alignment(horizontal='center', vertical='center')
-                            cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-                            cell.font = Font(bold=True, color='FFFFFFFF')
-                        elif col_idx == 5:  # FA - AMARELO FORTE
-                            cell.alignment = Alignment(horizontal='center', vertical='center')
-                            cell.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                            cell.font = Font(bold=True)
-                        elif col_idx == 6:  # TOTAL - preto com texto branco
-                            cell.alignment = Alignment(horizontal='center', vertical='center')
-                            cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                            cell.font = Font(bold=True, color='FFFFFFFF')
-                    
-                    row_idx += 1
         
         # Ajusta largura das colunas (A 30% maior)
         ws.column_dimensions['A'].width = 25 * 1.3  # 30% maior
