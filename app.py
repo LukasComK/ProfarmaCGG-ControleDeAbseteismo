@@ -134,31 +134,35 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
         titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
         titulo_cell.border = thin_border
         
-        # Agrupa datas por semana do calendário (segunda a domingo)
+        # Agrupa datas por semana real do calendário (segunda a domingo)
         datas_obj = sorted([d for d in mapa_datas.keys() if isinstance(d, datetime.date)])
-        semanas_dict = {1: [], 2: [], 3: [], 4: [], 5: []}
+        semanas_dict = {}
         
         if datas_obj:
             ano_dados = datas_obj[0].year
             mes_dados = datas_obj[0].month
             
-            # Usa calendar.monthcalendar para obter semanas reais do mês
             import calendar
+            # monthcalendar retorna semanas (segunda a domingo)
+            # 0 = dias do mês anterior/posterior
             cal = calendar.monthcalendar(ano_dados, mes_dados)
             
-            # Para cada data, encontra em qual semana do calendário ela está
+            # Cria um dicionário de dia -> semana_num
+            dia_para_semana = {}
+            for semana_num, semana_dias in enumerate(cal, 1):
+                for dia in semana_dias:
+                    if dia != 0:  # Ignora 0 (dias de outros meses)
+                        dia_para_semana[dia] = semana_num
+            
+            # Agrupa as colunas de data por semana
             for data_obj in datas_obj:
                 dia = data_obj.day
+                semana_num = dia_para_semana.get(dia, 999)  # 999 se não encontrar
                 
-                # Procura em qual semana (linha do calendário) o dia está
-                semana_num = 0
-                for semana_idx, semana_dias in enumerate(cal, 1):
-                    if dia in semana_dias:
-                        semana_num = semana_idx
-                        break
+                if semana_num not in semanas_dict:
+                    semanas_dict[semana_num] = []
                 
-                if semana_num <= 5:
-                    semanas_dict[semana_num].append(mapa_datas[data_obj])
+                semanas_dict[semana_num].append(mapa_datas[data_obj])
         
         # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
         def tem_afastamento_fa(row, colunas_processar):
