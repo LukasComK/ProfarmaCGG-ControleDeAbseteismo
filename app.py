@@ -163,12 +163,67 @@ def marcar_afastamentos_na_workbook(workbook, mapa_cores):
                     else:
                         i += 1
 
-def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
+def detectar_afastamentos_no_dataframe(df, mapa_datas):
+    """
+    Detecta colaboradores com sequências de > 15 FA (ignorando D e "Afastamento").
+    Retorna um conjunto (set) com índices dos colaboradores que têm afastamento.
+    
+    Formato do retorno: {(index_row, sequencia_inicio_col, sequencia_fim_col), ...}
+    """
+    afastamentos = {}  # {index_row: [(col_inicio, col_fim), ...]}
+    
+    # Pega todas as colunas de data em ordem
+    colunas_datas = sorted([col for col in df.columns if col in mapa_datas.values()])
+    
+    for idx, row in df.iterrows():
+        afastamentos_row = []
+        
+        i = 0
+        while i < len(colunas_datas):
+            col = colunas_datas[i]
+            valor = str(row[col]).strip().upper() if pd.notna(row[col]) else ''
+            
+            if valor == 'FA':
+                fa_consecutivas = 0
+                col_inicio = i
+                
+                # Conta FA consecutivas
+                j = i
+                while j < len(colunas_datas):
+                    col_j = colunas_datas[j]
+                    valor_j = str(row[col_j]).strip().upper() if pd.notna(row[col_j]) else ''
+                    
+                    if valor_j == 'FA':
+                        fa_consecutivas += 1
+                        j += 1
+                    elif valor_j == 'D' or valor_j == 'AFASTAMENTO':
+                        j += 1
+                    else:
+                        break
+                
+                # Se encontrou > 15 FA, registra essa sequência
+                if fa_consecutivas > 15:
+                    afastamentos_row.append((col_inicio, j - 1))
+                
+                i = j
+            else:
+                i += 1
+        
+        if afastamentos_row:
+            afastamentos[idx] = afastamentos_row
+    
+    return afastamentos
+
+def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=None):
     """
     Cria sheet 'Ofensores de ABS' mostrando por GESTOR e TURNO:
     - PERÍODO INTEIRO
     - Semana 1, 2, 3, 4 (dados na mesma sheet)
+    
+    afastamentos: dicionário com índices de linhas que têm afastamento
     """
+    if afastamentos is None:
+        afastamentos = {}
     try:
         from openpyxl.styles import Border, Side
         
@@ -233,28 +288,6 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                     periodos_dict[label] = [mapa_datas[d] for d in sorted(datas_nesta_semana)]
                     periodo_num += 1
         
-        # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
-        def tem_afastamento_fa(row, colunas_processar):
-            """
-            Verifica se há 15+ FA consecutivas ignorando D.
-            Retorna True se houver afastamento (15+ FA), False caso contrário.
-            """
-            fa_consecutivas = 0
-            for col_data in colunas_processar:
-                if col_data not in df_mest.columns:
-                    continue
-                valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
-                
-                if valor == 'FA':
-                    fa_consecutivas += 1
-                elif valor != 'D':  # Ignora D mas reseta se encontrar outro valor diferente
-                    if fa_consecutivas >= 15:
-                        return True
-                    fa_consecutivas = 0
-            
-            # Verifica se terminou com 15+ FA consecutivas
-            return fa_consecutivas >= 15
-        
         # Função para processar análise
         def processar_analise(colunas_processar):
             dados_gestores = []
@@ -271,8 +304,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                 total_fa = 0
                 
                 for idx, row in colaboradores_gestor.iterrows():
-                    # Verifica se o colaborador tem afastamento (15+ FA)
-                    tem_afastamento = tem_afastamento_fa(row, colunas_processar)
+                    # Verifica se o colaborador tem afastamento (já detectado antes)
+                    tem_afastamento = idx in afastamentos
                     
                     for col_data in colunas_processar:
                         if col_data not in df_mest.columns:
@@ -2263,8 +2296,11 @@ with col_btn_processar:
                     ws_graficos.column_dimensions['E'].width = 25
                     ws_graficos.column_dimensions['F'].width = 15
                     
+                    # ===== DETECTAR AFASTAMENTOS NO DATAFRAME =====
+                    afastamentos = detectar_afastamentos_no_dataframe(df_mest_final, mapa_datas)
+                    
                     # ===== CRIAR SHEET DE OFENSORES DE ABS =====
-                    criar_sheet_ofensores_abs(df_mest_final, w, mapa_datas, MAPA_CORES)
+                    criar_sheet_ofensores_abs(df_mest_final, w, mapa_datas, MAPA_CORES, afastamentos)
                     
                     # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
                     marcar_afastamentos_na_workbook(w.book, MAPA_CORES)
