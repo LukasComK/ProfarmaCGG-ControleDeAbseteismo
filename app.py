@@ -167,15 +167,15 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                     periodos_dict[label] = [mapa_datas[d] for d in sorted(datas_nesta_semana)]
                     periodo_num += 1
         
-        # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
+        # Função para verificar se há > 15 FA consecutivas ignorando D (afastamento)
         def tem_afastamento_fa(row, colunas_processar, colunas_contexto_antes=None, colunas_contexto_depois=None):
             """
-            Verifica se há 15+ FA consecutivas ignorando D.
+            Verifica se há > 15 FA consecutivas ignorando D.
             
             Para períodos específicos, verifica também colunas antes e depois para verificar
-            se forma uma sequência contínua de 15+ FA.
+            se forma uma sequência contínua de > 15 FA.
             
-            Retorna True se houver afastamento (15+ FA), False caso contrário.
+            Retorna True se houver afastamento (> 15 FA), False caso contrário.
             """
             # Concatena: contexto_antes + período + contexto_depois
             todas_colunas = []
@@ -195,12 +195,12 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                 if valor == 'FA':
                     fa_consecutivas += 1
                 elif valor != 'D':  # Ignora D mas reseta se encontrar outro valor diferente
-                    if fa_consecutivas >= 15:
+                    if fa_consecutivas > 15:
                         return True
                     fa_consecutivas = 0
             
-            # Verifica se terminou com 15+ FA consecutivas
-            return fa_consecutivas >= 15
+            # Verifica se terminou com > 15 FA consecutivas
+            return fa_consecutivas > 15
         
         # Função para processar análise
         def processar_analise(colunas_processar, colunas_contexto_antes=None, colunas_contexto_depois=None):
