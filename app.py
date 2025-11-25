@@ -171,6 +171,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
         def tem_afastamento_fa(row, colunas_processar, colunas_contexto_antes=None, colunas_contexto_depois=None):
             """
             Verifica se há > 15 FA consecutivas ignorando D.
+            D (Descanso) é ignorado e NÃO interrompe a sequência.
             
             Para períodos específicos, verifica também colunas antes e depois para verificar
             se forma uma sequência contínua de > 15 FA.
@@ -185,7 +186,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
             if colunas_contexto_depois:
                 todas_colunas.extend(colunas_contexto_depois)
             
-            # Verifica sequência contínua de FA (ignorando D) em TODAS as colunas
+            # Conta FA consecutivas, ignorando D completamente (D não interrompe)
             fa_consecutivas = 0
             for col_data in todas_colunas:
                 if col_data not in df_mest.columns:
@@ -194,10 +195,11 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                 
                 if valor == 'FA':
                     fa_consecutivas += 1
-                elif valor != 'D':  # Ignora D mas reseta se encontrar outro valor diferente
                     if fa_consecutivas > 15:
                         return True
+                elif valor != 'D':  # Se for algo diferente de FA e D, reseta
                     fa_consecutivas = 0
+                # Se for D, simplesmente ignora (não reseta)
             
             # Verifica se terminou com > 15 FA consecutivas
             return fa_consecutivas > 15
