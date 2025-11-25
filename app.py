@@ -168,13 +168,26 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                     periodo_num += 1
         
         # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
-        def tem_afastamento_fa(row, colunas_processar):
+        def tem_afastamento_fa(row, colunas_processar, colunas_contexto_antes=None, colunas_contexto_depois=None):
             """
             Verifica se há 15+ FA consecutivas ignorando D.
+            
+            Para períodos específicos, verifica também colunas antes e depois para verificar
+            se forma uma sequência contínua de 15+ FA.
+            
             Retorna True se houver afastamento (15+ FA), False caso contrário.
             """
+            # Concatena: contexto_antes + período + contexto_depois
+            todas_colunas = []
+            if colunas_contexto_antes:
+                todas_colunas.extend(colunas_contexto_antes)
+            todas_colunas.extend(colunas_processar)
+            if colunas_contexto_depois:
+                todas_colunas.extend(colunas_contexto_depois)
+            
+            # Verifica sequência contínua de FA (ignorando D) em TODAS as colunas
             fa_consecutivas = 0
-            for col_data in colunas_processar:
+            for col_data in todas_colunas:
                 if col_data not in df_mest.columns:
                     continue
                 valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
@@ -190,7 +203,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
             return fa_consecutivas >= 15
         
         # Função para processar análise
-        def processar_analise(colunas_processar):
+        def processar_analise(colunas_processar, colunas_contexto_antes=None, colunas_contexto_depois=None):
             dados_gestores = []
             
             for gestor in gestores:
@@ -206,7 +219,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                 
                 for idx, row in colaboradores_gestor.iterrows():
                     # Verifica se o colaborador tem afastamento (15+ FA)
-                    tem_afastamento = tem_afastamento_fa(row, colunas_processar)
+                    # Passa contexto_antes e contexto_depois para verificar sequência contínua
+                    tem_afastamento = tem_afastamento_fa(row, colunas_processar, colunas_contexto_antes, colunas_contexto_depois)
                     
                     for col_data in colunas_processar:
                         if col_data not in df_mest.columns:
@@ -256,8 +270,25 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
         
         # PERÍODOS (com labels de datas)
         dados_periodos = {}
-        for label, colunas_periodo in periodos_dict.items():
-            dados_periodos[label] = processar_analise(colunas_periodo)
+        labels_periodos = list(periodos_dict.keys())
+        
+        for idx_periodo, label in enumerate(labels_periodos):
+            colunas_periodo = periodos_dict[label]
+            
+            # Define contexto: dias antes (do período anterior) e depois (do próximo período)
+            colunas_contexto_antes = []
+            colunas_contexto_depois = []
+            
+            # Se não é o primeiro período, pega as colunas do período anterior como contexto
+            if idx_periodo > 0:
+                colunas_contexto_antes = periodos_dict[labels_periodos[idx_periodo - 1]]
+            
+            # Se não é o último período, pega as colunas do próximo período como contexto
+            if idx_periodo < len(labels_periodos) - 1:
+                colunas_contexto_depois = periodos_dict[labels_periodos[idx_periodo + 1]]
+            
+            # Processa com contexto
+            dados_periodos[label] = processar_analise(colunas_periodo, colunas_contexto_antes, colunas_contexto_depois)
         
         # Preenche o sheet com PERÍODO + PERÍODOS
         row_idx = 3
