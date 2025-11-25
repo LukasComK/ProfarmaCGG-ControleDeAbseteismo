@@ -99,8 +99,9 @@ def extrair_dia_do_cabecalho(label_dia, mes, ano):
 
 def marcar_afastamentos_na_workbook(workbook, mapa_cores):
     """
-    Percorre todas as planilhas da workbook e marca sequências de FA > 15
-    (ignorando D e "Afastamento") como "Afastamento".
+    Percorre todas as planilhas da workbook:
+    1. Marca sequências de FA > 15 (ignorando D e "Afastamento") como "Afastamento"
+    2. Aplica cor cinza (mesma de D) a TODOS os "Afastamento" encontrados
     
     Essa função modifica a workbook IN-PLACE.
     """
@@ -151,13 +152,31 @@ def marcar_afastamentos_na_workbook(workbook, mapa_cores):
                             for idx_fa in indices_fa:
                                 col_idx_fa, _, cell_fa = valores_row[idx_fa]
                                 cell_fa.value = 'Afastamento'
-                                # Aplica cor de Afastamento (usar a cor de FA ou uma cor especial)
+                                # Aplica cor de Afastamento (cinza, mesma de D)
                                 if 'Afastamento' in mapa_cores:
                                     cell_fa.fill = PatternFill(
                                         start_color=mapa_cores['Afastamento'],
                                         end_color=mapa_cores['Afastamento'],
                                         fill_type='solid'
                                     )
+                        
+                        i = j
+                    else:
+                        i += 1
+            
+            # APÓS processar FA > 15, colorir TODOS os "Afastamento" encontrados
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
+                for col_idx, cell in enumerate(row, start=1):
+                    if col_idx >= 8:  # Colunas de data
+                        valor = str(cell.value).strip().upper() if cell.value else ''
+                        if valor == 'AFASTAMENTO':
+                            # Aplica cor cinza a todos os Afastamento
+                            if 'Afastamento' in mapa_cores:
+                                cell.fill = PatternFill(
+                                    start_color=mapa_cores['Afastamento'],
+                                    end_color=mapa_cores['Afastamento'],
+                                    fill_type='solid'
+                                )
                         
                         i = j
                     else:
@@ -522,7 +541,7 @@ MAPA_CORES = {
     'P': 'FF90EE90',      # Verde claro
     'FI': 'FFFF9999',     # Vermelho suave (rosa claro)
     'FA': 'FFFFFF99',     # Amarelo suave (bege claro)
-    'Afastamento': 'FF92D050',  # Verde mais escuro para afastamento
+    'Afastamento': 'FFC0C0C0',  # Cinza (mesma cor de D)
     'FÉRIAS-BH': 'FF000000',    # Preto (com texto branco)
     'DESLIGADO': 'FF800080',   # Roxo
     'DESCANSO': 'FFC0C0C0'  # Cinza
