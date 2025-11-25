@@ -97,6 +97,72 @@ def extrair_dia_do_cabecalho(label_dia, mes, ano):
 
     return None
 
+def marcar_afastamentos_na_workbook(workbook, mapa_cores):
+    """
+    Percorre todas as planilhas da workbook e marca sequências de FA > 15
+    (ignorando D e "Afastamento") como "Afastamento".
+    
+    Essa função modifica a workbook IN-PLACE.
+    """
+    from openpyxl.styles import PatternFill, Font
+    
+    # Para cada sheet (exceto as que são relatórios)
+    for sheet_name in workbook.sheetnames:
+        if sheet_name in ['Dados', 'Relatório', 'Porcentagem ABS', 'Ofensores de ABS']:
+            ws = workbook[sheet_name]
+            
+            # Percorre cada linha (colaborador)
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):  # Começa da linha 2 (skip header)
+                # Coleta todas as células com valores de data/faltas (colunas 8+, que são as datas)
+                valores_row = []
+                for col_idx, cell in enumerate(row, start=1):
+                    if col_idx >= 8:  # Começam as colunas de data
+                        valor = str(cell.value).strip().upper() if cell.value else ''
+                        valores_row.append((col_idx, valor, cell))
+                
+                # Percorre a sequência procurando por 15+ FA
+                i = 0
+                while i < len(valores_row):
+                    col_idx, valor, cell = valores_row[i]
+                    
+                    # Se encontrou um FA, conta quantos FA consecutivos há (ignorando D)
+                    if valor == 'FA':
+                        fa_consecutivas = 0
+                        j = i
+                        indices_fa = []  # Guarda índices das células com FA nesta sequência
+                        
+                        # Percorre para contar FA consecutivas
+                        while j < len(valores_row):
+                            col_idx_j, valor_j, cell_j = valores_row[j]
+                            
+                            if valor_j == 'FA':
+                                fa_consecutivas += 1
+                                indices_fa.append(j)
+                                j += 1
+                            elif valor_j == 'D' or valor_j == 'AFASTAMENTO':
+                                # Ignora D e Afastamento (não interrompe a sequência)
+                                j += 1
+                            else:
+                                # Outro valor interrompe
+                                break
+                        
+                        # Se encontrou > 15 FA consecutivas, marca todas como Afastamento
+                        if fa_consecutivas > 15:
+                            for idx_fa in indices_fa:
+                                col_idx_fa, _, cell_fa = valores_row[idx_fa]
+                                cell_fa.value = 'Afastamento'
+                                # Aplica cor de Afastamento (usar a cor de FA ou uma cor especial)
+                                if 'Afastamento' in mapa_cores:
+                                    cell_fa.fill = PatternFill(
+                                        start_color=mapa_cores['Afastamento'],
+                                        end_color=mapa_cores['Afastamento'],
+                                        fill_type='solid'
+                                    )
+                        
+                        i = j
+                    else:
+                        i += 1
+
 def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
     """
     Cria sheet 'Ofensores de ABS' mostrando por GESTOR e TURNO:
@@ -167,45 +233,30 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                     periodos_dict[label] = [mapa_datas[d] for d in sorted(datas_nesta_semana)]
                     periodo_num += 1
         
-        # Função para verificar se há > 15 FA consecutivas ignorando D (afastamento)
-        def tem_afastamento_fa(row, colunas_processar, colunas_contexto_antes=None, colunas_contexto_depois=None):
+        # Função para verificar se há 15+ FA consecutivas ignorando D (afastamento)
+        def tem_afastamento_fa(row, colunas_processar):
             """
-            Verifica se há > 15 FA consecutivas ignorando D.
-            D (Descanso) é ignorado e NÃO interrompe a sequência.
-            
-            Para períodos específicos, verifica também colunas antes e depois para verificar
-            se forma uma sequência contínua de > 15 FA.
-            
-            Retorna True se houver afastamento (> 15 FA), False caso contrário.
+            Verifica se há 15+ FA consecutivas ignorando D.
+            Retorna True se houver afastamento (15+ FA), False caso contrário.
             """
-            # Concatena: contexto_antes + período + contexto_depois
-            todas_colunas = []
-            if colunas_contexto_antes:
-                todas_colunas.extend(colunas_contexto_antes)
-            todas_colunas.extend(colunas_processar)
-            if colunas_contexto_depois:
-                todas_colunas.extend(colunas_contexto_depois)
-            
-            # Conta FA consecutivas, ignorando D completamente (D não interrompe)
             fa_consecutivas = 0
-            for col_data in todas_colunas:
+            for col_data in colunas_processar:
                 if col_data not in df_mest.columns:
                     continue
                 valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
                 
                 if valor == 'FA':
                     fa_consecutivas += 1
-                    if fa_consecutivas > 15:
+                elif valor != 'D':  # Ignora D mas reseta se encontrar outro valor diferente
+                    if fa_consecutivas >= 15:
                         return True
-                elif valor != 'D':  # Se for algo diferente de FA e D, reseta
                     fa_consecutivas = 0
-                # Se for D, simplesmente ignora (não reseta)
             
-            # Verifica se terminou com > 15 FA consecutivas
-            return fa_consecutivas > 15
+            # Verifica se terminou com 15+ FA consecutivas
+            return fa_consecutivas >= 15
         
         # Função para processar análise
-        def processar_analise(colunas_processar, colunas_contexto_antes=None, colunas_contexto_depois=None):
+        def processar_analise(colunas_processar):
             dados_gestores = []
             
             for gestor in gestores:
@@ -221,8 +272,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
                 
                 for idx, row in colaboradores_gestor.iterrows():
                     # Verifica se o colaborador tem afastamento (15+ FA)
-                    # Passa contexto_antes e contexto_depois para verificar sequência contínua
-                    tem_afastamento = tem_afastamento_fa(row, colunas_processar, colunas_contexto_antes, colunas_contexto_depois)
+                    tem_afastamento = tem_afastamento_fa(row, colunas_processar)
                     
                     for col_data in colunas_processar:
                         if col_data not in df_mest.columns:
@@ -272,25 +322,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores):
         
         # PERÍODOS (com labels de datas)
         dados_periodos = {}
-        labels_periodos = list(periodos_dict.keys())
-        
-        for idx_periodo, label in enumerate(labels_periodos):
-            colunas_periodo = periodos_dict[label]
-            
-            # Define contexto: dias antes (do período anterior) e depois (do próximo período)
-            colunas_contexto_antes = []
-            colunas_contexto_depois = []
-            
-            # Se não é o primeiro período, pega as colunas do período anterior como contexto
-            if idx_periodo > 0:
-                colunas_contexto_antes = periodos_dict[labels_periodos[idx_periodo - 1]]
-            
-            # Se não é o último período, pega as colunas do próximo período como contexto
-            if idx_periodo < len(labels_periodos) - 1:
-                colunas_contexto_depois = periodos_dict[labels_periodos[idx_periodo + 1]]
-            
-            # Processa com contexto
-            dados_periodos[label] = processar_analise(colunas_periodo, colunas_contexto_antes, colunas_contexto_depois)
+        for label, colunas_periodo in periodos_dict.items():
+            dados_periodos[label] = processar_analise(colunas_periodo)
         
         # Preenche o sheet com PERÍODO + PERÍODOS
         row_idx = 3
@@ -456,6 +489,7 @@ MAPA_CORES = {
     'P': 'FF90EE90',      # Verde claro
     'FI': 'FFFF9999',     # Vermelho suave (rosa claro)
     'FA': 'FFFFFF99',     # Amarelo suave (bege claro)
+    'Afastamento': 'FF92D050',  # Verde mais escuro para afastamento
     'FÉRIAS-BH': 'FF000000',    # Preto (com texto branco)
     'DESLIGADO': 'FF800080',   # Roxo
     'DESCANSO': 'FFC0C0C0'  # Cinza
@@ -2231,6 +2265,9 @@ with col_btn_processar:
                     
                     # ===== CRIAR SHEET DE OFENSORES DE ABS =====
                     criar_sheet_ofensores_abs(df_mest_final, w, mapa_datas, MAPA_CORES)
+                    
+                    # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
+                    marcar_afastamentos_na_workbook(w.book, MAPA_CORES)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     from openpyxl.styles import Border, Side
