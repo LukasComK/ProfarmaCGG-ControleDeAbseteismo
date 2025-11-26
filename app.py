@@ -391,6 +391,10 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                         
                         valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
                         
+                        # Ignora FERIADO nas contagens
+                        if valor == 'FERIADO':
+                            continue
+                        
                         if valor == 'FI':
                             total_fi += 1
                         elif valor == 'FA':
@@ -1327,12 +1331,12 @@ with col_btn_processar:
                             cell_dia = ws_relatorio.cell(row=row_idx, column=2, value=dia_semana)
                             cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                             
-                            # Coluna FI (vermelho) - Fórmula COUNTIF
+                            # Coluna FI (vermelho) - Fórmula COUNTIF (exclui FERIADO)
                             cell_fi = ws_relatorio.cell(row=row_idx, column=3)
                             cell_fi.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FI")'
                             cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                             
-                            # Coluna FA (amarelo) - Fórmula COUNTIF
+                            # Coluna FA (amarelo) - Fórmula COUNTIF (exclui FERIADO)
                             cell_fa = ws_relatorio.cell(row=row_idx, column=4)
                             cell_fa.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FA")'
                             cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
@@ -1380,9 +1384,9 @@ with col_btn_processar:
                             df_setor = df[mask_setor]
                             
                             if not df_setor.empty and data_col in df.columns:
-                                # Conta FI e FA para esta data
-                                total_fi += (df_setor[data_col] == 'FI').sum()
-                                total_fa += (df_setor[data_col] == 'FA').sum()
+                                # Conta FI e FA para esta data (exclui FERIADO)
+                                total_fi += ((df_setor[data_col] == 'FI')).sum()
+                                total_fa += ((df_setor[data_col] == 'FA')).sum()
                         
                         return total_fi, total_fa
                     
@@ -2379,9 +2383,6 @@ with col_btn_processar:
                     # ===== DETECTAR AFASTAMENTOS NO DATAFRAME =====
                     afastamentos = detectar_afastamentos_no_dataframe(df_mest_final, mapa_datas)
                     
-                    # ===== CRIAR SHEET DE OFENSORES DE ABS =====
-                    criar_sheet_ofensores_abs(df_mest_final, w, mapa_datas, MAPA_CORES, afastamentos)
-                    
                     # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
                     marcar_afastamentos_na_workbook(w.book, MAPA_CORES)
                     
@@ -2391,6 +2392,9 @@ with col_btn_processar:
                         feriados = obter_feriados_brasil(ano_feriados)
                         if feriados:
                             marcar_feriados_na_workbook(w.book, feriados, mapa_datas, MAPA_CORES)
+                    
+                    # ===== CRIAR SHEET DE OFENSORES DE ABS (APÓS MARCAÇÕES) =====
+                    criar_sheet_ofensores_abs(df_mest_final, w, mapa_datas, MAPA_CORES, afastamentos)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     from openpyxl.styles import Border, Side
