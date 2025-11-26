@@ -753,7 +753,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         return False
 
 
-def colorir_celulas_incomuns_dados(w, MAPA_CORES):
+def colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas):
     """
     Pinta com cinza apenas as CÉLULAS DE DATAS na planilha Dados que contêm marcadores incomuns.
     Marcadores "comuns" são: P, FI, FA, FÉRIAS-BH, DESLIGADO, FERIADO, DOMINGO
@@ -762,13 +762,11 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES):
     Args:
         w: Workbook wrapper object
         MAPA_CORES: Dicionário de cores
+        mapa_datas: Dicionário de mapeamento de datas para colunas
     """
     try:
         # Lista de códigos "comuns" que NÃO devem ser marcados
         codigos_comuns = {'P', 'FI', 'FA', 'FÉRIAS-BH', 'DESLIGADO', 'FERIADO', 'DOMINGO', ''}
-        
-        # Colunas que NÃO são datas (são informações fixas do colaborador)
-        colunas_nao_datas = {'NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO'}
         
         # Cor cinza para células incomuns
         gray_fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
@@ -785,15 +783,19 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES):
             print("Sheet 'Dados' não encontrada")
             return False
         
+        # Obtém lista de nomes de colunas de datas a partir de mapa_datas
+        # mapa_datas.values() contém os nomes das colunas de datas
+        colunas_data_nomes = set(mapa_datas.values())
+        
         # Lê o header para identificar qual coluna é qual
         header = []
         for cell in ws_dados[1]:
             header.append(cell.value)
         
-        # Identifica os índices das colunas de datas
+        # Identifica os índices das colunas de datas (usando mapa_datas como fonte de verdade)
         colunas_data_indices = []
         for col_idx, col_name in enumerate(header, 1):
-            if col_name and col_name not in colunas_nao_datas:
+            if col_name in colunas_data_nomes:
                 colunas_data_indices.append(col_idx)
         
         # Percorre apenas as LINHAS DE DADOS nas COLUNAS DE DATAS
@@ -2904,7 +2906,7 @@ with col_btn_processar:
                     # ===== COLORIR CÉLULAS INCOMUNS NA PLANILHA DADOS =====
                     status_text.info("🎯 Marcando presença incomum...")
                     progress_bar.progress(75)
-                    colorir_celulas_incomuns_dados(w, MAPA_CORES)
+                    colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     status_text.info("🎨 Finalizando formatação...")
