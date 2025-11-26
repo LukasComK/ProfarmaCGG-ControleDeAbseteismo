@@ -606,8 +606,8 @@ MAPA_CODIGOS = {1: 'P', 2: 'FI', 4: 'FA', 3: 'FÉRIAS-BH', 5: 'DESLIGADO'}
 
 MAPA_CORES = {
     'P': 'FF90EE90',      # Verde claro
-    'FI': 'FFFF9999',     # Vermelho suave (rosa claro)
-    'FA': 'FFFFFF99',     # Amarelo suave (bege claro)
+    'FI': 'FFFF0000',     # Vermelho puro (mais nítido)
+    'FA': 'FFFFFF00',     # Amarelo puro (mais nítido)
     'Afastamento': 'FFC0C0C0',  # Cinza (mesma cor de D)
     'FERIADO': 'FF000000',      # Preto (com texto branco)
     'FÉRIAS-BH': 'FF000000',    # Preto (com texto branco)
