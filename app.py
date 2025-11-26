@@ -266,10 +266,14 @@ def marcar_afastamentos_na_workbook(workbook, mapa_cores):
 
 def detectar_afastamentos_no_dataframe(df, mapa_datas):
     """
-    Detecta colaboradores com sequências de > 15 FA (ignorando D e "Afastamento").
-    Retorna um conjunto (set) com índices dos colaboradores que têm afastamento.
+    Detecta colaboradores com sequências contendo > 15 FA (ignorando D, FERIADO e AFASTAMENTO).
+    Retorna um dicionário {index_row: [(col_inicio, col_fim), ...]}
     
-    Formato do retorno: {(index_row, sequencia_inicio_col, sequencia_fim_col), ...}
+    Lógica: 
+    - Procura por sequências que começam com FA
+    - Continua enquanto houver FA, D, FERIADO ou AFASTAMENTO
+    - Conta apenas FA (ignora D, FERIADO, AFASTAMENTO)
+    - Se total de FA > 15, marca toda a sequência como afastamento
     """
     afastamentos = {}  # {index_row: [(col_inicio, col_fim), ...]}
     
@@ -284,29 +288,32 @@ def detectar_afastamentos_no_dataframe(df, mapa_datas):
             col = colunas_datas[i]
             valor = str(row[col]).strip().upper() if pd.notna(row[col]) else ''
             
-            if valor == 'FA':
-                fa_consecutivas = 0
+            # Procura por sequências que começam com FA, D, FERIADO ou AFASTAMENTO
+            if valor in ['FA', 'D', 'FERIADO', 'AFASTAMENTO']:
+                fa_total = 0
                 col_inicio = i
                 
-                # Conta FA consecutivas
+                # Percorre enquanto tiver FA, D, FERIADO ou AFASTAMENTO (ignora outros valores)
                 j = i
                 while j < len(colunas_datas):
                     col_j = colunas_datas[j]
                     valor_j = str(row[col_j]).strip().upper() if pd.notna(row[col_j]) else ''
                     
                     if valor_j == 'FA':
-                        fa_consecutivas += 1
+                        fa_total += 1
                         j += 1
-                    elif valor_j == 'D' or valor_j == 'AFASTAMENTO' or valor_j == 'FERIADO':
+                    elif valor_j in ['D', 'FERIADO', 'AFASTAMENTO']:
+                        # Ignora (pula) mas continua a sequência
                         j += 1
                     else:
+                        # Quebra a sequência
                         break
                 
-                # Se encontrou > 15 FA, registra essa sequência
-                if fa_consecutivas > 15:
+                # Se encontrou > 15 FA na sequência, registra
+                if fa_total > 15:
                     afastamentos_row.append((col_inicio, j - 1))
                 
-                i = j
+                i = j if j > i else i + 1
             else:
                 i += 1
         
