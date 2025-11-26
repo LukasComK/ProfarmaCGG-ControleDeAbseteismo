@@ -297,7 +297,7 @@ def detectar_afastamentos_no_dataframe(df, mapa_datas):
                     if valor_j == 'FA':
                         fa_consecutivas += 1
                         j += 1
-                    elif valor_j == 'D' or valor_j == 'AFASTAMENTO':
+                    elif valor_j == 'D' or valor_j == 'AFASTAMENTO' or valor_j == 'FERIADO':
                         j += 1
                     else:
                         break
@@ -2403,18 +2403,21 @@ with col_btn_processar:
                     ws_graficos.column_dimensions['E'].width = 25
                     ws_graficos.column_dimensions['F'].width = 15
                     
-                    # ===== DETECTAR AFASTAMENTOS NO DATAFRAME =====
-                    afastamentos = detectar_afastamentos_no_dataframe(df_mest_final, mapa_datas)
-                    
-                    # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
-                    marcar_afastamentos_na_workbook(w.book, MAPA_CORES)
-                    
                     # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
                     if mapa_datas:
                         ano_feriados = min(mapa_datas.keys()).year
                         feriados = obter_feriados_brasil(ano_feriados)
                         if feriados:
                             marcar_feriados_na_workbook(w.book, feriados, mapa_datas, MAPA_CORES)
+                    
+                    # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM FERIADOS MARCADOS) =====
+                    df_mest_com_feriados = ler_dataframe_do_workbook(w.book)
+                    
+                    # ===== DETECTAR AFASTAMENTOS NO DATAFRAME COM FERIADOS (ignora FERIADO) =====
+                    afastamentos = detectar_afastamentos_no_dataframe(df_mest_com_feriados, mapa_datas)
+                    
+                    # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
+                    marcar_afastamentos_na_workbook(w.book, MAPA_CORES)
                     
                     # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM MARCAÇÕES) =====
                     df_mest_marcado = ler_dataframe_do_workbook(w.book)
