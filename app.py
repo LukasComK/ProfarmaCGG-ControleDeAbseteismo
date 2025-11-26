@@ -76,6 +76,29 @@ def eh_fim_de_semana(data):
     """Retorna True se é sábado (5) ou domingo (6)"""
     return data.weekday() in [5, 6]
 
+def ler_dataframe_do_workbook(workbook):
+    """
+    Lê o dataframe da sheet 'Dados' do workbook (após marcações de FERIADO e AFASTAMENTO)
+    Retorna um pandas DataFrame com os dados atualizados
+    """
+    ws = workbook['Dados']
+    dados = []
+    
+    # Lê header
+    header = []
+    for cell in ws[1]:
+        header.append(cell.value)
+    
+    # Lê dados
+    for row_idx in range(2, ws.max_row + 1):
+        row_data = {}
+        for col_idx, col_name in enumerate(header, 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            row_data[col_name] = cell.value
+        dados.append(row_data)
+    
+    return pd.DataFrame(dados)
+
 def calcular_similaridade(s1, s2):
     """Calcula similaridade entre duas strings (0 a 1)"""
     return SequenceMatcher(None, s1, s2).ratio()
@@ -2393,8 +2416,11 @@ with col_btn_processar:
                         if feriados:
                             marcar_feriados_na_workbook(w.book, feriados, mapa_datas, MAPA_CORES)
                     
-                    # ===== CRIAR SHEET DE OFENSORES DE ABS (APÓS MARCAÇÕES) =====
-                    criar_sheet_ofensores_abs(df_mest_final, w, mapa_datas, MAPA_CORES, afastamentos)
+                    # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM MARCAÇÕES) =====
+                    df_mest_marcado = ler_dataframe_do_workbook(w.book)
+                    
+                    # ===== CRIAR SHEET DE OFENSORES DE ABS (COM DADOS MARCADOS) =====
+                    criar_sheet_ofensores_abs(df_mest_marcado, w, mapa_datas, MAPA_CORES, afastamentos)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     from openpyxl.styles import Border, Side
