@@ -755,7 +755,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
 
 def colorir_celulas_incomuns_dados(w, MAPA_CORES):
     """
-    Pinta com cinza todas as células na planilha Dados que contêm marcadores incomuns.
+    Pinta com cinza apenas as CÉLULAS DE DATAS na planilha Dados que contêm marcadores incomuns.
     Marcadores "comuns" são: P, FI, FA, FÉRIAS-BH, DESLIGADO, FERIADO, DOMINGO
     Qualquer outro valor (exceto vazio) será marcado com cinza fundo + texto preto.
     
@@ -767,11 +767,14 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES):
         # Lista de códigos "comuns" que NÃO devem ser marcados
         codigos_comuns = {'P', 'FI', 'FA', 'FÉRIAS-BH', 'DESLIGADO', 'FERIADO', 'DOMINGO', ''}
         
+        # Colunas que NÃO são datas (são informações fixas do colaborador)
+        colunas_nao_datas = {'NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO'}
+        
         # Cor cinza para células incomuns
         gray_fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
         black_font = Font(color='FF000000', bold=False)
         
-        # Tenta encontrar a sheet com nomes variados (Dados, DADOS, etc)
+        # Tenta encontrar a sheet com nome "Dados"
         ws_dados = None
         for sheet_name in w.book.sheetnames:
             if sheet_name.upper() == 'DADOS':
@@ -782,10 +785,20 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES):
             print("Sheet 'Dados' não encontrada")
             return False
         
-        # Percorre todas as linhas da planilha Dados
-        # Começa da linha 2 (linha 1 é header) até a última linha com dados
+        # Lê o header para identificar qual coluna é qual
+        header = []
+        for cell in ws_dados[1]:
+            header.append(cell.value)
+        
+        # Identifica os índices das colunas de datas
+        colunas_data_indices = []
+        for col_idx, col_name in enumerate(header, 1):
+            if col_name and col_name not in colunas_nao_datas:
+                colunas_data_indices.append(col_idx)
+        
+        # Percorre apenas as LINHAS DE DADOS nas COLUNAS DE DATAS
         for row_idx in range(2, ws_dados.max_row + 1):
-            for col_idx in range(1, ws_dados.max_column + 1):
+            for col_idx in colunas_data_indices:
                 cell = ws_dados.cell(row=row_idx, column=col_idx)
                 cell_value = str(cell.value).strip() if cell.value is not None else ''
                 
