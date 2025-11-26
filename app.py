@@ -1735,23 +1735,9 @@ with col_btn_processar:
                     # Preenche header com todos os dias (mesmo sem dados)
                     for dia in range(1, dias_no_mes + 1):
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
-                        
-                        # Verifica se é domingo
-                        eh_domingo = data_obj.weekday() == 6
-                        
-                        # Verifica se é feriado
-                        eh_feriado = data_obj in feriados_temp
-                        
-                        # Define o texto a mostrar
-                        if eh_feriado:
-                            text_header = "FERIADO"
-                        elif eh_domingo:
-                            text_header = "DOMINGO"
-                        else:
-                            text_header = f"{dia:02d}/{mes_dados:02d}"
-                        
+                        data_formatada = f"{dia:02d}/{mes_dados:02d}"
                         col_idx = dia + 1  # Coluna começa em 2 (coluna 1 é "Área")
-                        cell_header = ws_porcentagens.cell(row=8, column=col_idx, value=text_header)
+                        cell_header = ws_porcentagens.cell(row=8, column=col_idx, value=data_formatada)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
                         cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
@@ -1889,14 +1875,26 @@ with col_btn_processar:
                         col_idx = dia + 1
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
+                        # Verifica se é domingo ou feriado
+                        eh_domingo = data_obj.weekday() == 6
+                        eh_feriado = data_obj in feriados_temp
+                        
                         if data_obj in mapa_datas:
                             col_data = mapa_datas[data_obj]
                             data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                             data_col_letter = get_column_letter(data_col_idx)
                             
                             cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
-                            # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
-                            cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
+                            
+                            # Se é domingo ou feriado, escreve o texto em vez de fórmula
+                            if eh_feriado:
+                                cell_fi_data.value = "FERIADO"
+                            elif eh_domingo:
+                                cell_fi_data.value = "DOMINGO"
+                            else:
+                                # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
+                                cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
+                            
                             cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
                             cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
@@ -1925,13 +1923,25 @@ with col_btn_processar:
                         col_idx = dia + 1
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
                         
+                        # Verifica se é domingo ou feriado
+                        eh_domingo = data_obj.weekday() == 6
+                        eh_feriado = data_obj in feriados_temp
+                        
                         if data_obj in mapa_datas:
                             col_data = mapa_datas[data_obj]
                             data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                             data_col_letter = get_column_letter(data_col_idx)
                             
                             cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
-                            cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
+                            
+                            # Se é domingo ou feriado, escreve o texto em vez de fórmula
+                            if eh_feriado:
+                                cell_fa_data.value = "FERIADO"
+                            elif eh_domingo:
+                                cell_fa_data.value = "DOMINGO"
+                            else:
+                                cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
+                            
                             cell_fa_data.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
                             cell_fa_data.font = Font(bold=True)
                             cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
