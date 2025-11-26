@@ -61,14 +61,14 @@ def marcar_feriados_na_workbook(workbook, feriados, mapa_datas, mapa_cores):
                             for row_idx in range(2, ws.max_row + 1):
                                 cell_data = ws.cell(row=row_idx, column=col_letter_idx)
                                 cell_data.value = "FERIADO"
-                                # Aplica cor cinza
+                                # Aplica cor preta com texto branco
                                 if 'FERIADO' in mapa_cores:
                                     cell_data.fill = PatternFill(
-                                        start_color=mapa_cores.get('FERIADO', 'FFC0C0C0'),
-                                        end_color=mapa_cores.get('FERIADO', 'FFC0C0C0'),
+                                        start_color=mapa_cores['FERIADO'],
+                                        end_color=mapa_cores['FERIADO'],
                                         fill_type='solid'
                                     )
-                                cell_data.font = Font(color='FFFFFFFF')  # Texto branco
+                                    cell_data.font = Font(color='FFFFFFFF')  # Texto branco
                             break
 
 def eh_fim_de_semana(data):
@@ -601,6 +601,7 @@ MAPA_CORES = {
     'FI': 'FFFF9999',     # Vermelho suave (rosa claro)
     'FA': 'FFFFFF99',     # Amarelo suave (bege claro)
     'Afastamento': 'FFC0C0C0',  # Cinza (mesma cor de D)
+    'FERIADO': 'FF000000',      # Preto (com texto branco)
     'FÉRIAS-BH': 'FF000000',    # Preto (com texto branco)
     'DESLIGADO': 'FF800080',   # Roxo
     'DESCANSO': 'FFC0C0C0'  # Cinza
