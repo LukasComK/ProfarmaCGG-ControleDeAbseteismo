@@ -852,7 +852,7 @@ st.write("Com busca LIKE (aproximada) para nomes")
 MAPA_CODIGOS = {1: 'P', 2: 'FI', 4: 'FA', 3: 'FÉRIAS-BH', 5: 'DESLIGADO'}
 
 MAPA_CORES = {
-    'P': 'FF90EE90',      # Verde claro
+    'P': 'FF00B050',      # Verde forte (com texto branco)
     'FI': 'FFFF0000',     # Vermelho puro (mais nítido)
     'FA': 'FFFFFF00',     # Amarelo puro (mais nítido)
     'Afastamento': 'FFC0C0C0',  # Cinza (mesma cor de D)
@@ -1512,6 +1512,7 @@ with col_btn_processar:
                                 
                                 if valor == 'P':
                                     cell.fill = PatternFill(start_color=MAPA_CORES['P'], end_color=MAPA_CORES['P'], fill_type='solid')
+                                    cell.font = Font(color='FFFFFFFF')
                                 elif valor == 'FI':
                                     cell.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                     cell.font = Font(color='FFFFFFFF')
