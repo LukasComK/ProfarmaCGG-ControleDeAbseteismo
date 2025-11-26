@@ -1279,6 +1279,13 @@ with col_btn_processar:
                                 elif valor == 'D':
                                     cell.fill = PatternFill(start_color=MAPA_CORES['DESCANSO'], end_color=MAPA_CORES['DESCANSO'], fill_type='solid')
                     
+                    # ===== OBTER FERIADOS PARA USO NO SHEET RELATÓRIO E PORCENTAGENS =====
+                    if mapa_datas:
+                        ano_feriados_temp = min(mapa_datas.keys()).year
+                        feriados_temp = obter_feriados_brasil(ano_feriados_temp)
+                    else:
+                        feriados_temp = {}
+                    
                     # ===== CRIAR GUIA DE RELATÓRIO =====
                     ws_relatorio = w.book.create_sheet('Relatório')
                     
@@ -1328,35 +1335,57 @@ with col_btn_processar:
                             dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
                             dia_semana = dias_semana_pt.get(dia_en, dia_en)
                             
-                            # Coluna Data (cinza)
+                            # Verifica se é feriado ou domingo
+                            eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
+                            eh_domingo = data_obj.weekday() == 6 if isinstance(data_obj, datetime.date) else False
+                            
+                            # Coluna Data
                             cell_data = ws_relatorio.cell(row=row_idx, column=1, value=data_formatada)
-                            cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                            
-                            # Coluna Dia (cinza)
+                            # Coluna Dia
                             cell_dia = ws_relatorio.cell(row=row_idx, column=2, value=dia_semana)
-                            cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                            
-                            # Coluna FI (vermelho) - Fórmula COUNTIF (exclui FERIADO)
+                            # Coluna FI
                             cell_fi = ws_relatorio.cell(row=row_idx, column=3)
                             cell_fi.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FI")'
-                            cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                            cell_fi.font = Font(bold=True, color='FFFFFFFF')  # Texto branco
-                            
-                            # Coluna FA (amarelo) - Fórmula COUNTIF (exclui FERIADO)
+                            # Coluna FA
                             cell_fa = ws_relatorio.cell(row=row_idx, column=4)
                             cell_fa.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FA")'
-                            cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                            
-                            # Coluna FÉRIAS-BH (preto) - Fórmula COUNTIF
+                            # Coluna FÉRIAS-BH
                             cell_ferias = ws_relatorio.cell(row=row_idx, column=5)
                             cell_ferias.value = f'=COUNTIF(Dados!{col_letter}:${col_letter},"FÉRIAS-BH")'
-                            cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
-                            cell_ferias.font = Font(color='FFFFFFFF')  # Texto branco
-                            
-                            # Coluna Total (cinza) - Fórmula SUM das três anteriores
+                            # Coluna Total
                             cell_total = ws_relatorio.cell(row=row_idx, column=6)
-                            cell_total.value = f'=C{row_idx}+D{row_idx}+E{row_idx}'
-                            cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            
+                            # Aplica formatação condicional para FERIADO/DOMINGO
+                            if eh_feriado:
+                                for col_idx in range(1, 7):
+                                    cell = ws_relatorio.cell(row=row_idx, column=col_idx)
+                                    cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell.font = Font(bold=True, color='FFFFFFFF')
+                                # Substitui valores por FERIADO
+                                cell_fi.value = 'FERIADO'
+                                cell_fa.value = 'FERIADO'
+                                cell_ferias.value = 'FERIADO'
+                                cell_total.value = 'FERIADO'
+                            elif eh_domingo:
+                                for col_idx in range(1, 7):
+                                    cell = ws_relatorio.cell(row=row_idx, column=col_idx)
+                                    cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell.font = Font(bold=True, color='FFFFFFFF')
+                                # Substitui valores por DOMINGO
+                                cell_fi.value = 'DOMINGO'
+                                cell_fa.value = 'DOMINGO'
+                                cell_ferias.value = 'DOMINGO'
+                                cell_total.value = 'DOMINGO'
+                            else:
+                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                cell_fi.font = Font(bold=True, color='FFFFFFFF')
+                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
+                                cell_ferias.font = Font(color='FFFFFFFF')
+                                cell_total.value = f'=C{row_idx}+D{row_idx}+E{row_idx}'
+                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                             
                             row_idx += 1
                     
@@ -1412,6 +1441,10 @@ with col_btn_processar:
                                 dia_en = data_obj.strftime('%a').upper() if isinstance(data_obj, datetime.date) else '???'
                                 dia_semana = dias_semana_pt.get(dia_en, dia_en)
                                 
+                                # Verifica se é feriado ou domingo
+                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
+                                eh_domingo = data_obj.weekday() == 6 if isinstance(data_obj, datetime.date) else False
+                                
                                 # M&A / BLOQ - Usar ordem específica para evitar duplicação
                                 # 1. PROJETO INTERPRISE (mais específico)
                                 # 2. MOVIMENTACAO (mas EXCLUI PROJETO INTERPRISE)
@@ -1450,30 +1483,47 @@ with col_btn_processar:
                                 
                                 # Coluna Data (cinza)
                                 cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
-                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                
                                 # Coluna Dia (cinza)
                                 cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
-                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                
                                 # Coluna Depto (verde suave)
                                 cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='M&A / BLOQ')
-                                cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                                
                                 # Coluna FI (vermelho suave) - Fórmula
                                 cell_fi = ws_relatorio.cell(row=row_departamento, column=4)
                                 cell_fi.value = fi_ma_bloq_formula
-                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                
                                 # Coluna FA (amarelo suave) - Fórmula
                                 cell_fa = ws_relatorio.cell(row=row_departamento, column=5)
                                 cell_fa.value = fa_ma_bloq_formula
-                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                
-                                # Coluna Total (cinza) - Fórmula SUM
+                                # Coluna Total
                                 cell_total = ws_relatorio.cell(row=row_departamento, column=6)
                                 cell_total.value = f'=D{row_departamento}+E{row_departamento}'
-                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Aplica formatação condicional para FERIADO/DOMINGO
+                                if eh_feriado:
+                                    for col_idx in range(1, 7):
+                                        cell = ws_relatorio.cell(row=row_departamento, column=col_idx)
+                                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                        cell.font = Font(bold=True, color='FFFFFFFF')
+                                    # Substitui conteúdo por FERIADO
+                                    cell_fi.value = 'FERIADO'
+                                    cell_fa.value = 'FERIADO'
+                                    cell_total.value = 'FERIADO'
+                                elif eh_domingo:
+                                    for col_idx in range(1, 7):
+                                        cell = ws_relatorio.cell(row=row_departamento, column=col_idx)
+                                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                        cell.font = Font(bold=True, color='FFFFFFFF')
+                                    # Substitui conteúdo por DOMINGO
+                                    cell_fi.value = 'DOMINGO'
+                                    cell_fa.value = 'DOMINGO'
+                                    cell_total.value = 'DOMINGO'
+                                else:
+                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                    cell_fi.font = Font(bold=True, color='FFFFFFFF')
+                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                 row_departamento += 1
                                 
                                 # CRDK / D&E - Usar ordem específica para evitar duplicação
@@ -1511,30 +1561,47 @@ with col_btn_processar:
                                 
                                 # Coluna Data (cinza)
                                 cell_data = ws_relatorio.cell(row=row_departamento, column=1, value=data_formatada)
-                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                
                                 # Coluna Dia (cinza)
                                 cell_dia = ws_relatorio.cell(row=row_departamento, column=2, value=dia_semana)
-                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                
                                 # Coluna Depto (verde suave)
                                 cell_depto = ws_relatorio.cell(row=row_departamento, column=3, value='CRDK / D&E')
-                                cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                                
                                 # Coluna FI (vermelho suave) - Fórmula
                                 cell_fi = ws_relatorio.cell(row=row_departamento, column=4)
                                 cell_fi.value = fi_crdk_de_formula
-                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                
                                 # Coluna FA (amarelo suave) - Fórmula
                                 cell_fa = ws_relatorio.cell(row=row_departamento, column=5)
                                 cell_fa.value = fa_crdk_de_formula
-                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                
-                                # Coluna Total (cinza) - Fórmula SUM
+                                # Coluna Total
                                 cell_total = ws_relatorio.cell(row=row_departamento, column=6)
                                 cell_total.value = f'=D{row_departamento}+E{row_departamento}'
-                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                
+                                # Aplica formatação condicional para FERIADO/DOMINGO
+                                if eh_feriado:
+                                    for col_idx in range(1, 7):
+                                        cell = ws_relatorio.cell(row=row_departamento, column=col_idx)
+                                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                        cell.font = Font(bold=True, color='FFFFFFFF')
+                                    # Substitui conteúdo por FERIADO
+                                    cell_fi.value = 'FERIADO'
+                                    cell_fa.value = 'FERIADO'
+                                    cell_total.value = 'FERIADO'
+                                elif eh_domingo:
+                                    for col_idx in range(1, 7):
+                                        cell = ws_relatorio.cell(row=row_departamento, column=col_idx)
+                                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                        cell.font = Font(bold=True, color='FFFFFFFF')
+                                    # Substitui conteúdo por DOMINGO
+                                    cell_fi.value = 'DOMINGO'
+                                    cell_fa.value = 'DOMINGO'
+                                    cell_total.value = 'DOMINGO'
+                                else:
+                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                    cell_fi.font = Font(bold=True, color='FFFFFFFF')
+                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                 row_departamento += 1
                     
                     # ===== RESUMO POR TURNO, DIA E SETOR =====
@@ -1571,6 +1638,10 @@ with col_btn_processar:
                                     
                                     data_formatada = data_obj.strftime('%d/%m/%Y') if isinstance(data_obj, datetime.date) else str(data_obj)
                                     
+                                    # Verifica se é feriado ou domingo
+                                    eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
+                                    eh_domingo = data_obj.weekday() == 6 if isinstance(data_obj, datetime.date) else False
+                                    
                                     # Para cada setor
                                     setores_turno = [
                                         ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
@@ -1580,38 +1651,53 @@ with col_btn_processar:
                                     for setor_nome, keywords_setor in setores_turno:
                                         # Turno (azul claro)
                                         cell_turno = ws_relatorio.cell(row=row_turno_section, column=1, value=turno_label)
-                                        cell_turno.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
-                                        cell_turno.font = Font(bold=True)
-                                        
-                                        # Data (cinza)
+                                        # Data
                                         cell_data = ws_relatorio.cell(row=row_turno_section, column=2, value=data_formatada)
-                                        cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                        
                                         # Setor (verde suave)
                                         cell_setor = ws_relatorio.cell(row=row_turno_section, column=3, value=setor_nome)
-                                        cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                                        
-                                        # FI - Fórmula com TURNO
+                                        # FI
                                         cell_fi = ws_relatorio.cell(row=row_turno_section, column=4)
                                         turno_text = f"TURNO {turno_num}"
                                         if setor_nome == 'M&A / BLOQ':
                                             cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
                                         else:  # CRDK / D&E
                                             cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
-                                        cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                        
-                                        # FA - Fórmula com TURNO
+                                        # FA
                                         cell_fa = ws_relatorio.cell(row=row_turno_section, column=5)
                                         if setor_nome == 'M&A / BLOQ':
                                             cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
                                         else:  # CRDK / D&E
                                             cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
-                                        cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                        
-                                        # Total (cinza)
+                                        # Total
                                         cell_total_turno = ws_relatorio.cell(row=row_turno_section, column=6)
                                         cell_total_turno.value = f'=D{row_turno_section}+E{row_turno_section}'
-                                        cell_total_turno.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                        
+                                        # Aplica formatação condicional para FERIADO/DOMINGO
+                                        if eh_feriado:
+                                            for col_idx in range(1, 7):
+                                                cell = ws_relatorio.cell(row=row_turno_section, column=col_idx)
+                                                cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                                cell.font = Font(bold=True, color='FFFFFFFF')
+                                            cell_fi.value = 'FERIADO'
+                                            cell_fa.value = 'FERIADO'
+                                            cell_total_turno.value = 'FERIADO'
+                                        elif eh_domingo:
+                                            for col_idx in range(1, 7):
+                                                cell = ws_relatorio.cell(row=row_turno_section, column=col_idx)
+                                                cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                                cell.font = Font(bold=True, color='FFFFFFFF')
+                                            cell_fi.value = 'DOMINGO'
+                                            cell_fa.value = 'DOMINGO'
+                                            cell_total_turno.value = 'DOMINGO'
+                                        else:
+                                            cell_turno.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                                            cell_turno.font = Font(bold=True)
+                                            cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                            cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                            cell_fi.font = Font(bold=True, color='FFFFFFFF')
+                                            cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                            cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                            cell_total_turno.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
                                         
                                         row_turno_section += 1
                     
@@ -1648,13 +1734,6 @@ with col_btn_processar:
                     ws_relatorio.column_dimensions['D'].width = 10
                     ws_relatorio.column_dimensions['E'].width = 15
                     ws_relatorio.column_dimensions['F'].width = 10
-                    
-                    # ===== OBTER FERIADOS PARA USO NO SHEET PORCENTAGENS =====
-                    if mapa_datas:
-                        ano_feriados_temp = min(mapa_datas.keys()).year
-                        feriados_temp = obter_feriados_brasil(ano_feriados_temp)
-                    else:
-                        feriados_temp = {}
                     
                     # ===== CRIAR GUIA PORCENTAGENS ABS =====
                     ws_porcentagens = w.book.create_sheet('Porcentagens ABS')
@@ -1938,7 +2017,7 @@ with col_btn_processar:
                                 # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
                                 cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
                                 cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-                                cell_fi_data.font = Font(bold=True)
+                                cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
@@ -1946,7 +2025,7 @@ with col_btn_processar:
                             cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fi_data.value = 0
                             cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-                            cell_fi_data.font = Font(bold=True)
+                            cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_fi = row_pct
@@ -2166,22 +2245,28 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fi = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é domingo (6)
+                                # Detecta se é domingo (6) ou feriado
                                 eh_domingo = data_obj.weekday() == 6
+                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
                                 
-                                if data_obj in mapa_datas:
+                                if eh_feriado:
+                                    cell_fi.value = "FERIADO"
+                                    cell_fi.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fi.font = Font(color='FFFFFFFF', bold=True)
+                                elif eh_domingo:
+                                    cell_fi.value = "DOMINGO"
+                                    cell_fi.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fi.font = Font(color='FFFFFFFF', bold=True)
+                                elif data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
+                                    cell_fi.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                 else:
                                     cell_fi.value = 0
-                                
-                                if eh_domingo:
-                                    cell_fi.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fi.font = Font(color='FFFFFFFF', bold=True)
-                                else:
                                     cell_fi.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fi.alignment = Alignment(horizontal='center', vertical='center')
@@ -2196,22 +2281,28 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fa = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é domingo (6)
+                                # Detecta se é domingo (6) ou feriado
                                 eh_domingo = data_obj.weekday() == 6
+                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
                                 
-                                if data_obj in mapa_datas:
+                                if eh_feriado:
+                                    cell_fa.value = "FERIADO"
+                                    cell_fa.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fa.font = Font(color='FFFFFFFF', bold=True)
+                                elif eh_domingo:
+                                    cell_fa.value = "DOMINGO"
+                                    cell_fa.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fa.font = Font(color='FFFFFFFF', bold=True)
+                                elif data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
+                                    cell_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                                    cell_fa.font = Font(bold=True, color='FF000000')
                                 else:
                                     cell_fa.value = 0
-                                
-                                if eh_domingo:
-                                    cell_fa.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fa.font = Font(color='FFFFFFFF', bold=True)
-                                else:
                                     cell_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
                                     cell_fa.font = Font(bold=True, color='FF000000')
                                 cell_fa.alignment = Alignment(horizontal='center', vertical='center')
@@ -2226,19 +2317,23 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_total_ma = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é sábado (5) ou domingo (6)
-                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                # Detecta se é domingo (6) ou feriado
+                                eh_domingo = data_obj.weekday() == 6
+                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
                                 
                                 # Soma FI + FA da linha anterior
                                 prev_row_fi = row_turno - 2
                                 prev_row_fa = row_turno - 1
                                 col_letter = get_column_letter(col_idx)
-                                cell_total_ma.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
                                 
-                                # Detecta se é domingo (6)
-                                eh_domingo = data_obj.weekday() == 6
+                                if eh_feriado:
+                                    cell_total_ma.value = "FERIADO"
+                                elif eh_domingo:
+                                    cell_total_ma.value = "DOMINGO"
+                                else:
+                                    cell_total_ma.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
                                 
-                                if eh_domingo:
+                                if eh_feriado or eh_domingo:
                                     cell_total_ma.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
                                 else:
@@ -2272,22 +2367,28 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fi_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é domingo (6)
+                                # Detecta se é domingo (6) ou feriado
                                 eh_domingo = data_obj.weekday() == 6
+                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
                                 
-                                if data_obj in mapa_datas:
+                                if eh_feriado:
+                                    cell_fi_crdk.value = "FERIADO"
+                                    cell_fi_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fi_crdk.font = Font(color='FFFFFFFF', bold=True)
+                                elif eh_domingo:
+                                    cell_fi_crdk.value = "DOMINGO"
+                                    cell_fi_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fi_crdk.font = Font(color='FFFFFFFF', bold=True)
+                                elif data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fi_crdk.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
+                                    cell_fi_crdk.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 else:
                                     cell_fi_crdk.value = 0
-                                
-                                if eh_domingo:
-                                    cell_fi_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fi_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                else:
                                     cell_fi_crdk.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
                                     cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fi_crdk.alignment = Alignment(horizontal='center', vertical='center')
@@ -2302,22 +2403,28 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fa_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é domingo (6)
+                                # Detecta se é domingo (6) ou feriado
                                 eh_domingo = data_obj.weekday() == 6
+                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
                                 
-                                if data_obj in mapa_datas:
+                                if eh_feriado:
+                                    cell_fa_crdk.value = "FERIADO"
+                                    cell_fa_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fa_crdk.font = Font(color='FFFFFFFF', bold=True)
+                                elif eh_domingo:
+                                    cell_fa_crdk.value = "DOMINGO"
+                                    cell_fa_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_fa_crdk.font = Font(color='FFFFFFFF', bold=True)
+                                elif data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fa_crdk.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
+                                    cell_fa_crdk.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                                    cell_fa_crdk.font = Font(bold=True, color='FF000000')
                                 else:
                                     cell_fa_crdk.value = 0
-                                
-                                if eh_domingo:
-                                    cell_fa_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fa_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                else:
                                     cell_fa_crdk.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
                                     cell_fa_crdk.font = Font(bold=True, color='FF000000')
                                 cell_fa_crdk.alignment = Alignment(horizontal='center', vertical='center')
@@ -2332,14 +2439,21 @@ with col_btn_processar:
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_total_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é domingo (6)
+                                # Detecta se é domingo (6) ou feriado
                                 eh_domingo = data_obj.weekday() == 6
+                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
                                 
                                 # Soma FI + FA da linha anterior
                                 prev_row_fi = row_turno - 2
                                 prev_row_fa = row_turno - 1
                                 col_letter = get_column_letter(col_idx)
-                                cell_total_crdk.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
+                                
+                                if eh_feriado:
+                                    cell_total_crdk.value = "FERIADO"
+                                elif eh_domingo:
+                                    cell_total_crdk.value = "DOMINGO"
+                                else:
+                                    cell_total_crdk.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
                                 
                                 # TOTAL sempre preto
                                 cell_total_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
@@ -2498,28 +2612,49 @@ with col_btn_processar:
                     ws_graficos.column_dimensions['F'].width = 15
                     
                     # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    status_text.info("📥 Obtendo feriados nacionais...")
+                    progress_bar.progress(10)
+                    
                     if mapa_datas:
                         ano_feriados = min(mapa_datas.keys()).year
                         feriados = obter_feriados_brasil(ano_feriados)
                         if feriados:
+                            status_text.info("🎨 Marcando feriados na planilha...")
+                            progress_bar.progress(20)
                             marcar_feriados_na_workbook(w.book, feriados, mapa_datas, MAPA_CORES)
                     
                     # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM FERIADOS MARCADOS) =====
+                    status_text.info("📖 Lendo dados marcados...")
+                    progress_bar.progress(30)
                     df_mest_com_feriados = ler_dataframe_do_workbook(w.book)
                     
                     # ===== DETECTAR AFASTAMENTOS NO DATAFRAME COM FERIADOS (ignora FERIADO) =====
+                    status_text.info("🔍 Detectando afastamentos...")
+                    progress_bar.progress(40)
                     afastamentos = detectar_afastamentos_no_dataframe(df_mest_com_feriados, mapa_datas)
                     
                     # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
+                    status_text.info("📌 Marcando afastamentos...")
+                    progress_bar.progress(50)
                     marcar_afastamentos_na_workbook(w.book, MAPA_CORES, afastamentos, df_mest_com_feriados, mapa_datas)
                     
                     # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM MARCAÇÕES) =====
+                    status_text.info("📖 Lendo dados finais...")
+                    progress_bar.progress(60)
                     df_mest_marcado = ler_dataframe_do_workbook(w.book)
                     
                     # ===== CRIAR SHEET DE OFENSORES DE ABS (COM DADOS MARCADOS) =====
+                    status_text.info("📊 Gerando relatório de ofensores...")
+                    progress_bar.progress(70)
                     criar_sheet_ofensores_abs(df_mest_marcado, w, mapa_datas, MAPA_CORES, afastamentos)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
+                    status_text.info("🎨 Finalizando formatação...")
+                    progress_bar.progress(80)
+                    
                     from openpyxl.styles import Border, Side
                     
                     # Define borda vazia
@@ -2602,6 +2737,10 @@ with col_btn_processar:
                 # Salva workbook sem fórmulas
                 wb_sem_formulas.save(out_sem_formulas)
                 out_sem_formulas.seek(0)
+                
+                # Finaliza barra de progresso
+                status_text.success("✅ Processamento concluído com sucesso!")
+                progress_bar.progress(100)
                 
                 st.divider()
                 
