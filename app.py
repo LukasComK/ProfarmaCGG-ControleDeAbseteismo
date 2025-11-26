@@ -1267,6 +1267,7 @@ with col_btn_processar:
                                     cell.fill = PatternFill(start_color=MAPA_CORES['P'], end_color=MAPA_CORES['P'], fill_type='solid')
                                 elif valor == 'FI':
                                     cell.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                    cell.font = Font(color='FFFFFFFF')
                                 elif valor == 'FA':
                                     cell.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                 elif valor == 'FÉRIAS-BH':
@@ -1924,17 +1925,21 @@ with col_btn_processar:
                             
                             cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             
-                            # Se é domingo ou feriado, escreve o texto em vez de fórmula
+                            # Se é domingo ou feriado, escreve o texto com background preto
                             if eh_feriado:
                                 cell_fi_data.value = "FERIADO"
+                                cell_fi_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             elif eh_domingo:
                                 cell_fi_data.value = "DOMINGO"
+                                cell_fi_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             else:
                                 # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
                                 cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
+                                cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             
-                            cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-                            cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
                             # Se não tem dados, coloca 0
@@ -1972,16 +1977,20 @@ with col_btn_processar:
                             
                             cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             
-                            # Se é domingo ou feriado, escreve o texto em vez de fórmula
+                            # Se é domingo ou feriado, escreve o texto com background preto
                             if eh_feriado:
                                 cell_fa_data.value = "FERIADO"
+                                cell_fa_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                cell_fa_data.font = Font(bold=True, color='FFFFFFFF')
                             elif eh_domingo:
                                 cell_fa_data.value = "DOMINGO"
+                                cell_fa_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                cell_fa_data.font = Font(bold=True, color='FFFFFFFF')
                             else:
                                 cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
+                                cell_fa_data.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                                cell_fa_data.font = Font(bold=True)
                             
-                            cell_fa_data.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                            cell_fa_data.font = Font(bold=True)
                             cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
                             # Se não tem dados, coloca 0
