@@ -1812,14 +1812,21 @@ with col_btn_processar:
                                     # Se não tem dados para este dia, deixa vazio ou 0
                                     cell.value = 0
                                 
-                                cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                cell.font = Font(bold=True, color='FFFFFFFF')
+                                if eh_feriado or eh_domingo:
+                                    cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell.font = Font(bold=True, color='FFFFFFFF')
+                                else:
+                                    cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
                             else:
                                 # Linhas de porcentagem: (contagem / HC) * 100
                                 if eh_feriado:
                                     cell.value = "FERIADO"
+                                    cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell.font = Font(bold=True, color='FFFFFFFF')
                                 elif eh_domingo:
                                     cell.value = "DOMINGO"
+                                    cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell.font = Font(bold=True, color='FFFFFFFF')
                                 else:
                                     if 'M&A / BLOQ - Porcentagem' in setor_nome:
                                         contagem_row = row_pct - 1  # Linha anterior (M&A / BLOQ)
@@ -1832,9 +1839,8 @@ with col_btn_processar:
                                     formula_pct = f'=IFERROR(({col_letter}{contagem_row}/{hc_cell})*100,0)'
                                     cell.value = formula_pct
                                     cell.number_format = '0.00"%"'
-                                
-                                cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                cell.font = Font(bold=True, color='FFFFFFFF')
+                                    cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
+                                    cell.font = Font(bold=True)
                             
                             cell.alignment = Alignment(horizontal='center', vertical='center')
                         
@@ -1863,11 +1869,15 @@ with col_btn_processar:
                         
                         cell_hc_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         
-                        # Se é domingo ou feriado, escreve o texto
+                        # Se é domingo ou feriado, escreve o texto com background preto
                         if eh_feriado:
                             cell_hc_data.value = "FERIADO"
+                            cell_hc_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_hc_data.font = Font(bold=True, color='FFFFFFFF')
                         elif eh_domingo:
                             cell_hc_data.value = "DOMINGO"
+                            cell_hc_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_hc_data.font = Font(bold=True, color='FFFFFFFF')
                         elif data_obj in mapa_datas:
                             col_data = mapa_datas[data_obj]
                             data_col_idx = list(df_mest_final.columns).index(col_data) + 1
@@ -1876,12 +1886,14 @@ with col_btn_processar:
                             # Fórmula: HC Total (B4+B5) menos a contagem de DESLIGADO nesta data
                             # COUNTIF insensível a maiúsculas/minúsculas
                             cell_hc_data.value = f'=(B4+B5)-COUNTIF(Dados!{data_col_letter}:${data_col_letter},"DESLIGADO")'
+                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                            cell_hc_data.font = Font(bold=True)
                         else:
                             # Se não tem dados, coloca 0
                             cell_hc_data.value = 0
+                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                            cell_hc_data.font = Font(bold=True)
                         
-                        cell_hc_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                        cell_hc_data.font = Font(bold=True, color='FFFFFFFF')
                         cell_hc_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_total_hc = row_pct
@@ -2006,16 +2018,20 @@ with col_btn_processar:
                         cell_total_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         col_letter = get_column_letter(col_idx)
                         
-                        # Se é domingo ou feriado, escreve o texto
+                        # Se é domingo ou feriado, escreve o texto com background preto
                         if eh_feriado:
                             cell_total_data.value = "FERIADO"
+                            cell_total_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_total_data.font = Font(bold=True, color='FFFFFFFF')
                         elif eh_domingo:
                             cell_total_data.value = "DOMINGO"
+                            cell_total_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_total_data.font = Font(bold=True, color='FFFFFFFF')
                         else:
                             cell_total_data.value = f'={col_letter}9+{col_letter}11'
+                            cell_total_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            cell_total_data.font = Font(bold=True)
                         
-                        cell_total_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                        cell_total_data.font = Font(bold=True, color='FFFFFFFF')
                         cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_total_faltas = row_pct
@@ -2044,20 +2060,23 @@ with col_btn_processar:
                         cell_acum_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                         col_letter = get_column_letter(col_idx)
                         
-                        # Se é domingo ou feriado, escreve o texto
+                        # Se é domingo ou feriado, escreve o texto com background preto
                         if eh_feriado:
                             cell_acum_data.value = "FERIADO"
+                            cell_acum_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_acum_data.font = Font(bold=True, color='FFFFFFFF')
                         elif eh_domingo:
                             cell_acum_data.value = "DOMINGO"
+                            cell_acum_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_acum_data.font = Font(bold=True, color='FFFFFFFF')
                         else:
                             # Referencia: célula do TOTAL (row_total_faltas) / HC da data respectiva (mesmo col_letter em row_total_hc) * 100
                             cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/{col_letter}{row_total_hc})*100,0)'
                             cell_acum_data.number_format = '0.00"%"'
+                            cell_acum_data.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                            cell_acum_data.font = Font(bold=True)
                         
-                        cell_acum_data.font = Font(bold=True, color='FFFFFFFF')
                         cell_acum_data.alignment = Alignment(horizontal='center', vertical='center')
-                        # Cor padrão: será sobrescrita pelas regras condicionais
-                        cell_acum_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                     
                     # Adiciona regras condicionais para %Acumulado
                     from openpyxl.formatting.rule import CellIsRule
