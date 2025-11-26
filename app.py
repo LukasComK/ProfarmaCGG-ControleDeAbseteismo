@@ -13,7 +13,66 @@ import plotly.express as px
 from copy import copy
 from openpyxl import load_workbook, Workbook
 
+def obter_feriados_brasil(ano):
+    """
+    Busca feriados nacionais do Brasil para um ano específico via API Brasil API.
+    Retorna um dicionário {data: nome_feriado}
+    """
+    import requests
+    feriados = {}
+    try:
+        url = f"https://brasilapi.com.br/api/feriados/v1/{ano}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            dados = response.json()
+            for feriado in dados:
+                try:
+                    data = datetime.datetime.strptime(feriado['date'], '%Y-%m-%d').date()
+                    nome = feriado.get('name', 'Feriado')
+                    feriados[data] = nome
+                except:
+                    pass
+    except Exception as e:
+        print(f"Erro ao buscar feriados: {e}")
+    
+    return feriados
+
+def marcar_feriados_na_workbook(workbook, feriados, mapa_datas, mapa_cores):
+    """
+    Marca colunas inteiras de feriados na workbook como "FERIADO" (sobrescreve tudo)
+    """
+    if not feriados:
+        return
+    
+    for sheet_name in workbook.sheetnames:
+        if sheet_name == 'Dados':
+            ws = workbook[sheet_name]
+            
+            # Para cada feriado, marca a coluna inteira
+            for data_feriado, nome_feriado in feriados.items():
+                if data_feriado in mapa_datas:
+                    col_data = mapa_datas[data_feriado]
+                    col_idx = list(ws[1]) 
+                    
+                    # Procura a coluna pela data
+                    for col_letter_idx, cell in enumerate(ws[1], 1):
+                        if cell.value == col_data or str(cell.value) == str(col_data):
+                            # Marca toda a coluna (exceto header) como FERIADO
+                            for row_idx in range(2, ws.max_row + 1):
+                                cell_data = ws.cell(row=row_idx, column=col_letter_idx)
+                                cell_data.value = "FERIADO"
+                                # Aplica cor cinza
+                                if 'FERIADO' in mapa_cores:
+                                    cell_data.fill = PatternFill(
+                                        start_color=mapa_cores.get('FERIADO', 'FFC0C0C0'),
+                                        end_color=mapa_cores.get('FERIADO', 'FFC0C0C0'),
+                                        fill_type='solid'
+                                    )
+                                cell_data.font = Font(color='FFFFFFFF')  # Texto branco
+                            break
+
 def eh_fim_de_semana(data):
+
     """Retorna True se é sábado (5) ou domingo (6)"""
     return data.weekday() in [5, 6]
 
@@ -1977,16 +2036,16 @@ with col_btn_processar:
                             
                             # FI
                             cell_fi_label = ws_turno.cell(row=row_turno, column=1, value='FI')
-                            cell_fi_label.font = Font(bold=True, color='FF2C3E50')
-                            cell_fi_label.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
+                            cell_fi_label.font = Font(bold=True, color='FFFFFFFF')
+                            cell_fi_label.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
                             turno_text = f"TURNO {turno_num}"
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fi = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é sábado (5) ou domingo (6)
-                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                # Detecta se é domingo (6)
+                                eh_domingo = data_obj.weekday() == 6
                                 
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
@@ -1997,26 +2056,26 @@ with col_btn_processar:
                                 else:
                                     cell_fi.value = 0
                                 
-                                if eh_fim_semana:
+                                if eh_domingo:
                                     cell_fi.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell_fi.font = Font(color='FFFFFFFF', bold=True)
                                 else:
-                                    cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
-                                    cell_fi.font = Font(bold=True, color='FF2C3E50')
+                                    cell_fi.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fi.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # FA
                             cell_fa_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_label.font = Font(bold=True, color='FF2C3E50')
-                            cell_fa_label.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
+                            cell_fa_label.font = Font(bold=True, color='FF000000')
+                            cell_fa_label.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fa = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é sábado (5) ou domingo (6)
-                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                # Detecta se é domingo (6)
+                                eh_domingo = data_obj.weekday() == 6
                                 
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
@@ -2027,19 +2086,19 @@ with col_btn_processar:
                                 else:
                                     cell_fa.value = 0
                                 
-                                if eh_fim_semana:
+                                if eh_domingo:
                                     cell_fa.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell_fa.font = Font(color='FFFFFFFF', bold=True)
                                 else:
-                                    cell_fa.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
-                                    cell_fa.font = Font(bold=True, color='FF2C3E50')
+                                    cell_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                                    cell_fa.font = Font(bold=True, color='FF000000')
                                 cell_fa.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # TOTAL M&A
                             cell_total_ma_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
-                            cell_total_ma_label.font = Font(bold=True, color='FFFFFF')
-                            cell_total_ma_label.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
+                            cell_total_ma_label.font = Font(bold=True, color='FFFFFFFF')
+                            cell_total_ma_label.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -2054,12 +2113,16 @@ with col_btn_processar:
                                 col_letter = get_column_letter(col_idx)
                                 cell_total_ma.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
                                 
-                                if eh_fim_semana:
+                                # Detecta se é domingo (6)
+                                eh_domingo = data_obj.weekday() == 6
+                                
+                                if eh_domingo:
                                     cell_total_ma.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
                                 else:
-                                    cell_total_ma.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
-                                    cell_total_ma.font = Font(color='FFFFFF', bold=True)
+                                    # TOTAL sempre preto
+                                    cell_total_ma.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
                                 cell_total_ma.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 2  # Espaço
                             
@@ -2080,15 +2143,15 @@ with col_btn_processar:
                             
                             # FI CRDK
                             cell_fi_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FI')
-                            cell_fi_crdk_label.font = Font(bold=True, color='FF2C3E50')
-                            cell_fi_crdk_label.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
+                            cell_fi_crdk_label.font = Font(bold=True, color='FFFFFFFF')
+                            cell_fi_crdk_label.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fi_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é sábado (5) ou domingo (6)
-                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                # Detecta se é domingo (6)
+                                eh_domingo = data_obj.weekday() == 6
                                 
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
@@ -2099,26 +2162,26 @@ with col_btn_processar:
                                 else:
                                     cell_fi_crdk.value = 0
                                 
-                                if eh_fim_semana:
+                                if eh_domingo:
                                     cell_fi_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell_fi_crdk.font = Font(color='FFFFFFFF', bold=True)
                                 else:
-                                    cell_fi_crdk.fill = PatternFill(start_color='FFFFE0E0', end_color='FFFFE0E0', fill_type='solid')
-                                    cell_fi_crdk.font = Font(bold=True, color='FF2C3E50')
+                                    cell_fi_crdk.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fi_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # FA CRDK
                             cell_fa_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_crdk_label.font = Font(bold=True, color='FF2C3E50')
-                            cell_fa_crdk_label.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
+                            cell_fa_crdk_label.font = Font(bold=True, color='FF000000')
+                            cell_fa_crdk_label.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_fa_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é sábado (5) ou domingo (6)
-                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                # Detecta se é domingo (6)
+                                eh_domingo = data_obj.weekday() == 6
                                 
                                 if data_obj in mapa_datas:
                                     col_data = mapa_datas[data_obj]
@@ -2129,26 +2192,26 @@ with col_btn_processar:
                                 else:
                                     cell_fa_crdk.value = 0
                                 
-                                if eh_fim_semana:
+                                if eh_domingo:
                                     cell_fa_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell_fa_crdk.font = Font(color='FFFFFFFF', bold=True)
                                 else:
-                                    cell_fa_crdk.fill = PatternFill(start_color='FFFDE8D0', end_color='FFFDE8D0', fill_type='solid')
-                                    cell_fa_crdk.font = Font(bold=True, color='FF2C3E50')
+                                    cell_fa_crdk.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                                    cell_fa_crdk.font = Font(bold=True, color='FF000000')
                                 cell_fa_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # TOTAL CRDK
                             cell_total_crdk_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
-                            cell_total_crdk_label.font = Font(bold=True, color='FFFFFF')
-                            cell_total_crdk_label.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
+                            cell_total_crdk_label.font = Font(bold=True, color='FFFFFFFF')
+                            cell_total_crdk_label.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
                                 cell_total_crdk = ws_turno.cell(row=row_turno, column=col_idx)
                                 
-                                # Detecta se é sábado (5) ou domingo (6)
-                                eh_fim_semana = data_obj.weekday() in [5, 6]
+                                # Detecta se é domingo (6)
+                                eh_domingo = data_obj.weekday() == 6
                                 
                                 # Soma FI + FA da linha anterior
                                 prev_row_fi = row_turno - 2
@@ -2156,12 +2219,9 @@ with col_btn_processar:
                                 col_letter = get_column_letter(col_idx)
                                 cell_total_crdk.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
                                 
-                                if eh_fim_semana:
-                                    cell_total_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_total_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                else:
-                                    cell_total_crdk.fill = PatternFill(start_color='FF7B95BF', end_color='FF7B95BF', fill_type='solid')
-                                    cell_total_crdk.font = Font(color='FFFFFF', bold=True)
+                                # TOTAL sempre preto
+                                cell_total_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                cell_total_crdk.font = Font(color='FFFFFFFF', bold=True)
                                 cell_total_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 3  # Espaço entre turnos
                         
@@ -2323,6 +2383,13 @@ with col_btn_processar:
                     
                     # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
                     marcar_afastamentos_na_workbook(w.book, MAPA_CORES)
+                    
+                    # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
+                    if mapa_datas:
+                        ano_feriados = min(mapa_datas.keys()).year
+                        feriados = obter_feriados_brasil(ano_feriados)
+                        if feriados:
+                            marcar_feriados_na_workbook(w.book, feriados, mapa_datas, MAPA_CORES)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     from openpyxl.styles import Border, Side
