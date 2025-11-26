@@ -755,9 +755,9 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
 
 def colorir_celulas_incomuns_dados(w, MAPA_CORES):
     """
-    Pinta com cinza todas as células na planilha DADOS que contêm marcadores incomuns.
+    Pinta com cinza todas as células na planilha Dados que contêm marcadores incomuns.
     Marcadores "comuns" são: P, FI, FA, FÉRIAS-BH, DESLIGADO, FERIADO, DOMINGO
-    Qualquer outro valor (exceto vazio) será marcado com cinza.
+    Qualquer outro valor (exceto vazio) será marcado com cinza fundo + texto preto.
     
     Args:
         w: Workbook wrapper object
@@ -769,21 +769,31 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES):
         
         # Cor cinza para células incomuns
         gray_fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+        black_font = Font(color='FF000000', bold=False)
         
-        ws_dados = w.book.get('DADOS')
+        # Tenta encontrar a sheet com nomes variados (Dados, DADOS, etc)
+        ws_dados = None
+        for sheet_name in w.book.sheetnames:
+            if sheet_name.upper() == 'DADOS':
+                ws_dados = w.book[sheet_name]
+                break
+        
         if not ws_dados:
+            print("Sheet 'Dados' não encontrada")
             return False
         
-        # Percorre todas as linhas da planilha DADOS
+        # Percorre todas as linhas da planilha Dados
         # Começa da linha 2 (linha 1 é header) até a última linha com dados
-        for row_idx, row in enumerate(ws_dados.iter_rows(min_row=2), start=2):
-            for cell in row:
+        for row_idx in range(2, ws_dados.max_row + 1):
+            for col_idx in range(1, ws_dados.max_column + 1):
+                cell = ws_dados.cell(row=row_idx, column=col_idx)
                 cell_value = str(cell.value).strip() if cell.value is not None else ''
                 
                 # Se o valor não está vazio E não está na lista de códigos comuns
                 if cell_value and cell_value not in codigos_comuns:
-                    # Aplica cor cinza
+                    # Aplica cor cinza E texto preto
                     cell.fill = gray_fill
+                    cell.font = black_font
         
         return True
         
