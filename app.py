@@ -179,90 +179,64 @@ def extrair_dia_do_cabecalho(label_dia, mes, ano):
 
     return None
 
-def marcar_afastamentos_na_workbook(workbook, mapa_cores):
+def marcar_afastamentos_na_workbook(workbook, mapa_cores, afastamentos=None, df_mest=None, mapa_datas=None):
     """
-    Percorre todas as planilhas da workbook:
-    1. Marca sequências de FA > 15 (ignorando D e "Afastamento") como "Afastamento"
-    2. Aplica cor cinza (mesma de D) a TODOS os "Afastamento" encontrados
+    Marca células como "Afastamento" onde foi detectado afastamento (>15 FA em sequência).
+    Usa os dados de afastamentos detectados pela função detectar_afastamentos_no_dataframe().
     
-    Essa função modifica a workbook IN-PLACE.
+    Parâmetros:
+    - workbook: openpyxl Workbook
+    - mapa_cores: dicionário de cores
+    - afastamentos: dicionário {index_row: [(col_inicio, col_fim), ...]}
+    - df_mest: dataframe original (para mapear índices para linhas)
+    - mapa_datas: dicionário de mapeamento de datas
     """
-    from openpyxl.styles import PatternFill, Font
+    if not afastamentos or df_mest is None or mapa_datas is None:
+        return
     
-    # Para cada sheet (exceto as que são relatórios)
-    for sheet_name in workbook.sheetnames:
-        if sheet_name in ['Dados', 'Relatório', 'Porcentagem ABS', 'Ofensores de ABS']:
-            ws = workbook[sheet_name]
+    ws = workbook['Dados']
+    
+    # Pega todas as colunas de data em ordem
+    colunas_datas = sorted([col for col in df_mest.columns if col in mapa_datas.values()])
+    
+    # Para cada colaborador com afastamento
+    for row_idx_df, sequencias in afastamentos.items():
+        # row_idx_df é o índice no dataframe, precisa converter para linha do Excel (row_idx_excel = row_idx_df + 2)
+        row_idx_excel = row_idx_df + 2
+        
+        # Para cada sequência de afastamento detectada
+        for col_inicio_idx, col_fim_idx in sequencias:
+            # col_inicio_idx e col_fim_idx são índices em colunas_datas
+            col_inicio_nome = colunas_datas[col_inicio_idx]
+            col_fim_nome = colunas_datas[col_fim_idx]
             
-            # Percorre cada linha (colaborador)
-            for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):  # Começa da linha 2 (skip header)
-                # Coleta todas as células com valores de data/faltas (colunas 8+, que são as datas)
-                valores_row = []
-                for col_idx, cell in enumerate(row, start=1):
-                    if col_idx >= 8:  # Começam as colunas de data
-                        valor = str(cell.value).strip().upper() if cell.value else ''
-                        valores_row.append((col_idx, valor, cell))
-                
-                # Percorre a sequência procurando por 15+ FA
-                i = 0
-                while i < len(valores_row):
-                    col_idx, valor, cell = valores_row[i]
+            # Encontra posição dessas colunas no worksheet
+            col_inicio_excel = None
+            col_fim_excel = None
+            
+            for col_idx, cell in enumerate(ws[1], start=1):
+                if cell.value == col_inicio_nome:
+                    col_inicio_excel = col_idx
+                if cell.value == col_fim_nome:
+                    col_fim_excel = col_idx
+            
+            # Marca todas as células nesse intervalo como "Afastamento"
+            if col_inicio_excel and col_fim_excel:
+                for col_idx in range(col_inicio_excel, col_fim_excel + 1):
+                    cell = ws.cell(row=row_idx_excel, column=col_idx)
+                    valor_original = str(cell.value).strip().upper() if cell.value else ''
                     
-                    # Se encontrou um FA, conta quantos FA consecutivos há (ignorando D)
-                    if valor == 'FA':
-                        fa_consecutivas = 0
-                        j = i
-                        indices_fa = []  # Guarda índices das células com FA nesta sequência
-                        
-                        # Percorre para contar FA consecutivas
-                        while j < len(valores_row):
-                            col_idx_j, valor_j, cell_j = valores_row[j]
-                            
-                            if valor_j == 'FA':
-                                fa_consecutivas += 1
-                                indices_fa.append(j)
-                                j += 1
-                            elif valor_j == 'D' or valor_j == 'AFASTAMENTO':
-                                # Ignora D e Afastamento (não interrompe a sequência)
-                                j += 1
-                            else:
-                                # Outro valor interrompe
-                                break
-                        
-                        # Se encontrou > 15 FA consecutivas, marca todas como Afastamento
-                        if fa_consecutivas > 15:
-                            for idx_fa in indices_fa:
-                                col_idx_fa, _, cell_fa = valores_row[idx_fa]
-                                cell_fa.value = 'Afastamento'
-                                # Aplica cor de Afastamento (cinza, mesma de D)
-                                if 'Afastamento' in mapa_cores:
-                                    cell_fa.fill = PatternFill(
-                                        start_color=mapa_cores['Afastamento'],
-                                        end_color=mapa_cores['Afastamento'],
-                                        fill_type='solid'
-                                    )
-                        
-                        i = j
-                    else:
-                        i += 1
-            
-            # APÓS processar FA > 15, colorir TODOS os "Afastamento" encontrados
-            for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
-                for col_idx, cell in enumerate(row, start=1):
-                    if col_idx >= 8:  # Colunas de data
-                        valor = str(cell.value).strip().upper() if cell.value else ''
-                        if valor == 'AFASTAMENTO':
-                            # Aplica cor cinza a todos os Afastamento
-                            if 'Afastamento' in mapa_cores:
-                                cell.fill = PatternFill(
-                                    start_color=mapa_cores['Afastamento'],
-                                    end_color=mapa_cores['Afastamento'],
-                                    fill_type='solid'
-                                )
-                        
-                        i = j
-                    else:
-                        i += 1
+                    # Substitui FA/FI/etc por Afastamento
+                    if valor_original not in ['FERIADO', '']:
+                        cell.value = 'Afastamento'
+                    
+                    # Aplica cor
+                    if 'Afastamento' in mapa_cores:
+                        cell.fill = PatternFill(
+                            start_color=mapa_cores['Afastamento'],
+                            end_color=mapa_cores['Afastamento'],
+                            fill_type='solid'
+                        )
 
 def detectar_afastamentos_no_dataframe(df, mapa_datas):
     """
@@ -2424,7 +2398,7 @@ with col_btn_processar:
                     afastamentos = detectar_afastamentos_no_dataframe(df_mest_com_feriados, mapa_datas)
                     
                     # ===== MARCAR AFASTAMENTOS NA PLANILHA =====
-                    marcar_afastamentos_na_workbook(w.book, MAPA_CORES)
+                    marcar_afastamentos_na_workbook(w.book, MAPA_CORES, afastamentos, df_mest_com_feriados, mapa_datas)
                     
                     # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM MARCAÇÕES) =====
                     df_mest_marcado = ler_dataframe_do_workbook(w.book)
