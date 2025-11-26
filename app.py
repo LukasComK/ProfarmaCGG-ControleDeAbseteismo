@@ -571,6 +571,187 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         st.write(traceback.format_exc())
         return False
 
+def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
+    """
+    Cria sheet 'Ranking ABS' com TOP 10 colaboradores com mais FA e TOP 10 com mais FI
+    """
+    try:
+        from openpyxl.styles import Border, Side
+        
+        # Colunas de datas no dataframe (contêm dados de FA/FI)
+        colunas_datas = [col for col in df_mest.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
+        
+        # Conta FA e FI para cada colaborador
+        df_ranking = pd.DataFrame({
+            'NOME': df_mest['NOME'],
+            'GESTOR': df_mest['GESTOR'],
+            'FUNÇÃO': df_mest['FUNÇÃO'],
+            'AREA': df_mest['AREA'],
+            'FI': df_mest[colunas_datas].apply(lambda row: (row == 'FI').sum(), axis=1),
+            'FA': df_mest[colunas_datas].apply(lambda row: (row == 'FA').sum(), axis=1),
+        }).copy()
+        
+        # Remove registros vazios
+        df_ranking = df_ranking[df_ranking['NOME'].notna() & (df_ranking['NOME'] != '')]
+        
+        # TOP 10 FA e FI
+        top10_fa = df_ranking.nlargest(10, 'FA')
+        top10_fi = df_ranking.nlargest(10, 'FI')
+        
+        # Cria o sheet
+        ws = w.book.create_sheet('Ranking ABS')
+        
+        # Define bordas
+        border_style = Side(style='medium', color='000000')
+        thin_border = Border(
+            left=border_style,
+            right=border_style,
+            top=border_style,
+            bottom=border_style
+        )
+        
+        row_idx = 1
+        
+        # Título geral
+        ws.merge_cells('A1:F1')
+        title_cell = ws.cell(row=row_idx, column=1, value='🏆 RANKING DE ABSENTEÍSMO')
+        title_cell.font = Font(bold=True, size=14, color='FFFFFF')
+        title_cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[row_idx].height = 25
+        row_idx += 2
+        
+        # ===== TOP 10 FA =====
+        ws.merge_cells(f'A{row_idx}:F{row_idx}')
+        fa_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS POR ATESTADO (FA)')
+        fa_header.font = Font(bold=True, size=12, color='FF000000')
+        fa_header.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+        fa_header.alignment = Alignment(horizontal='center', vertical='center')
+        row_idx += 1
+        
+        # Headers FA
+        headers_fa = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FA']
+        for col_idx, header in enumerate(headers_fa, 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.value = header
+            cell.font = Font(bold=True, color='FFFFFF')
+            cell.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = thin_border
+        row_idx += 1
+        
+        # Dados TOP 10 FA
+        for idx, (_, row) in enumerate(top10_fa.iterrows(), 1):
+            # Posição
+            cell_pos = ws.cell(row=row_idx, column=1, value=idx)
+            cell_pos.border = thin_border
+            cell_pos.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell_pos.font = Font(bold=True, color='FFFFFFFF')
+            cell_pos.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Nome
+            cell_nome = ws.cell(row=row_idx, column=2, value=row['NOME'])
+            cell_nome.border = thin_border
+            cell_nome.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # Gestor
+            cell_gestor = ws.cell(row=row_idx, column=3, value=row['GESTOR'])
+            cell_gestor.border = thin_border
+            cell_gestor.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # Função
+            cell_func = ws.cell(row=row_idx, column=4, value=row['FUNÇÃO'])
+            cell_func.border = thin_border
+            cell_func.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # Área
+            cell_area = ws.cell(row=row_idx, column=5, value=row['AREA'])
+            cell_area.border = thin_border
+            cell_area.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # FA
+            cell_fa = ws.cell(row=row_idx, column=6, value=row['FA'])
+            cell_fa.border = thin_border
+            cell_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+            cell_fa.font = Font(bold=True)
+            cell_fa.alignment = Alignment(horizontal='center', vertical='center')
+            
+            row_idx += 1
+        
+        row_idx += 2
+        
+        # ===== TOP 10 FI =====
+        ws.merge_cells(f'A{row_idx}:F{row_idx}')
+        fi_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS INJUSTIFICADAS (FI)')
+        fi_header.font = Font(bold=True, size=12, color='FFFFFFFF')
+        fi_header.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+        fi_header.alignment = Alignment(horizontal='center', vertical='center')
+        row_idx += 1
+        
+        # Headers FI
+        headers_fi = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FI']
+        for col_idx, header in enumerate(headers_fi, 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.value = header
+            cell.font = Font(bold=True, color='FFFFFF')
+            cell.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = thin_border
+        row_idx += 1
+        
+        # Dados TOP 10 FI
+        for idx, (_, row) in enumerate(top10_fi.iterrows(), 1):
+            # Posição
+            cell_pos = ws.cell(row=row_idx, column=1, value=idx)
+            cell_pos.border = thin_border
+            cell_pos.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell_pos.font = Font(bold=True, color='FFFFFFFF')
+            cell_pos.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Nome
+            cell_nome = ws.cell(row=row_idx, column=2, value=row['NOME'])
+            cell_nome.border = thin_border
+            cell_nome.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # Gestor
+            cell_gestor = ws.cell(row=row_idx, column=3, value=row['GESTOR'])
+            cell_gestor.border = thin_border
+            cell_gestor.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # Função
+            cell_func = ws.cell(row=row_idx, column=4, value=row['FUNÇÃO'])
+            cell_func.border = thin_border
+            cell_func.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # Área
+            cell_area = ws.cell(row=row_idx, column=5, value=row['AREA'])
+            cell_area.border = thin_border
+            cell_area.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            
+            # FI
+            cell_fi = ws.cell(row=row_idx, column=6, value=row['FI'])
+            cell_fi.border = thin_border
+            cell_fi.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+            cell_fi.font = Font(bold=True, color='FFFFFFFF')
+            cell_fi.alignment = Alignment(horizontal='center', vertical='center')
+            
+            row_idx += 1
+        
+        # Ajusta largura das colunas
+        ws.column_dimensions['A'].width = 12
+        ws.column_dimensions['B'].width = 42
+        ws.column_dimensions['C'].width = 42
+        ws.column_dimensions['D'].width = 18
+        ws.column_dimensions['E'].width = 38
+        ws.column_dimensions['F'].width = 12
+        
+        return True
+    except Exception as e:
+        st.error(f"Erro ao criar sheet de ranking: {str(e)}")
+        import traceback
+        st.write(traceback.format_exc())
+        return False
+
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
 
 # CSS para expandir containers em full width
@@ -2650,6 +2831,11 @@ with col_btn_processar:
                     status_text.info("📊 Gerando relatório de ofensores...")
                     progress_bar.progress(70)
                     criar_sheet_ofensores_abs(df_mest_marcado, w, mapa_datas, MAPA_CORES, afastamentos)
+                    
+                    # ===== CRIAR SHEET DE RANKING DE ABS =====
+                    status_text.info("🏆 Gerando ranking de absenteísmo...")
+                    progress_bar.progress(72)
+                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     status_text.info("🎨 Finalizando formatação...")
