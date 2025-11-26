@@ -752,6 +752,47 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         st.write(traceback.format_exc())
         return False
 
+
+def colorir_celulas_incomuns_dados(w, MAPA_CORES):
+    """
+    Pinta com cinza todas as células na planilha DADOS que contêm marcadores incomuns.
+    Marcadores "comuns" são: P, FI, FA, FÉRIAS-BH, DESLIGADO, FERIADO, DOMINGO
+    Qualquer outro valor (exceto vazio) será marcado com cinza.
+    
+    Args:
+        w: Workbook wrapper object
+        MAPA_CORES: Dicionário de cores
+    """
+    try:
+        # Lista de códigos "comuns" que NÃO devem ser marcados
+        codigos_comuns = {'P', 'FI', 'FA', 'FÉRIAS-BH', 'DESLIGADO', 'FERIADO', 'DOMINGO', ''}
+        
+        # Cor cinza para células incomuns
+        gray_fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+        
+        ws_dados = w.book.get('DADOS')
+        if not ws_dados:
+            return False
+        
+        # Percorre todas as linhas da planilha DADOS
+        # Começa da linha 2 (linha 1 é header) até a última linha com dados
+        for row_idx, row in enumerate(ws_dados.iter_rows(min_row=2), start=2):
+            for cell in row:
+                cell_value = str(cell.value).strip() if cell.value is not None else ''
+                
+                # Se o valor não está vazio E não está na lista de códigos comuns
+                if cell_value and cell_value not in codigos_comuns:
+                    # Aplica cor cinza
+                    cell.fill = gray_fill
+        
+        return True
+        
+    except Exception as e:
+        print(f"Erro ao colorir células incomuns: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return False
+
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
 
 # CSS para expandir containers em full width
@@ -2836,6 +2877,11 @@ with col_btn_processar:
                     status_text.info("🏆 Gerando ranking de absenteísmo...")
                     progress_bar.progress(72)
                     criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
+                    
+                    # ===== COLORIR CÉLULAS INCOMUNS NA PLANILHA DADOS =====
+                    status_text.info("🎯 Marcando presença incomum...")
+                    progress_bar.progress(75)
+                    colorir_celulas_incomuns_dados(w, MAPA_CORES)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     status_text.info("🎨 Finalizando formatação...")
