@@ -1647,6 +1647,13 @@ with col_btn_processar:
                     ws_relatorio.column_dimensions['E'].width = 15
                     ws_relatorio.column_dimensions['F'].width = 10
                     
+                    # ===== OBTER FERIADOS PARA USO NO SHEET PORCENTAGENS =====
+                    if mapa_datas:
+                        ano_feriados_temp = min(mapa_datas.keys()).year
+                        feriados_temp = obter_feriados_brasil(ano_feriados_temp)
+                    else:
+                        feriados_temp = {}
+                    
                     # ===== CRIAR GUIA PORCENTAGENS ABS =====
                     ws_porcentagens = w.book.create_sheet('Porcentagens ABS')
                     
@@ -1728,9 +1735,23 @@ with col_btn_processar:
                     # Preenche header com todos os dias (mesmo sem dados)
                     for dia in range(1, dias_no_mes + 1):
                         data_obj = datetime.date(ano_dados, mes_dados, dia)
-                        data_formatada = f"{dia:02d}/{mes_dados:02d}"
+                        
+                        # Verifica se é domingo
+                        eh_domingo = data_obj.weekday() == 6
+                        
+                        # Verifica se é feriado
+                        eh_feriado = data_obj in feriados_temp
+                        
+                        # Define o texto a mostrar
+                        if eh_feriado:
+                            text_header = "FERIADO"
+                        elif eh_domingo:
+                            text_header = "DOMINGO"
+                        else:
+                            text_header = f"{dia:02d}/{mes_dados:02d}"
+                        
                         col_idx = dia + 1  # Coluna começa em 2 (coluna 1 é "Área")
-                        cell_header = ws_porcentagens.cell(row=8, column=col_idx, value=data_formatada)
+                        cell_header = ws_porcentagens.cell(row=8, column=col_idx, value=text_header)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
                         cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
