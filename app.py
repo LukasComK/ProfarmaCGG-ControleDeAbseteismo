@@ -949,12 +949,9 @@ if files_encarregado:
     # Detecta as guias (sheets) disponíveis no arquivo
     guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue())).sheet_names
     
-    # Carrega guia salva anteriormente se existir
-    nome_arquivo = file_encarregado.name
-    if nome_arquivo in st.session_state.config_arquivos and 'guia' in st.session_state.config_arquivos[nome_arquivo]:
-        default_guia = st.session_state.config_arquivos[nome_arquivo]['guia']
-    else:
-        default_guia = guias_disponiveis[0]
+    # Seleciona a ÚLTIMA guia por padrão (assim como Excel faz)
+    # A última guia é geralmente a que foi alterada por último
+    default_guia = guias_disponiveis[-1] if guias_disponiveis else guias_disponiveis[0]
     
     # Se há múltiplas guias, deixa o usuário escolher
     if len(guias_disponiveis) > 1:
