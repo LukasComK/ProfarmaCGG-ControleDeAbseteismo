@@ -2931,6 +2931,11 @@ with col_btn_processar:
                                     if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
                                         cell.fill = white_fill
                     
+                    # ===== DEFINE A GUIA ATIVA AO ABRIR =====
+                    # Define "Relatório" como a guia que aparece quando o arquivo é aberto
+                    if 'Relatório' in w.book.sheetnames:
+                        w.book.active = w.book.index(w.book['Relatório'])
+                    
                     out.seek(0)
                 
                 # Gera nome do arquivo no padrão solicitado
@@ -2987,6 +2992,10 @@ with col_btn_processar:
                     # Copia altura das linhas
                     for row_num, row_dimension in ws_origin.row_dimensions.items():
                         ws_new.row_dimensions[row_num].height = row_dimension.height
+                
+                # Define a guia ativa para a versão sem fórmulas também
+                if 'Relatório' in wb_sem_formulas.sheetnames:
+                    wb_sem_formulas.active = wb_sem_formulas.index(wb_sem_formulas['Relatório'])
                 
                 # Salva workbook sem fórmulas
                 wb_sem_formulas.save(out_sem_formulas)
