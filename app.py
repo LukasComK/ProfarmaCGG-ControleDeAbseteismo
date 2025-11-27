@@ -949,9 +949,16 @@ if files_encarregado:
     # Detecta as guias (sheets) disponíveis no arquivo
     guias_disponiveis = pd.ExcelFile(io.BytesIO(file_encarregado.getvalue())).sheet_names
     
-    # Seleciona a ÚLTIMA guia por padrão (assim como Excel faz)
-    # A última guia é geralmente a que foi alterada por último
-    default_guia = guias_disponiveis[-1] if guias_disponiveis else guias_disponiveis[0]
+    # Detecta qual é a guia ATIVA no arquivo Excel
+    wb_temp = load_workbook(io.BytesIO(file_encarregado.getvalue()), data_only=True)
+    guia_ativa_arquivo = wb_temp.active.title  # Pega o título da guia ativa
+    wb_temp.close()
+    
+    # Define a guia ativa do arquivo como padrão
+    if guia_ativa_arquivo in guias_disponiveis:
+        default_guia = guia_ativa_arquivo
+    else:
+        default_guia = guias_disponiveis[0]
     
     # Se há múltiplas guias, deixa o usuário escolher
     if len(guias_disponiveis) > 1:
@@ -2931,11 +2938,6 @@ with col_btn_processar:
                                     if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
                                         cell.fill = white_fill
                     
-                    # ===== DEFINE A GUIA ATIVA AO ABRIR =====
-                    # Define "Relatório" como a guia que aparece quando o arquivo é aberto
-                    if 'Relatório' in w.book.sheetnames:
-                        w.book.active = w.book.index(w.book['Relatório'])
-                    
                     out.seek(0)
                 
                 # Gera nome do arquivo no padrão solicitado
@@ -2992,10 +2994,6 @@ with col_btn_processar:
                     # Copia altura das linhas
                     for row_num, row_dimension in ws_origin.row_dimensions.items():
                         ws_new.row_dimensions[row_num].height = row_dimension.height
-                
-                # Define a guia ativa para a versão sem fórmulas também
-                if 'Relatório' in wb_sem_formulas.sheetnames:
-                    wb_sem_formulas.active = wb_sem_formulas.index(wb_sem_formulas['Relatório'])
                 
                 # Salva workbook sem fórmulas
                 wb_sem_formulas.save(out_sem_formulas)
