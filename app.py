@@ -13,6 +13,9 @@ import plotly.express as px
 from copy import copy
 from openpyxl import load_workbook, Workbook
 
+# Nota: A página "👥 Colaboradores" foi criada em pages/1_👥_Colaboradores.py
+# Ela será exibida automaticamente pelo Streamlit como uma página multipage
+
 def obter_feriados_brasil(ano):
     """
     Busca feriados nacionais do Brasil para um ano específico via API Brasil API.
