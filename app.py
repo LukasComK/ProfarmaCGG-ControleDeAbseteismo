@@ -381,21 +381,20 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 colaboradores_gestor = df_mest[df_mest['GESTOR'] == gestor]
                 total_colab = len(colaboradores_gestor)
                 
-                # Encontra o turno do GESTOR (o próprio gestor está na lista de colaboradores)
-                # O gestor é aquele onde SUPERVISOR == gestor name ou NOME == gestor name
+                # Encontra o turno do GESTOR: pega o TURNO mais frequente dos colaboradores deste gestor
                 gestor_turno = 'N/A'
-                for idx, row in colaboradores_gestor.iterrows():
-                    nome = str(row['NOME']).strip() if pd.notna(row['NOME']) else ''
-                    # Se encontrar o próprio gestor na lista
-                    if nome.upper() == str(gestor).strip().upper():
-                        turno_col = row.get('TURNO', 'N/A') if 'TURNO' in df_mest.columns else 'N/A'
-                        gestor_turno = str(turno_col).strip() if pd.notna(turno_col) else 'N/A'
-                        break
-                
-                # Se não encontrou, tenta pegar de qualquer colaborador (fallback)
-                if gestor_turno == 'N/A' and len(colaboradores_gestor) > 0:
-                    turno_col = colaboradores_gestor.iloc[0].get('TURNO', 'N/A') if 'TURNO' in df_mest.columns else 'N/A'
-                    gestor_turno = str(turno_col).strip() if pd.notna(turno_col) else 'N/A'
+                if 'TURNO' in df_mest.columns and len(colaboradores_gestor) > 0:
+                    # Extrai todos os turnos dos colaboradores deste gestor
+                    turnos = colaboradores_gestor['TURNO'].dropna()
+                    turnos = [str(t).strip() for t in turnos if str(t).strip()]
+                    
+                    if turnos:
+                        # Pega o turno mais frequente (moda)
+                        from collections import Counter
+                        turno_counts = Counter(turnos)
+                        gestor_turno = turno_counts.most_common(1)[0][0]
+                    else:
+                        gestor_turno = 'N/A'
                 
                 total_fi = 0
                 total_fa = 0
@@ -450,8 +449,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     'status_color': status_color
                 })
             
-            # Ordena por total de faltas (descendente)
-            dados_gestores.sort(key=lambda x: x['total_faltas'], reverse=True)
+            # Ordena por porcentagem por colaborador (descendente) - maiores porcentagens primeiro
+            dados_gestores.sort(key=lambda x: x['percentual_por_colab'], reverse=True)
             return dados_gestores
         
         # PERÍODO INTEIRO
