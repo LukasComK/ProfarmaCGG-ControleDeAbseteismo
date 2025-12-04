@@ -423,8 +423,32 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 total_faltas = total_fi + total_fa
                 dias_uteis = len(colunas_processar)
                 percentual = (total_faltas / dias_uteis / total_colab * 100) if total_colab > 0 and dias_uteis > 0 else 0
-                # Porcentagem por colaborador (faltas / total de colaboradores)
-                percentual_por_colab = (total_faltas / total_colab * 100) if total_colab > 0 else 0
+                
+                # OPÇÃO 1: % Colaboradores com faltas (Número de colaboradores que tiveram pelo menos 1 falta)
+                colab_com_faltas = 0
+                for idx, row in colaboradores_gestor.iterrows():
+                    tem_afastamento = idx in afastamentos
+                    tem_falta = False
+                    
+                    for col_data in colunas_processar:
+                        if col_data not in df_mest.columns:
+                            continue
+                        valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
+                        
+                        if valor == 'FERIADO':
+                            continue
+                        if valor == 'FI' or (valor == 'FA' and not tem_afastamento):
+                            tem_falta = True
+                            break
+                    
+                    if tem_falta:
+                        colab_com_faltas += 1
+                
+                # Porcentagem de colaboradores com faltas
+                pct_colab_com_faltas = (colab_com_faltas / total_colab * 100) if total_colab > 0 else 0
+                
+                # OPÇÃO 2: Média de faltas por colaborador (Total Faltas / Total Colaboradores)
+                media_faltas_por_colab = (total_faltas / total_colab) if total_colab > 0 else 0
                 
                 if percentual > 20:
                     status = '🔴 CRÍTICO'
@@ -444,13 +468,14 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     'total_fa': total_fa,
                     'total_faltas': total_faltas,
                     'percentual': percentual,
-                    'percentual_por_colab': percentual_por_colab,
+                    'pct_colab_com_faltas': pct_colab_com_faltas,
+                    'media_faltas_por_colab': media_faltas_por_colab,
                     'status': status,
                     'status_color': status_color
                 })
             
-            # Ordena por porcentagem por colaborador (descendente) - maiores porcentagens primeiro
-            dados_gestores.sort(key=lambda x: x['percentual_por_colab'], reverse=True)
+            # Ordena por % de colaboradores com faltas (descendente) - maiores porcentagens primeiro
+            dados_gestores.sort(key=lambda x: x['pct_colab_com_faltas'], reverse=True)
             return dados_gestores
         
         # PERÍODO INTEIRO
@@ -467,13 +492,13 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         # PERÍODO INTEIRO
         ws.cell(row=row_idx, column=1, value='PERÍODO INTEIRO')
         ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-        ws.merge_cells(f'A{row_idx}:F{row_idx}')
+        ws.merge_cells(f'A{row_idx}:H{row_idx}')
         ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
         ws.cell(row=row_idx, column=1).border = thin_border
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', 'Faltas por Colaborador %']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Faltas/Colab']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -516,15 +541,23 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                     cell.font = Font(bold=True, color='FFFFFFFF')
             
-            # Coluna 7: Faltas por Colaborador % (fórmula)
-            cell_pct = ws.cell(row=row_idx, column=7)
-            # Fórmula: Total de Faltas (coluna F) / Total de Colaboradores (coluna C) * 100
-            cell_pct.value = f'=IFERROR((F{row_idx}/C{row_idx})*100,0)'
-            cell_pct.number_format = '0.00"%"'
-            cell_pct.alignment = Alignment(horizontal='center', vertical='center')
-            cell_pct.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
-            cell_pct.font = Font(bold=True)
-            cell_pct.border = thin_border
+            # Coluna 7: % Colaboradores com Faltas (fórmula)
+            cell_pct_colab = ws.cell(row=row_idx, column=7)
+            cell_pct_colab.value = dado['pct_colab_com_faltas']
+            cell_pct_colab.number_format = '0.00"%"'
+            cell_pct_colab.alignment = Alignment(horizontal='center', vertical='center')
+            cell_pct_colab.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
+            cell_pct_colab.font = Font(bold=True)
+            cell_pct_colab.border = thin_border
+            
+            # Coluna 8: Faltas/Colaborador (fórmula)
+            cell_media = ws.cell(row=row_idx, column=8)
+            cell_media.value = f'=IFERROR(F{row_idx}/C{row_idx},0)'
+            cell_media.number_format = '0.00'
+            cell_media.alignment = Alignment(horizontal='center', vertical='center')
+            cell_media.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+            cell_media.font = Font(bold=True)
+            cell_media.border = thin_border
             
             row_idx += 1
         
@@ -533,7 +566,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             row_idx += 1
             ws.cell(row=row_idx, column=1, value=label)
             ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-            ws.merge_cells(f'A{row_idx}:G{row_idx}')
+            ws.merge_cells(f'A{row_idx}:H{row_idx}')
             ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
             ws.cell(row=row_idx, column=1).border = thin_border
             row_idx += 1
@@ -581,14 +614,23 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                         cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                         cell.font = Font(bold=True, color='FFFFFFFF')
                 
-                # Coluna 7: Faltas por Colaborador % (fórmula)
-                cell_pct = ws.cell(row=row_idx, column=7)
-                cell_pct.value = f'=IFERROR((F{row_idx}/C{row_idx})*100,0)'
-                cell_pct.number_format = '0.00"%"'
-                cell_pct.alignment = Alignment(horizontal='center', vertical='center')
-                cell_pct.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
-                cell_pct.font = Font(bold=True)
-                cell_pct.border = thin_border
+                # Coluna 7: % Colaboradores com Faltas
+                cell_pct_colab = ws.cell(row=row_idx, column=7)
+                cell_pct_colab.value = dado['pct_colab_com_faltas']
+                cell_pct_colab.number_format = '0.00"%"'
+                cell_pct_colab.alignment = Alignment(horizontal='center', vertical='center')
+                cell_pct_colab.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
+                cell_pct_colab.font = Font(bold=True)
+                cell_pct_colab.border = thin_border
+                
+                # Coluna 8: Faltas/Colaborador (fórmula)
+                cell_media = ws.cell(row=row_idx, column=8)
+                cell_media.value = f'=IFERROR(F{row_idx}/C{row_idx},0)'
+                cell_media.number_format = '0.00'
+                cell_media.alignment = Alignment(horizontal='center', vertical='center')
+                cell_media.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                cell_media.font = Font(bold=True)
+                cell_media.border = thin_border
                 
                 row_idx += 1
         
@@ -599,7 +641,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         ws.column_dimensions['D'].width = 18
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 16
-        ws.column_dimensions['G'].width = 20  # Coluna nova: Faltas por Colaborador %
+        ws.column_dimensions['G'].width = 18  # % Colab. com Faltas
+        ws.column_dimensions['H'].width = 16  # Faltas/Colab
         
         return True
     except Exception as e:
