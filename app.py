@@ -469,6 +469,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     'total_faltas': total_faltas,
                     'percentual': percentual,
                     'pct_colab_com_faltas': pct_colab_com_faltas,
+                    'colab_com_faltas': colab_com_faltas,
                     'media_faltas_por_colab': media_faltas_por_colab,
                     'status': status,
                     'status_color': status_color
@@ -498,7 +499,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Média Faltas/Pessoa']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Com Faltas (X/Y)']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -550,14 +551,13 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_pct_colab.font = Font(bold=True)
             cell_pct_colab.border = thin_border
             
-            # Coluna 8: Média Faltas por Pessoa (fórmula)
-            cell_media = ws.cell(row=row_idx, column=8)
-            cell_media.value = f'=IFERROR(ROUND(F{row_idx}/C{row_idx},2),0)'
-            cell_media.number_format = '0.00'
-            cell_media.alignment = Alignment(horizontal='center', vertical='center')
-            cell_media.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
-            cell_media.font = Font(bold=True)
-            cell_media.border = thin_border
+            # Coluna 8: X/Y Colaboradores com Faltas
+            cell_colab_ratio = ws.cell(row=row_idx, column=8)
+            cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
+            cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
+            cell_colab_ratio.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+            cell_colab_ratio.font = Font(bold=True)
+            cell_colab_ratio.border = thin_border
             
             row_idx += 1
         
@@ -623,14 +623,13 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell_pct_colab.font = Font(bold=True)
                 cell_pct_colab.border = thin_border
                 
-                # Coluna 8: Média Faltas por Pessoa (fórmula)
-                cell_media = ws.cell(row=row_idx, column=8)
-                cell_media.value = f'=IFERROR(ROUND(F{row_idx}/C{row_idx},2),0)'
-                cell_media.number_format = '0.00'
-                cell_media.alignment = Alignment(horizontal='center', vertical='center')
-                cell_media.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
-                cell_media.font = Font(bold=True)
-                cell_media.border = thin_border
+                # Coluna 8: X/Y Colaboradores com Faltas
+                cell_colab_ratio = ws.cell(row=row_idx, column=8)
+                cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
+                cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
+                cell_colab_ratio.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                cell_colab_ratio.font = Font(bold=True)
+                cell_colab_ratio.border = thin_border
                 
                 row_idx += 1
         
