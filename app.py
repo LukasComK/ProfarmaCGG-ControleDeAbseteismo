@@ -336,7 +336,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         titulo_cell.value = '🚨 OFENSORES DE ABSENTEÍSMO POR GESTOR'
         titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
         titulo_cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-        ws.merge_cells('A1:F1')
+        ws.merge_cells('A1:G1')
         titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
         titulo_cell.border = thin_border
         
@@ -381,9 +381,21 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 colaboradores_gestor = df_mest[df_mest['GESTOR'] == gestor]
                 total_colab = len(colaboradores_gestor)
                 
-                # Extrai TURNO (coluna H, índice 7)
-                turno = colaboradores_gestor.iloc[0, 7] if len(colaboradores_gestor) > 0 else 'N/A'
-                turno = str(turno).strip() if pd.notna(turno) else 'N/A'
+                # Encontra o turno do GESTOR (o próprio gestor está na lista de colaboradores)
+                # O gestor é aquele onde SUPERVISOR == gestor name ou NOME == gestor name
+                gestor_turno = 'N/A'
+                for idx, row in colaboradores_gestor.iterrows():
+                    nome = str(row['NOME']).strip() if pd.notna(row['NOME']) else ''
+                    # Se encontrar o próprio gestor na lista
+                    if nome.upper() == str(gestor).strip().upper():
+                        turno_col = row.get('TURNO', 'N/A') if 'TURNO' in df_mest.columns else 'N/A'
+                        gestor_turno = str(turno_col).strip() if pd.notna(turno_col) else 'N/A'
+                        break
+                
+                # Se não encontrou, tenta pegar de qualquer colaborador (fallback)
+                if gestor_turno == 'N/A' and len(colaboradores_gestor) > 0:
+                    turno_col = colaboradores_gestor.iloc[0].get('TURNO', 'N/A') if 'TURNO' in df_mest.columns else 'N/A'
+                    gestor_turno = str(turno_col).strip() if pd.notna(turno_col) else 'N/A'
                 
                 total_fi = 0
                 total_fa = 0
@@ -412,6 +424,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 total_faltas = total_fi + total_fa
                 dias_uteis = len(colunas_processar)
                 percentual = (total_faltas / dias_uteis / total_colab * 100) if total_colab > 0 and dias_uteis > 0 else 0
+                # Porcentagem por colaborador (faltas / total de colaboradores)
+                percentual_por_colab = (total_faltas / total_colab * 100) if total_colab > 0 else 0
                 
                 if percentual > 20:
                     status = '🔴 CRÍTICO'
@@ -425,12 +439,13 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 
                 dados_gestores.append({
                     'gestor': gestor,
-                    'turno': turno,
+                    'turno': gestor_turno,
                     'total_colab': total_colab,
                     'total_fi': total_fi,
                     'total_fa': total_fa,
                     'total_faltas': total_faltas,
                     'percentual': percentual,
+                    'percentual_por_colab': percentual_por_colab,
                     'status': status,
                     'status_color': status_color
                 })
@@ -459,7 +474,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', 'Faltas por Colaborador %']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -502,6 +517,16 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                     cell.font = Font(bold=True, color='FFFFFFFF')
             
+            # Coluna 7: Faltas por Colaborador % (fórmula)
+            cell_pct = ws.cell(row=row_idx, column=7)
+            # Fórmula: Total de Faltas (coluna F) / Total de Colaboradores (coluna C) * 100
+            cell_pct.value = f'=IFERROR((F{row_idx}/C{row_idx})*100,0)'
+            cell_pct.number_format = '0.00"%"'
+            cell_pct.alignment = Alignment(horizontal='center', vertical='center')
+            cell_pct.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
+            cell_pct.font = Font(bold=True)
+            cell_pct.border = thin_border
+            
             row_idx += 1
         
         # PERÍODOS (com labels de data)
@@ -509,7 +534,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             row_idx += 1
             ws.cell(row=row_idx, column=1, value=label)
             ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-            ws.merge_cells(f'A{row_idx}:F{row_idx}')
+            ws.merge_cells(f'A{row_idx}:G{row_idx}')
             ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
             ws.cell(row=row_idx, column=1).border = thin_border
             row_idx += 1
@@ -557,6 +582,15 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                         cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                         cell.font = Font(bold=True, color='FFFFFFFF')
                 
+                # Coluna 7: Faltas por Colaborador % (fórmula)
+                cell_pct = ws.cell(row=row_idx, column=7)
+                cell_pct.value = f'=IFERROR((F{row_idx}/C{row_idx})*100,0)'
+                cell_pct.number_format = '0.00"%"'
+                cell_pct.alignment = Alignment(horizontal='center', vertical='center')
+                cell_pct.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
+                cell_pct.font = Font(bold=True)
+                cell_pct.border = thin_border
+                
                 row_idx += 1
         
         # Ajusta largura das colunas (A 30% maior)
@@ -566,6 +600,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         ws.column_dimensions['D'].width = 18
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 16
+        ws.column_dimensions['G'].width = 20  # Coluna nova: Faltas por Colaborador %
         
         return True
     except Exception as e:
