@@ -498,7 +498,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Dias/Mês por Pessoa']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Média Faltas/Pessoa']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -550,10 +550,10 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_pct_colab.font = Font(bold=True)
             cell_pct_colab.border = thin_border
             
-            # Coluna 8: Dias por Mês por Pessoa (fórmula)
+            # Coluna 8: Média Faltas por Pessoa (fórmula)
             cell_media = ws.cell(row=row_idx, column=8)
             cell_media.value = f'=IFERROR(ROUND(F{row_idx}/C{row_idx},2),0)'
-            cell_media.number_format = '0.00"d/mês"'
+            cell_media.number_format = '0.00'
             cell_media.alignment = Alignment(horizontal='center', vertical='center')
             cell_media.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
             cell_media.font = Font(bold=True)
@@ -623,10 +623,10 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell_pct_colab.font = Font(bold=True)
                 cell_pct_colab.border = thin_border
                 
-                # Coluna 8: Dias por Mês por Pessoa (fórmula)
+                # Coluna 8: Média Faltas por Pessoa (fórmula)
                 cell_media = ws.cell(row=row_idx, column=8)
                 cell_media.value = f'=IFERROR(ROUND(F{row_idx}/C{row_idx},2),0)'
-                cell_media.number_format = '0.00"d/mês"'
+                cell_media.number_format = '0.00'
                 cell_media.alignment = Alignment(horizontal='center', vertical='center')
                 cell_media.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
                 cell_media.font = Font(bold=True)
@@ -642,7 +642,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 16
         ws.column_dimensions['G'].width = 18  # % Colab. com Faltas
-        ws.column_dimensions['H'].width = 18  # Dias/Mês por Pessoa
+        ws.column_dimensions['H'].width = 16  # Média Faltas/Pessoa
         
         return True
     except Exception as e:
