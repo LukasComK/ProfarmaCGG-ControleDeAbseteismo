@@ -1044,9 +1044,9 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     def buscar_dados_colaborador(nome_ranking):
         if not col_nome_csv:
             return {
-                'Data Admissão': 'N/A',
-                'Tempo de Serviço': 'N/A',
-                'Gênero': 'N/A'
+                'Data Admissão': 'NÃO CONSTA',
+                'Tempo de Serviço': 'NÃO CONSTA',
+                'Gênero': 'NÃO CONSTA'
             }
         
         nome_ranking_upper = str(nome_ranking).strip().upper()
@@ -1082,9 +1082,9 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
             row_match = df_colaboradores.iloc[idx_match]
             
             # Extrai dados com segurança
-            data_adm = 'N/A'
-            sexo = 'N/A'
-            tempo_servico = 'N/A'
+            data_adm = 'NÃO CONSTA'
+            sexo = 'NÃO CONSTA'
+            tempo_servico = 'NÃO CONSTA'
             
             try:
                 if col_data_adm and col_data_adm in df_colaboradores.columns:
@@ -1110,9 +1110,9 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
             }
         else:
             return {
-                'Data Admissão': 'N/A',
-                'Tempo de Serviço': 'N/A',
-                'Gênero': 'N/A'
+                'Data Admissão': 'NÃO CONSTA',
+                'Tempo de Serviço': 'NÃO CONSTA',
+                'Gênero': 'NÃO CONSTA'
             }
     
     # Aplicar busca para FA
