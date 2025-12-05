@@ -1025,11 +1025,6 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
         if col_upper == 'SEXO':
             col_sexo = col
     
-    # DEBUG: mostrar colunas encontradas
-    st.write(f"🔴 **DEBUG: col_nome_csv = {col_nome_csv}**")
-    st.write(f"🔴 **DEBUG: col_data_adm = {col_data_adm}**")
-    st.write(f"🔴 **DEBUG: col_sexo = {col_sexo}**")
-    
     # Fallback: se não encontrou, usa índices conhecidos
     if col_nome_csv is None and len(df_colaboradores.columns) > 3:
         col_nome_csv = df_colaboradores.columns[3]
@@ -3287,19 +3282,13 @@ with col_btn_processar:
                     criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
                     
                     # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
-                    st.write("🔴 **CHECKPOINT 1: Iniciando enriquecimento de ranking**")
                     status_text.info("📊 Capturando dados do CSV de colaboradores...")
                     progress_bar.progress(73)
                     
-                    st.write(f"🔴 **CHECKPOINT 2: file_colaboradores = {file_colaboradores}**")
-                    
                     if file_colaboradores is not None:
-                        st.write("🔴 **CHECKPOINT 3: Entrando no if file_colaboradores**")
                         try:
-                            st.write("🔴 **CHECKPOINT 4: Inside try block**")
                             # Carrega CSV de colaboradores
                             file_colaboradores.seek(0)
-                            st.write(f"🔴 **CHECKPOINT 5: file name = {file_colaboradores.name}**")
                             if file_colaboradores.name.endswith('.xlsx'):
                                 df_colab_para_ranking = pd.read_excel(file_colaboradores)
                             else:
@@ -3314,15 +3303,12 @@ with col_btn_processar:
                                             file_colaboradores.seek(0)
                                             # Skip primeira linha se for só "Colaboradores"
                                             df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=sep, skiprows=1)
-                                            st.write(f"🔴 **CHECKPOINT 6: CSV carregado com encoding {enc} e sep '{sep}'**")
-                                            st.write(f"🔴 **Primeiras colunas: {list(df_colab_para_ranking.columns)[:5]}**")
                                             break
                                         except Exception as e:
                                             continue
                                     if df_colab_para_ranking is not None:
                                         break
                             
-                            st.write(f"🔴 **CHECKPOINT 7: df_colab_para_ranking is not None = {df_colab_para_ranking is not None}**")
                             if df_colab_para_ranking is not None:
                                 # Re-gera TOP 10 para enriquecimento
                                 colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
@@ -3341,12 +3327,6 @@ with col_btn_processar:
                                 
                                 # Enriquece com dados do CSV
                                 top10_fa_display, top10_fi_display = enriquecer_ranking_com_dados_csv(top10_fa_display, top10_fi_display, df_colab_para_ranking)
-                                
-                                # DEBUG: Mostra colunas do dataframe enriquecido
-                                st.write("🔍 **Debug - Colunas após enriquecimento FA:**", list(top10_fa_display.columns))
-                                st.write("🔍 **Debug - Colunas após enriquecimento FI:**", list(top10_fi_display.columns))
-                                st.write("🔍 **Debug - DataFrame FA enriquecido:**")
-                                st.write(top10_fa_display)
                                 
                                 # Recreia o sheet de ranking com dados enriquecidos
                                 status_text.info("✅ Atualizando ranking com dados do CSV...")
