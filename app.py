@@ -912,7 +912,7 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     Enriquece os TOP 10 FA e FI com dados do CSV de colaboradores.
     
     Extrai:
-    - Data de Admissão (coluna "Data Admissao") → calcula Anos, Meses, Semanas
+    - Data de Admissão (coluna "Data Admissao") → calcula Anos e Meses
     - Gênero (coluna "SEXO")
     
     Args:
@@ -925,10 +925,10 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     """
     
     def calcular_tempo_admissao(data_admissao):
-        """Calcula Anos, Meses, Semanas desde a data de admissão"""
+        """Calcula Anos e Meses desde a data de admissão (formato: XaYm)"""
         try:
             if pd.isna(data_admissao):
-                return "N/A", "N/A", "N/A"
+                return "N/A"
             
             # Converte para datetime se necessário
             if isinstance(data_admissao, str):
@@ -939,7 +939,7 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
                     try:
                         data = pd.to_datetime(data_admissao, format='%Y-%m-%d')
                     except:
-                        return "N/A", "N/A", "N/A"
+                        return "N/A"
             else:
                 data = pd.to_datetime(data_admissao)
             
@@ -949,11 +949,10 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
             diff = relativedelta(hoje, data)
             anos = diff.years
             meses = diff.months
-            semanas = (diff.days % 30) // 7
             
-            return f"{anos}a", f"{meses}m", f"{semanas}s"
+            return f"{anos}a {meses}m"
         except:
-            return "N/A", "N/A", "N/A"
+            return "N/A"
     
     # Fazer merge dos DataFrames
     df_fa_enriquecido = top_10_fa.copy()
@@ -974,21 +973,17 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
             data_adm = match.iloc[0].get('Data Admissao', None)
             sexo = match.iloc[0].get('SEXO', 'N/A')
             
-            anos, meses, semanas = calcular_tempo_admissao(data_adm)
+            tempo_servico = calcular_tempo_admissao(data_adm)
             
             return {
                 'Data Admissão': data_adm if pd.notna(data_adm) else 'N/A',
-                'Tempo (Anos)': anos,
-                'Tempo (Meses)': meses,
-                'Tempo (Semanas)': semanas,
+                'Tempo de Serviço': tempo_servico,
                 'Gênero': sexo
             }
         else:
             return {
                 'Data Admissão': 'N/A',
-                'Tempo (Anos)': 'N/A',
-                'Tempo (Meses)': 'N/A',
-                'Tempo (Semanas)': 'N/A',
+                'Tempo de Serviço': 'N/A',
                 'Gênero': 'N/A'
             }
     
@@ -1121,8 +1116,8 @@ col1, col2 = st.columns(2)
 with col1:
     st.header("Upload")
     file_mestra = st.file_uploader("Planilha MESTRA", type=["xlsx"])
-    files_encarregado = st.file_uploader("Planilhas ENCARREGADO (múltiplas permitidas)", type=["xlsx"], accept_multiple_files=True)
     file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking)", type=["csv", "xlsx"])
+    files_encarregado = st.file_uploader("Planilhas ENCARREGADO (múltiplas permitidas)", type=["xlsx"], accept_multiple_files=True)
 
 with col2:
     st.header("Config")
