@@ -710,7 +710,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         st.write(traceback.format_exc())
         return False
 
-def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
+def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, top10_fi_enriquecido=None):
     """
     Cria sheet 'Ranking ABS' com TOP 10 colaboradores com mais FA e TOP 10 com mais FI
     
@@ -718,6 +718,8 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         df_mest: DataFrame da planilha mestra
         w: Workbook
         mapa_colors: Dicionário de cores
+        top10_fa_enriquecido: TOP 10 FA com dados enriquecidos (opcional)
+        top10_fi_enriquecido: TOP 10 FI com dados enriquecidos (opcional)
     """
     try:
         from openpyxl.styles import Border, Side
@@ -741,6 +743,12 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         # TOP 10 FA e FI
         top10_fa = df_ranking.nlargest(10, 'FA')
         top10_fi = df_ranking.nlargest(10, 'FI')
+        
+        # Se foram passados dados enriquecidos, use-os
+        if top10_fa_enriquecido is not None:
+            top10_fa = top10_fa_enriquecido
+        if top10_fi_enriquecido is not None:
+            top10_fi = top10_fi_enriquecido
         
         # Cria o sheet
         ws = w.book.create_sheet('Ranking ABS')
@@ -766,7 +774,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         row_idx += 2
         
         # ===== TOP 10 FA =====
-        ws.merge_cells(f'A{row_idx}:F{row_idx}')
+        ws.merge_cells(f'A{row_idx}:I{row_idx}')
         fa_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS POR ATESTADO (FA)')
         fa_header.font = Font(bold=True, size=12, color='FF000000')
         fa_header.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
@@ -774,7 +782,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         row_idx += 1
         
         # Headers FA
-        headers_fa = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FA']
+        headers_fa = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FA', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
         for col_idx, header in enumerate(headers_fa, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -820,12 +828,30 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
             cell_fa.font = Font(bold=True)
             cell_fa.alignment = Alignment(horizontal='center', vertical='center')
             
+            # Data Admissão
+            data_adm = row.get('Data Admissão', 'N/A') if 'Data Admissão' in row.index else 'N/A'
+            cell_data = ws.cell(row=row_idx, column=7, value=data_adm)
+            cell_data.border = thin_border
+            cell_data.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Tempo de Serviço
+            tempo_srv = row.get('Tempo de Serviço', 'N/A') if 'Tempo de Serviço' in row.index else 'N/A'
+            cell_tempo = ws.cell(row=row_idx, column=8, value=tempo_srv)
+            cell_tempo.border = thin_border
+            cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Gênero
+            genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
+            cell_genero = ws.cell(row=row_idx, column=9, value=genero)
+            cell_genero.border = thin_border
+            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
+            
             row_idx += 1
         
         row_idx += 2
         
         # ===== TOP 10 FI =====
-        ws.merge_cells(f'A{row_idx}:F{row_idx}')
+        ws.merge_cells(f'A{row_idx}:I{row_idx}')
         fi_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS INJUSTIFICADAS (FI)')
         fi_header.font = Font(bold=True, size=12, color='FFFFFFFF')
         fi_header.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
@@ -833,7 +859,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         row_idx += 1
         
         # Headers FI
-        headers_fi = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FI']
+        headers_fi = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FI', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
         for col_idx, header in enumerate(headers_fi, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -879,6 +905,24 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
             cell_fi.font = Font(bold=True, color='FFFFFFFF')
             cell_fi.alignment = Alignment(horizontal='center', vertical='center')
             
+            # Data Admissão
+            data_adm = row.get('Data Admissão', 'N/A') if 'Data Admissão' in row.index else 'N/A'
+            cell_data = ws.cell(row=row_idx, column=7, value=data_adm)
+            cell_data.border = thin_border
+            cell_data.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Tempo de Serviço
+            tempo_srv = row.get('Tempo de Serviço', 'N/A') if 'Tempo de Serviço' in row.index else 'N/A'
+            cell_tempo = ws.cell(row=row_idx, column=8, value=tempo_srv)
+            cell_tempo.border = thin_border
+            cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Gênero
+            genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
+            cell_genero = ws.cell(row=row_idx, column=9, value=genero)
+            cell_genero.border = thin_border
+            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
+            
             row_idx += 1
         
         # Ajusta largura das colunas
@@ -888,6 +932,9 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         ws.column_dimensions['D'].width = 18
         ws.column_dimensions['E'].width = 38
         ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 15  # Data Admissão
+        ws.column_dimensions['H'].width = 18  # Tempo de Serviço
+        ws.column_dimensions['I'].width = 14  # Gênero
         
         return (top10_fa, top10_fi)
     except Exception as e:
@@ -3301,28 +3348,19 @@ with col_btn_processar:
                                 st.write("🔍 **Debug - DataFrame FA enriquecido:**")
                                 st.write(top10_fa_display)
                                 
-                                status_text.info("✅ Dados capturados do CSV com sucesso!")
+                                # Recreia o sheet de ranking com dados enriquecidos
+                                status_text.info("✅ Atualizando ranking com dados do CSV...")
                                 progress_bar.progress(74)
                                 
-                                # Exibe TOP 10 FA no workflow
-                                with st.expander("📋 TOP 10 FA - Nomes e Dados Capturados", expanded=True):
-                                    st.write("**Faltas por Atestado (FA) - Dados do CSV**")
-                                    cols_fa = ['NOME', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
-                                    cols_fa_display = [col for col in cols_fa if col in top10_fa_display.columns]
-                                    if cols_fa_display:
-                                        st.dataframe(top10_fa_display[cols_fa_display], use_container_width=True)
-                                    else:
-                                        st.warning("Dados de enriquecimento não disponíveis")
+                                # Remove o sheet anterior (se existir)
+                                if 'Ranking ABS' in w.book.sheetnames:
+                                    del w.book['Ranking ABS']
                                 
-                                # Exibe TOP 10 FI no workflow
-                                with st.expander("📋 TOP 10 FI - Nomes e Dados Capturados", expanded=True):
-                                    st.write("**Faltas Injustificadas (FI) - Dados do CSV**")
-                                    cols_fi = ['NOME', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
-                                    cols_fi_display = [col for col in cols_fi if col in top10_fi_display.columns]
-                                    if cols_fi_display:
-                                        st.dataframe(top10_fi_display[cols_fi_display], use_container_width=True)
-                                    else:
-                                        st.warning("Dados de enriquecimento não disponíveis")
+                                # Cria novo sheet com dados enriquecidos
+                                criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES, top10_fa_display, top10_fi_display)
+                                
+                                status_text.info("✅ Ranking atualizado com sucesso!")
+                                progress_bar.progress(75)
                         except Exception as e:
                             st.warning(f"⚠️ Não foi possível enriquecer ranking com CSV: {str(e)}")
                     
