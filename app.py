@@ -530,6 +530,9 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         # Preenche o sheet com PERÍODO + PERÍODOS
         row_idx = 3
         
+        # Título PERÍODO INTEIRO
+        ws.cell(row=row_idx, column=1, value='PERÍODO INTEIRO DE (MÊS)')
+        ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
         ws.merge_cells(f'A{row_idx}:I{row_idx}')
         ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
         ws.cell(row=row_idx, column=1).border = thin_border
