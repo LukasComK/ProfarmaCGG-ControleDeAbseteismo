@@ -1231,13 +1231,13 @@ MAPA_CODIGOS = {1: 'P', 2: 'FI', 4: 'FA', 3: 'FÉRIAS-BH', 5: 'DESLIGADO'}
 
 MAPA_CORES = {
     'P': 'FF90EE90',      # Verde claro
-    'FI': 'FF007864',     # Verde médio Profarma (unjustified)
-    'FA': 'FF008C4B',     # Verde claro Profarma (justified)
-    'Afastamento': 'FFF0F0F0',  # Cinza claro Profarma
-    'FERIADO': 'FF0D4F45',      # Verde escuro Profarma (com texto branco)
-    'FÉRIAS-BH': 'FF0D4F45',    # Verde escuro Profarma (com texto branco)
-    'DESLIGADO': 'FF0D4F45',   # Verde escuro Profarma
-    'DESCANSO': 'FFF0F0F0'  # Cinza claro Profarma
+    'FI': 'FFFF0000',     # Vermelho puro (mais nítido)
+    'FA': 'FFFFFF00',     # Amarelo puro (mais nítido)
+    'Afastamento': 'FFC0C0C0',  # Cinza (mesma cor de D)
+    'FERIADO': 'FF000000',      # Preto (com texto branco)
+    'FÉRIAS-BH': 'FF000000',    # Preto (com texto branco)
+    'DESLIGADO': 'FF800080',   # Roxo
+    'DESCANSO': 'FFC0C0C0'  # Cinza
 }
 
 col1, col2 = st.columns(2)
@@ -2009,10 +2009,11 @@ with col_btn_processar:
                             else:
                                 cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                 cell_dia.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                                cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
+                                cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                 cell_fi.font = Font(bold=True, color='FFFFFFFF')
-                                cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
+                                cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                cell_fa.font = Font(bold=True, color='FFFFFFFF')
+                                cell_ferias.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                                 cell_ferias.font = Font(color='FFFFFFFF')
                                 cell_total.value = f'=C{row_idx}+D{row_idx}+E{row_idx}'
                                 cell_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
@@ -2151,8 +2152,9 @@ with col_btn_processar:
                                     cell_dia.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                     cell_depto.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
-                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                    cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
+                                    cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                    cell_fa.font = Font(bold=True, color='FFFFFFFF')
                                     cell_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                 row_departamento += 1
                                 
@@ -2229,8 +2231,9 @@ with col_btn_processar:
                                     cell_dia.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                     cell_depto.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
-                                    cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                    cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                    cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
+                                    cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                    cell_fa.font = Font(bold=True, color='FFFFFFFF')
                                     cell_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                 row_departamento += 1
                     
@@ -2325,8 +2328,9 @@ with col_btn_processar:
                                             cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                             cell_setor.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                             cell_fi.font = Font(bold=True, color='FFFFFFFF')
-                                            cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
-                                            cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
+                                            cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
+                                            cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                            cell_fa.font = Font(bold=True, color='FFFFFFFF')
                                             cell_total_turno.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                         
                                         row_turno_section += 1
@@ -2868,7 +2872,7 @@ with col_btn_processar:
                             # FI
                             cell_fi_label = ws_turno.cell(row=row_turno, column=1, value='FI')
                             cell_fi_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_fi_label.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                            cell_fi_label.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                             turno_text = f"TURNO {turno_num}"
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
@@ -2893,19 +2897,19 @@ with col_btn_processar:
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
-                                    cell_fi.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                 else:
                                     cell_fi.value = 0
-                                    cell_fi.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fi.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # FA
                             cell_fa_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_label.font = Font(bold=True, color='FF000000')
-                            cell_fa_label.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                            cell_fa_label.font = Font(bold=True, color='FFFFFFFF')
+                            cell_fa_label.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -2929,19 +2933,19 @@ with col_btn_processar:
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
-                                    cell_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                                    cell_fa.font = Font(bold=True, color='FF000000')
+                                    cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                    cell_fa.font = Font(bold=True, color='FFFFFFFF')
                                 else:
                                     cell_fa.value = 0
-                                    cell_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                                    cell_fa.font = Font(bold=True, color='FF000000')
+                                    cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                    cell_fa.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fa.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # TOTAL M&A
                             cell_total_ma_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
                             cell_total_ma_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_total_ma_label.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_total_ma_label.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
