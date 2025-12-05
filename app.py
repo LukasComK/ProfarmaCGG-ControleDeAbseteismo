@@ -2971,8 +2971,8 @@ with col_btn_processar:
                                     cell_total_ma.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
                                 else:
-                                    # TOTAL sempre preto
-                                    cell_total_ma.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                    # TOTAL com verde escuro Profarma
+                                    cell_total_ma.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                                     cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
                                 cell_total_ma.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 2  # Espaço
@@ -2995,7 +2995,7 @@ with col_btn_processar:
                             # FI CRDK
                             cell_fi_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FI')
                             cell_fi_crdk_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_fi_crdk_label.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                            cell_fi_crdk_label.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -3019,19 +3019,19 @@ with col_btn_processar:
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fi_crdk.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
-                                    cell_fi_crdk.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi_crdk.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                     cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 else:
                                     cell_fi_crdk.value = 0
-                                    cell_fi_crdk.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                    cell_fi_crdk.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                     cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fi_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # FA CRDK
                             cell_fa_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_crdk_label.font = Font(bold=True, color='FF000000')
-                            cell_fa_crdk_label.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                            cell_fa_crdk_label.font = Font(bold=True, color='FFFFFFFF')
+                            cell_fa_crdk_label.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -3055,19 +3055,19 @@ with col_btn_processar:
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
                                     cell_fa_crdk.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
-                                    cell_fa_crdk.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                                    cell_fa_crdk.font = Font(bold=True, color='FF000000')
+                                    cell_fa_crdk.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                    cell_fa_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 else:
                                     cell_fa_crdk.value = 0
-                                    cell_fa_crdk.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                                    cell_fa_crdk.font = Font(bold=True, color='FF000000')
+                                    cell_fa_crdk.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                    cell_fa_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fa_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
                             # TOTAL CRDK
                             cell_total_crdk_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
                             cell_total_crdk_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_total_crdk_label.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                            cell_total_crdk_label.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                             for dia in range(1, dias_no_mes + 1):
                                 col_idx = dia + 1
                                 data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -3089,8 +3089,11 @@ with col_btn_processar:
                                 else:
                                     cell_total_crdk.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
                                 
-                                # TOTAL sempre preto
-                                cell_total_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                # TOTAL com verde escuro Profarma
+                                if eh_feriado or eh_domingo:
+                                    cell_total_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                                else:
+                                    cell_total_crdk.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                                 cell_total_crdk.font = Font(color='FFFFFFFF', bold=True)
                                 cell_total_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 3  # Espaço entre turnos
