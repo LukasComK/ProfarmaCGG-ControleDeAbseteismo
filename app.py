@@ -337,7 +337,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         titulo_cell.value = '🚨 OFENSORES DE ABSENTEÍSMO POR GESTOR'
         titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
         titulo_cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-        ws.merge_cells('A1:G1')
+        ws.merge_cells('A1:I1')
         titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
         titulo_cell.border = thin_border
         
