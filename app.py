@@ -2650,7 +2650,7 @@ with col_btn_processar:
                             else:
                                 # Usa as linhas 9 (M&A FI) e 11 (CRDK FI), pegando apenas a parte de FI
                                 cell_fi_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FI")'
-                                cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                                cell_fi_data.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                 cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
@@ -2658,7 +2658,7 @@ with col_btn_processar:
                             # Se não tem dados, coloca 0
                             cell_fi_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fi_data.value = 0
-                            cell_fi_data.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                            cell_fi_data.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                             cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                     
@@ -2701,16 +2701,16 @@ with col_btn_processar:
                                 cell_fa_data.font = Font(bold=True, color='FFFFFFFF')
                             else:
                                 cell_fa_data.value = f'=COUNTIF(Dados!{data_col_letter}:${data_col_letter},"FA")'
-                                cell_fa_data.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                                cell_fa_data.font = Font(bold=True)
+                                cell_fa_data.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                                cell_fa_data.font = Font(bold=True, color='FFFFFFFF')
                             
                             cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                         else:
                             # Se não tem dados, coloca 0
                             cell_fa_data = ws_porcentagens.cell(row=row_pct, column=col_idx)
                             cell_fa_data.value = 0
-                            cell_fa_data.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                            cell_fa_data.font = Font(bold=True)
+                            cell_fa_data.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                            cell_fa_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                     
                     row_fa = row_pct
