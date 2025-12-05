@@ -545,7 +545,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
             cell.font = Font(bold=True, color='FFFFFF', size=11)
-            cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+            cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')  # Verde escuro corporativo
             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             cell.border = thin_border
         
@@ -560,27 +560,27 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell.value = value
                 cell.border = thin_border
                 
-                # Cores condicionais
-                if col_idx == 1:  # GESTOR - azul pastel
+                # Cores - Paleta Corporativa Profarma
+                if col_idx == 1:  # GESTOR - Verde escuro
                     cell.alignment = Alignment(horizontal='left', vertical='center')
-                    cell.fill = PatternFill(start_color='FFC9DAF8', end_color='FFC9DAF8', fill_type='solid')
-                elif col_idx == 2:  # TURNO - verde pastel
+                    cell.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                elif col_idx == 2:  # TURNO - Cinza claro
                     cell.alignment = Alignment(horizontal='center', vertical='center')
-                    cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                elif col_idx == 3:  # Total de Colaboradores - verde pastel
+                    cell.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                elif col_idx == 3:  # Total de Colaboradores - Cinza claro
                     cell.alignment = Alignment(horizontal='center', vertical='center')
-                    cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                elif col_idx == 4:  # FI - VERMELHO FORTE
+                    cell.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                elif col_idx == 4:  # FI - Verde médio
                     cell.alignment = Alignment(horizontal='center', vertical='center')
-                    cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                    cell.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                     cell.font = Font(bold=True, color='FFFFFFFF')
-                elif col_idx == 5:  # FA - AMARELO FORTE
+                elif col_idx == 5:  # FA - Verde claro
                     cell.alignment = Alignment(horizontal='center', vertical='center')
-                    cell.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                    cell.font = Font(bold=True)
-                elif col_idx == 6:  # TOTAL - preto com texto branco
+                    cell.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                    cell.font = Font(bold=True, color='FFFFFFFF')
+                elif col_idx == 6:  # TOTAL - Verde escuro com texto branco
                     cell.alignment = Alignment(horizontal='center', vertical='center')
-                    cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                    cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     cell.font = Font(bold=True, color='FFFFFFFF')
             
             # Coluna 7: % Colaboradores com Faltas (fórmula)
@@ -588,15 +588,15 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_pct_colab.value = dado['pct_colab_com_faltas']
             cell_pct_colab.number_format = '0.00"%"'
             cell_pct_colab.alignment = Alignment(horizontal='center', vertical='center')
-            cell_pct_colab.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
-            cell_pct_colab.font = Font(bold=True)
+            cell_pct_colab.fill = PatternFill(start_color='FF8CC850', end_color='FF8CC850', fill_type='solid')  # Verde light
+            cell_pct_colab.font = Font(bold=True, color='FF000000')
             cell_pct_colab.border = thin_border
             
             # Coluna 8: X/Y Colaboradores com Faltas
             cell_colab_ratio = ws.cell(row=row_idx, column=8)
             cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
             cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
-            cell_colab_ratio.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+            cell_colab_ratio.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_colab_ratio.font = Font(bold=True)
             cell_colab_ratio.border = thin_border
             
@@ -605,7 +605,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_indice.value = round(dado['indice_concentracao'], 1)
             cell_indice.number_format = '0.0'
             cell_indice.alignment = Alignment(horizontal='center', vertical='center')
-            cell_indice.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
+            cell_indice.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_indice.font = Font(bold=True)
             cell_indice.border = thin_border
             
@@ -626,7 +626,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell = ws.cell(row=row_idx, column=col_idx)
                 cell.value = header
                 cell.font = Font(bold=True, color='FFFFFF', size=11)
-                cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')  # Verde escuro corporativo
                 cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
                 cell.border = thin_border
             
@@ -641,52 +641,52 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     cell.value = value
                     cell.border = thin_border
                     
-                    # Cores condicionais
-                    if col_idx == 1:  # GESTOR - azul pastel
+                    # Cores corporativas Profarma
+                    if col_idx == 1:  # GESTOR - cinza claro
                         cell.alignment = Alignment(horizontal='left', vertical='center')
-                        cell.fill = PatternFill(start_color='FFC9DAF8', end_color='FFC9DAF8', fill_type='solid')
-                    elif col_idx == 2:  # TURNO - verde pastel
+                        cell.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    elif col_idx == 2:  # TURNO - cinza claro
                         cell.alignment = Alignment(horizontal='center', vertical='center')
-                        cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                    elif col_idx == 3:  # Total de Colaboradores - verde pastel
+                        cell.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    elif col_idx == 3:  # Total de Colaboradores - cinza claro
                         cell.alignment = Alignment(horizontal='center', vertical='center')
-                        cell.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
-                    elif col_idx == 4:  # FI - VERMELHO FORTE
+                        cell.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    elif col_idx == 4:  # FI - verde médio
                         cell.alignment = Alignment(horizontal='center', vertical='center')
-                        cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                        cell.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                         cell.font = Font(bold=True, color='FFFFFFFF')
-                    elif col_idx == 5:  # FA - AMARELO FORTE
+                    elif col_idx == 5:  # FA - verde claro
                         cell.alignment = Alignment(horizontal='center', vertical='center')
-                        cell.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                        cell.font = Font(bold=True)
-                    elif col_idx == 6:  # TOTAL - preto com texto branco
+                        cell.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                        cell.font = Font(bold=True, color='FFFFFFFF')
+                    elif col_idx == 6:  # TOTAL - verde escuro
                         cell.alignment = Alignment(horizontal='center', vertical='center')
-                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                        cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                         cell.font = Font(bold=True, color='FFFFFFFF')
                 
-                # Coluna 7: % Colaboradores com Faltas
+                # Coluna 7: % Colaboradores com Faltas - verde light
                 cell_pct_colab = ws.cell(row=row_idx, column=7)
                 cell_pct_colab.value = dado['pct_colab_com_faltas']
                 cell_pct_colab.number_format = '0.00"%"'
                 cell_pct_colab.alignment = Alignment(horizontal='center', vertical='center')
-                cell_pct_colab.fill = PatternFill(start_color='FFFFE6CC', end_color='FFFFE6CC', fill_type='solid')
-                cell_pct_colab.font = Font(bold=True)
+                cell_pct_colab.fill = PatternFill(start_color='FF8CC850', end_color='FF8CC850', fill_type='solid')
+                cell_pct_colab.font = Font(bold=True, color='FF000000')
                 cell_pct_colab.border = thin_border
                 
-                # Coluna 8: X/Y Colaboradores com Faltas
+                # Coluna 8: X/Y Colaboradores com Faltas - cinza claro
                 cell_colab_ratio = ws.cell(row=row_idx, column=8)
                 cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
                 cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
-                cell_colab_ratio.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                cell_colab_ratio.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                 cell_colab_ratio.font = Font(bold=True)
                 cell_colab_ratio.border = thin_border
                 
-                # Coluna 9: Índice de Concentração (0-100)
+                # Coluna 9: Índice de Concentração (0-100) - cinza claro
                 cell_indice = ws.cell(row=row_idx, column=9)
                 cell_indice.value = round(dado['indice_concentracao'], 1)
                 cell_indice.number_format = '0.0'
                 cell_indice.alignment = Alignment(horizontal='center', vertical='center')
-                cell_indice.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
+                cell_indice.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                 cell_indice.font = Font(bold=True)
                 cell_indice.border = thin_border
                 
@@ -765,10 +765,10 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx = 1
         
         # Título geral
-        ws.merge_cells('A1:F1')
+        ws.merge_cells('A1:I1')
         title_cell = ws.cell(row=row_idx, column=1, value='🏆 RANKING DE ABSENTEÍSMO')
         title_cell.font = Font(bold=True, size=14, color='FFFFFF')
-        title_cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+        title_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
         title_cell.alignment = Alignment(horizontal='center', vertical='center')
         ws.row_dimensions[row_idx].height = 25
         row_idx += 2
@@ -776,8 +776,8 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         # ===== TOP 10 FA =====
         ws.merge_cells(f'A{row_idx}:I{row_idx}')
         fa_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS POR ATESTADO (FA)')
-        fa_header.font = Font(bold=True, size=12, color='FF000000')
-        fa_header.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+        fa_header.font = Font(bold=True, size=12, color='FFFFFFFF')
+        fa_header.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
         fa_header.alignment = Alignment(horizontal='center', vertical='center')
         row_idx += 1
         
@@ -787,7 +787,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
             cell.font = Font(bold=True, color='FFFFFF')
-            cell.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
             cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = thin_border
         row_idx += 1
@@ -797,53 +797,56 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             # Posição
             cell_pos = ws.cell(row=row_idx, column=1, value=idx)
             cell_pos.border = thin_border
-            cell_pos.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell_pos.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
             cell_pos.font = Font(bold=True, color='FFFFFFFF')
             cell_pos.alignment = Alignment(horizontal='center', vertical='center')
             
             # Nome
             cell_nome = ws.cell(row=row_idx, column=2, value=row['NOME'])
             cell_nome.border = thin_border
-            cell_nome.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_nome.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # Gestor
             cell_gestor = ws.cell(row=row_idx, column=3, value=row['GESTOR'])
             cell_gestor.border = thin_border
-            cell_gestor.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_gestor.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # Função
             cell_func = ws.cell(row=row_idx, column=4, value=row['FUNÇÃO'])
             cell_func.border = thin_border
-            cell_func.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_func.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # Área
             cell_area = ws.cell(row=row_idx, column=5, value=row['AREA'])
             cell_area.border = thin_border
-            cell_area.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_area.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # FA
             cell_fa = ws.cell(row=row_idx, column=6, value=row['FA'])
             cell_fa.border = thin_border
-            cell_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-            cell_fa.font = Font(bold=True)
+            cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+            cell_fa.font = Font(bold=True, color='FFFFFFFF')
             cell_fa.alignment = Alignment(horizontal='center', vertical='center')
             
             # Data Admissão
             data_adm = row.get('Data Admissão', 'N/A') if 'Data Admissão' in row.index else 'N/A'
             cell_data = ws.cell(row=row_idx, column=7, value=data_adm)
             cell_data.border = thin_border
+            cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_data.alignment = Alignment(horizontal='center', vertical='center')
             
             # Tempo de Serviço
             tempo_srv = row.get('Tempo de Serviço', 'N/A') if 'Tempo de Serviço' in row.index else 'N/A'
             cell_tempo = ws.cell(row=row_idx, column=8, value=tempo_srv)
             cell_tempo.border = thin_border
+            cell_tempo.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
             
             # Gênero
             genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
             cell_genero = ws.cell(row=row_idx, column=9, value=genero)
             cell_genero.border = thin_border
+            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_genero.alignment = Alignment(horizontal='center', vertical='center')
             
             row_idx += 1
@@ -854,7 +857,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         ws.merge_cells(f'A{row_idx}:I{row_idx}')
         fi_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS INJUSTIFICADAS (FI)')
         fi_header.font = Font(bold=True, size=12, color='FFFFFFFF')
-        fi_header.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+        fi_header.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
         fi_header.alignment = Alignment(horizontal='center', vertical='center')
         row_idx += 1
         
@@ -864,7 +867,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
             cell.font = Font(bold=True, color='FFFFFF')
-            cell.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
             cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = thin_border
         row_idx += 1
@@ -874,34 +877,34 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             # Posição
             cell_pos = ws.cell(row=row_idx, column=1, value=idx)
             cell_pos.border = thin_border
-            cell_pos.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+            cell_pos.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
             cell_pos.font = Font(bold=True, color='FFFFFFFF')
             cell_pos.alignment = Alignment(horizontal='center', vertical='center')
             
             # Nome
             cell_nome = ws.cell(row=row_idx, column=2, value=row['NOME'])
             cell_nome.border = thin_border
-            cell_nome.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_nome.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # Gestor
             cell_gestor = ws.cell(row=row_idx, column=3, value=row['GESTOR'])
             cell_gestor.border = thin_border
-            cell_gestor.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_gestor.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # Função
             cell_func = ws.cell(row=row_idx, column=4, value=row['FUNÇÃO'])
             cell_func.border = thin_border
-            cell_func.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_func.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # Área
             cell_area = ws.cell(row=row_idx, column=5, value=row['AREA'])
             cell_area.border = thin_border
-            cell_area.fill = PatternFill(start_color='FFC6E0B4', end_color='FFC6E0B4', fill_type='solid')
+            cell_area.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             
             # FI
             cell_fi = ws.cell(row=row_idx, column=6, value=row['FI'])
             cell_fi.border = thin_border
-            cell_fi.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+            cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
             cell_fi.font = Font(bold=True, color='FFFFFFFF')
             cell_fi.alignment = Alignment(horizontal='center', vertical='center')
             
@@ -909,18 +912,21 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             data_adm = row.get('Data Admissão', 'N/A') if 'Data Admissão' in row.index else 'N/A'
             cell_data = ws.cell(row=row_idx, column=7, value=data_adm)
             cell_data.border = thin_border
+            cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_data.alignment = Alignment(horizontal='center', vertical='center')
             
             # Tempo de Serviço
             tempo_srv = row.get('Tempo de Serviço', 'N/A') if 'Tempo de Serviço' in row.index else 'N/A'
             cell_tempo = ws.cell(row=row_idx, column=8, value=tempo_srv)
             cell_tempo.border = thin_border
+            cell_tempo.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
             
             # Gênero
             genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
             cell_genero = ws.cell(row=row_idx, column=9, value=genero)
             cell_genero.border = thin_border
+            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_genero.alignment = Alignment(horizontal='center', vertical='center')
             
             row_idx += 1
@@ -1141,7 +1147,7 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas):
         codigos_comuns = {'P', 'FI', 'FA', 'FÉRIAS-BH', 'DESLIGADO', 'FERIADO', 'DOMINGO', ''}
         
         # Cor cinza para células incomuns
-        gray_fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+        gray_fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
         black_font = Font(color='FF000000', bold=False)
         
         # Tenta encontrar a sheet com nome "Dados"
@@ -1821,7 +1827,7 @@ with col_btn_processar:
                     worksheet = w.sheets['Dados']
                     
                     # ===== FORMATAÇÃO DO HEADER =====
-                    header_fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')  # Azul escuro
+                    header_fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')  # Azul escuro
                     header_font = Font(bold=True, color='FFFFFFFF', size=11)  # Texto branco
                     
                     # Formata todas as colunas do header
@@ -1848,7 +1854,7 @@ with col_btn_processar:
                     for col_idx, col_name in enumerate(col_names, 1):
                         # Define preenchimento e largura para cada tipo de coluna
                         if col_name == 'NOME':
-                            col_fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')  # Azul claro suave
+                            col_fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')  # Azul claro suave
                             width = calc_width(df_mest_final, col_name, min_width=15, max_width=40)
                             worksheet.column_dimensions[get_column_letter(col_idx)].width = width
                         elif col_name == 'AREA':
@@ -1916,7 +1922,7 @@ with col_btn_processar:
                     # Linha 1: Título
                     titulo_cell = ws_relatorio.cell(row=1, column=1, value='📊 RELATÓRIO DE PROCESSAMENTO')
                     titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
-                    titulo_cell.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                    titulo_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     ws_relatorio.merge_cells('A1:D1')
                     
                     # Linha 2: Data/Hora
@@ -1929,15 +1935,15 @@ with col_btn_processar:
                     # Linha 4: Resumo por Dia
                     ws_relatorio.merge_cells('A4:F4')
                     cell_resumo = ws_relatorio.cell(row=4, column=1, value='RESUMO POR DIA')
-                    cell_resumo.font = Font(bold=True, size=12)
-                    cell_resumo.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
+                    cell_resumo.font = Font(bold=True, size=12, color='FFFFFFFF')
+                    cell_resumo.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                     
                     # Headers da tabela de resumo
                     headers_resumo = ['Data', 'Dia', 'FI', 'FA', 'FÉRIAS-BH', 'Total']
                     for col_idx, header in enumerate(headers_resumo, 1):
                         cell = ws_relatorio.cell(row=5, column=col_idx, value=header)
                         cell.font = Font(bold=True, color='FFFFFF')
-                        cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     
                     # Preenche tabela de resumo
                     dias_semana_pt = {
@@ -2001,15 +2007,15 @@ with col_btn_processar:
                                 cell_ferias.value = 'DOMINGO'
                                 cell_total.value = 'DOMINGO'
                             else:
-                                cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                                cell_dia.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                 cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                 cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                 cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
                                 cell_ferias.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
                                 cell_ferias.font = Font(color='FFFFFFFF')
                                 cell_total.value = f'=C{row_idx}+D{row_idx}+E{row_idx}'
-                                cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                cell_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                             
                             row_idx += 1
                     
@@ -2017,8 +2023,8 @@ with col_btn_processar:
                     row_departamento = row_idx + 2
                     ws_relatorio.merge_cells(f'A{row_departamento}:H{row_departamento}')
                     cell_depto = ws_relatorio.cell(row=row_departamento, column=1, value='RESUMO POR DEPARTAMENTO (DIÁRIO)')
-                    cell_depto.font = Font(bold=True, size=12)
-                    cell_depto.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
+                    cell_depto.font = Font(bold=True, size=12, color='FFFFFFFF')
+                    cell_depto.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                     
                     # Mapeia setores para departamentos
                     setores_ma_bloq = ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']
@@ -2030,7 +2036,7 @@ with col_btn_processar:
                     for col_idx, header in enumerate(headers_depto, 1):
                         cell = ws_relatorio.cell(row=row_departamento, column=col_idx, value=header)
                         cell.font = Font(bold=True, color='FFFFFF')
-                        cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     
                     # Função para contar FI e FA por departamento e data
                     def contar_fi_fa_por_depto_data(df, setores_lista, col_area, data_col):
@@ -2141,13 +2147,13 @@ with col_btn_processar:
                                     cell_fa.value = 'DOMINGO'
                                     cell_total.value = 'DOMINGO'
                                 else:
-                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                    cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                                    cell_dia.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                                    cell_depto.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                     cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                     cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    cell_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                 row_departamento += 1
                                 
                                 # CRDK / D&E - Usar ordem específica para evitar duplicação
@@ -2219,13 +2225,13 @@ with col_btn_processar:
                                     cell_fa.value = 'DOMINGO'
                                     cell_total.value = 'DOMINGO'
                                 else:
-                                    cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    cell_dia.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                    cell_depto.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                    cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                                    cell_dia.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                                    cell_depto.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                     cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                     cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                    cell_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                    cell_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                 row_departamento += 1
                     
                     # ===== RESUMO POR TURNO, DIA E SETOR =====
@@ -2234,8 +2240,8 @@ with col_btn_processar:
                         row_turno_section = row_departamento + 2
                         ws_relatorio.merge_cells(f'A{row_turno_section}:H{row_turno_section}')
                         cell_turno_title = ws_relatorio.cell(row=row_turno_section, column=1, value='RESUMO POR TURNO (DIÁRIO)')
-                        cell_turno_title.font = Font(bold=True, size=12)
-                        cell_turno_title.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
+                        cell_turno_title.font = Font(bold=True, size=12, color='FFFFFFFF')
+                        cell_turno_title.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                         
                         # Headers do resumo por turno
                         row_turno_section += 1
@@ -2243,7 +2249,7 @@ with col_btn_processar:
                         for col_idx, header in enumerate(headers_turno, 1):
                             cell = ws_relatorio.cell(row=row_turno_section, column=col_idx, value=header)
                             cell.font = Font(bold=True, color='FFFFFF')
-                            cell.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                            cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                         
                         row_turno_section += 1
                         turno_col_idx = list(df_mest_final.columns).index('TURNO') + 1
@@ -2314,14 +2320,14 @@ with col_btn_processar:
                                             cell_fa.value = 'DOMINGO'
                                             cell_total_turno.value = 'DOMINGO'
                                         else:
-                                            cell_turno.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                                            cell_turno.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                             cell_turno.font = Font(bold=True)
-                                            cell_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
-                                            cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                                            cell_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                                            cell_setor.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                             cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                             cell_fi.fill = PatternFill(start_color=MAPA_CORES['FI'], end_color=MAPA_CORES['FI'], fill_type='solid')
                                             cell_fa.fill = PatternFill(start_color=MAPA_CORES['FA'], end_color=MAPA_CORES['FA'], fill_type='solid')
-                                            cell_total_turno.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                                            cell_total_turno.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                                         
                                         row_turno_section += 1
                     
@@ -2329,8 +2335,8 @@ with col_btn_processar:
                     row_nao_encontrados = row_turno_section + 2 if 'TURNO' in df_mest.columns else row_departamento + 2
                     ws_relatorio.merge_cells(f'A{row_nao_encontrados}:D{row_nao_encontrados}')
                     cell_nao_encontrados = ws_relatorio.cell(row=row_nao_encontrados, column=1, value='COLABORADORES NÃO ENCONTRADOS')
-                    cell_nao_encontrados.font = Font(bold=True, size=12)
-                    cell_nao_encontrados.fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
+                    cell_nao_encontrados.font = Font(bold=True, size=12, color='FFFFFFFF')
+                    cell_nao_encontrados.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                     
                     row_nao_encontrados += 1
                     # Headers para a tabela
@@ -2338,8 +2344,8 @@ with col_btn_processar:
                     cell_header_arquivo = ws_relatorio.cell(row=row_nao_encontrados, column=2, value='Arquivo')
                     cell_header_nome.font = Font(bold=True, color='FFFFFF')
                     cell_header_arquivo.font = Font(bold=True, color='FFFFFF')
-                    cell_header_nome.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
-                    cell_header_arquivo.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell_header_nome.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+                    cell_header_arquivo.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     
                     row_nao_encontrados += 1
                     if total_erros:
@@ -2366,7 +2372,7 @@ with col_btn_processar:
                     ws_porcentagens.merge_cells('A1:Z1')
                     titulo_cell = ws_porcentagens.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO')
                     titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
-                    titulo_cell.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                    titulo_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     
                     # Linha 3: Headers - Área, HC (agregado)
                     ws_porcentagens.cell(row=3, column=1, value='Área')
@@ -2376,14 +2382,14 @@ with col_btn_processar:
                     for col_num in [1, 2]:
                         cell_header = ws_porcentagens.cell(row=3, column=col_num)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
-                        cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        cell_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
                     
                     area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
                     
                     # Linha 4: M&A / BLOQ com HC
                     cell_ma = ws_porcentagens.cell(row=4, column=1, value='M&A / BLOQ')
-                    cell_ma.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    cell_ma.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_ma.font = Font(bold=True)
                     
                     cell_hc_ma = ws_porcentagens.cell(row=4, column=2)
@@ -2394,12 +2400,12 @@ with col_btn_processar:
                         f'+SUMPRODUCT(ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter}))*1)'
                     )
                     cell_hc_ma.value = hc_ma_formula
-                    cell_hc_ma.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_hc_ma.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_hc_ma.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Linha 5: CRDK / D&E com HC
                     cell_crdk = ws_porcentagens.cell(row=5, column=1, value='CRDK / D&E')
-                    cell_crdk.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    cell_crdk.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_crdk.font = Font(bold=True)
                     
                     cell_hc_crdk = ws_porcentagens.cell(row=5, column=2)
@@ -2409,17 +2415,17 @@ with col_btn_processar:
                         f'+SUMPRODUCT(ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("CROSSDOCK",Dados!{area_col_letter}:${area_col_letter})))*1)'
                     )
                     cell_hc_crdk.value = hc_crdk_formula
-                    cell_hc_crdk.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_hc_crdk.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_hc_crdk.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Linha 6: TOTAL HC
                     cell_total_hc_label = ws_porcentagens.cell(row=6, column=1, value='TOTAL HC')
-                    cell_total_hc_label.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                    cell_total_hc_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_total_hc_label.font = Font(bold=True)
                     
                     cell_total_hc_value = ws_porcentagens.cell(row=6, column=2)
                     cell_total_hc_value.value = '=B4+B5'
-                    cell_total_hc_value.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_total_hc_value.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_total_hc_value.font = Font(bold=True)
                     cell_total_hc_value.alignment = Alignment(horizontal='center', vertical='center')
                     
@@ -2444,13 +2450,13 @@ with col_btn_processar:
                         col_idx = dia + 1  # Coluna começa em 2 (coluna 1 é "Área")
                         cell_header = ws_porcentagens.cell(row=8, column=col_idx, value=data_formatada)
                         cell_header.font = Font(bold=True, color='FFFFFF', size=10)
-                        cell_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                        cell_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Formata header coluna Área
                     cell_area_header = ws_porcentagens.cell(row=8, column=1)
                     cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
-                    cell_area_header.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell_area_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     cell_area_header.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Setores para porcentagens
@@ -2467,7 +2473,7 @@ with col_btn_processar:
                         # Nome do setor
                         cell_setor = ws_porcentagens.cell(row=row_pct, column=1, value=setor_nome)
                         # Títulos em VERDE PASTEL
-                        cell_setor.fill = PatternFill(start_color='FFD5E8D4', end_color='FFD5E8D4', fill_type='solid')
+                        cell_setor.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                         cell_setor.font = Font(bold=True)
                         
                         # Preenche cada data - TODOS os dias do mês
@@ -2552,13 +2558,13 @@ with col_btn_processar:
                     
                     # Linha de TOTAL HC - mostrar HC total em todas as colunas
                     cell_total_hc_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL HC')
-                    cell_total_hc_label.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_total_hc_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_total_hc_label.font = Font(bold=True)
                     
                     # HC Total (soma de B4 e B5) - mostra em todas as datas também
                     cell_hc_total_label = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_hc_total_label.value = '=B4+B5'
-                    cell_hc_total_label.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                    cell_hc_total_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_hc_total_label.font = Font(bold=True)
                     cell_hc_total_label.alignment = Alignment(horizontal='center', vertical='center')
                     
@@ -2590,12 +2596,12 @@ with col_btn_processar:
                             # Fórmula: HC Total (B4+B5) menos a contagem de DESLIGADO nesta data
                             # COUNTIF insensível a maiúsculas/minúsculas
                             cell_hc_data.value = f'=(B4+B5)-COUNTIF(Dados!{data_col_letter}:${data_col_letter},"DESLIGADO")'
-                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                            cell_hc_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                             cell_hc_data.font = Font(bold=True)
                         else:
                             # Se não tem dados, coloca 0
                             cell_hc_data.value = 0
-                            cell_hc_data.fill = PatternFill(start_color='FFCCE5FF', end_color='FFCCE5FF', fill_type='solid')
+                            cell_hc_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                             cell_hc_data.font = Font(bold=True)
                         
                         cell_hc_data.alignment = Alignment(horizontal='center', vertical='center')
@@ -2605,12 +2611,12 @@ with col_btn_processar:
                     
                     # Linha de FI - Faltas Injustificadas
                     cell_fi_label = ws_porcentagens.cell(row=row_pct, column=1, value='FI - Faltas Injustificadas')
-                    cell_fi_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_fi_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_fi_label.font = Font(bold=True)
                     
                     # HC vazio para FI
                     cell_fi_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_fi_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_fi_hc.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     
                     # Soma de FI por data (soma das linhas 9 e 11 de FI apenas)
                     for dia in range(1, dias_no_mes + 1):
@@ -2657,12 +2663,12 @@ with col_btn_processar:
                     
                     # Linha de FA - Faltas por Atestado
                     cell_fa_label = ws_porcentagens.cell(row=row_pct, column=1, value='FA - Faltas por Atestado')
-                    cell_fa_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_fa_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_fa_label.font = Font(bold=True)
                     
                     # HC vazio para FA
                     cell_fa_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_fa_hc.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_fa_hc.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     
                     # Soma de FA por data
                     for dia in range(1, dias_no_mes + 1):
@@ -2708,13 +2714,13 @@ with col_btn_processar:
                     
                     # Linha de TOTAL - soma de todas as faltas (AGORA APÓS FI E FA)
                     cell_total_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL')
-                    cell_total_label.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_total_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_total_label.font = Font(bold=True)
                     
                     # HC Total (soma de B4 e B5)
                     cell_hc_total = ws_porcentagens.cell(row=row_pct, column=2)
                     cell_hc_total.value = '=B4+B5'
-                    cell_hc_total.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                    cell_hc_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_hc_total.font = Font(bold=True)
                     cell_hc_total.alignment = Alignment(horizontal='center', vertical='center')
                     
@@ -2741,7 +2747,7 @@ with col_btn_processar:
                             cell_total_data.font = Font(bold=True, color='FFFFFFFF')
                         else:
                             cell_total_data.value = f'={col_letter}9+{col_letter}11'
-                            cell_total_data.fill = PatternFill(start_color='FFD3D3D3', end_color='FFD3D3D3', fill_type='solid')
+                            cell_total_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                             cell_total_data.font = Font(bold=True)
                         
                         cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
@@ -2751,12 +2757,12 @@ with col_btn_processar:
                     
                     # Linha de %Acumulado - TOTAL / HC Total
                     cell_acum_label = ws_porcentagens.cell(row=row_pct, column=1, value='%Acumulado')
-                    cell_acum_label.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell_acum_label.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     cell_acum_label.font = Font(bold=True, color='FFFFFFFF')
                     
                     # Célula vazia em B
                     cell_acum_hc = ws_porcentagens.cell(row=row_pct, column=2)
-                    cell_acum_hc.fill = PatternFill(start_color='FF4472C4', end_color='FF4472C4', fill_type='solid')
+                    cell_acum_hc.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     
                     # Soma acumulada de faltas / HC do dia respectivo * 100
                     # Cores condicionais: Verde <3%, Amarelo 3-3.5%, Vermelho >3.5%
@@ -3098,7 +3104,7 @@ with col_btn_processar:
                     ws_graficos.merge_cells('A1:H1')
                     titulo_graficos = ws_graficos.cell(row=1, column=1, value='📊 ANÁLISE GRÁFICA DE ABSENTEÍSMO')
                     titulo_graficos.font = Font(bold=True, size=14, color='FFFFFF')
-                    titulo_graficos.fill = PatternFill(start_color='FF366092', end_color='FF366092', fill_type='solid')
+                    titulo_graficos.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     ws_graficos.row_dimensions[1].height = 25
                     
                     from openpyxl.chart import PieChart, BarChart, Reference
@@ -3513,3 +3519,8 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+
+
+
