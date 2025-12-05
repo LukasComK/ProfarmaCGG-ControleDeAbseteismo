@@ -955,79 +955,106 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     df_fa_enriquecido = top_10_fa.copy()
     df_fi_enriquecido = top_10_fi.copy()
     
-    # Procurar colunas de colaborador (tenta variações)
+    # Procurar colunas pelo padrão correto
+    # No seu CSV: coluna 4 (índice 3) é "Colaborador", coluna 13 (índice 12) é "Data Admissão", coluna 51 (índice 50) é "Sexo"
+    
     col_nome_csv = None
-    for col in df_colaboradores.columns:
-        col_upper = col.upper().strip()
-        if col_upper in ['COLABORADOR', 'NOME', 'NOME COLABORADOR'] or 'COLABORADOR' in col_upper:
-            col_nome_csv = col
-            break
-    
-    if col_nome_csv is None:
-        col_nome_csv = df_colaboradores.columns[3]  # Coluna 4 (índice 3) é "Colaborador" no CSV
-    
-    # Procurar colunas de data admissão
     col_data_adm = None
-    for col in df_colaboradores.columns:
-        col_upper = col.upper().strip()
-        if 'ADMISS' in col_upper or 'DATA' in col_upper:
-            col_data_adm = col
-            break
-    
-    # Procurar coluna de sexo/gênero
     col_sexo = None
-    for col in df_colaboradores.columns:
+    
+    # Tenta encontrar by exact match na lista de colunas
+    for i, col in enumerate(df_colaboradores.columns):
         col_upper = col.upper().strip()
-        if 'SEXO' in col_upper or 'GENERO' in col_upper or 'GÊNERO' in col_upper:
+        
+        # Coluna de Colaborador
+        if col_upper == 'COLABORADOR':
+            col_nome_csv = col
+        
+        # Coluna de Data Admissão
+        if 'DATA ADMISS' in col_upper:
+            col_data_adm = col
+        
+        # Coluna de Sexo
+        if col_upper == 'SEXO':
             col_sexo = col
-            break
+    
+    # Fallback: se não encontrou, usa índices conhecidos
+    if col_nome_csv is None and len(df_colaboradores.columns) > 3:
+        col_nome_csv = df_colaboradores.columns[3]
+    
+    if col_data_adm is None and len(df_colaboradores.columns) > 12:
+        col_data_adm = df_colaboradores.columns[12]
+    
+    if col_sexo is None and len(df_colaboradores.columns) > 50:
+        col_sexo = df_colaboradores.columns[50]
     
     # Função para buscar dados do colaborador com fuzzy matching
     def buscar_dados_colaborador(nome_ranking):
+        if not col_nome_csv:
+            return {
+                'Data Admissão': 'N/A',
+                'Tempo de Serviço': 'N/A',
+                'Gênero': 'N/A'
+            }
+        
         nome_ranking_upper = str(nome_ranking).strip().upper()
         
         # Busca por correspondência exata primeiro
-        if col_nome_csv:
-            matches_exatos = [
-                idx for idx, row in df_colaboradores.iterrows()
-                if str(row[col_nome_csv]).strip().upper() == nome_ranking_upper
-            ]
-            
-            if matches_exatos:
-                idx_match = matches_exatos[0]
-            else:
-                # Busca por fuzzy matching (similaridade >= 0.8)
-                melhor_idx = None
-                melhor_score = 0
-                
-                for idx, row in df_colaboradores.iterrows():
-                    nome_csv = str(row[col_nome_csv]).strip()
-                    score = similarity_ratio(nome_ranking_upper, nome_csv)
-                    
-                    if score > melhor_score:
-                        melhor_score = score
-                        melhor_idx = idx
-                
-                # Só aceita se a similaridade for >= 80%
-                if melhor_score >= 0.80:
-                    idx_match = melhor_idx
-                else:
-                    idx_match = None
+        matches_exatos = [
+            idx for idx, row in df_colaboradores.iterrows()
+            if str(row[col_nome_csv]).strip().upper() == nome_ranking_upper
+        ]
+        
+        if matches_exatos:
+            idx_match = matches_exatos[0]
         else:
-            idx_match = None
+            # Busca por fuzzy matching (similaridade >= 0.75)
+            melhor_idx = None
+            melhor_score = 0
+            
+            for idx, row in df_colaboradores.iterrows():
+                nome_csv = str(row[col_nome_csv]).strip()
+                score = similarity_ratio(nome_ranking_upper, nome_csv)
+                
+                if score > melhor_score:
+                    melhor_score = score
+                    melhor_idx = idx
+            
+            # Só aceita se a similaridade for >= 75%
+            if melhor_score >= 0.75:
+                idx_match = melhor_idx
+            else:
+                idx_match = None
         
         if idx_match is not None:
             row_match = df_colaboradores.iloc[idx_match]
             
-            # Extrai dados
-            data_adm = row_match[col_data_adm] if col_data_adm else None
-            sexo = row_match[col_sexo] if col_sexo else 'N/A'
-            tempo_servico = calcular_tempo_admissao(data_adm)
+            # Extrai dados com segurança
+            data_adm = 'N/A'
+            sexo = 'N/A'
+            tempo_servico = 'N/A'
+            
+            try:
+                if col_data_adm and col_data_adm in df_colaboradores.columns:
+                    data_adm_val = row_match[col_data_adm]
+                    if pd.notna(data_adm_val):
+                        data_adm = str(data_adm_val).strip()
+                        tempo_servico = calcular_tempo_admissao(data_adm_val)
+            except:
+                pass
+            
+            try:
+                if col_sexo and col_sexo in df_colaboradores.columns:
+                    sexo_val = row_match[col_sexo]
+                    if pd.notna(sexo_val):
+                        sexo = str(sexo_val).strip()
+            except:
+                pass
             
             return {
-                'Data Admissão': data_adm if pd.notna(data_adm) else 'N/A',
+                'Data Admissão': data_adm,
                 'Tempo de Serviço': tempo_servico,
-                'Gênero': sexo if pd.notna(sexo) else 'N/A'
+                'Gênero': sexo
             }
         else:
             return {
