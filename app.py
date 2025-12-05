@@ -3251,17 +3251,23 @@ with col_btn_processar:
                             if file_colaboradores.name.endswith('.xlsx'):
                                 df_colab_para_ranking = pd.read_excel(file_colaboradores)
                             else:
-                                # Tenta diferentes encodings para CSV
+                                # Tenta diferentes encodings e separadores para CSV
                                 encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                                separadores = [',', ';', '\t', '|']
                                 df_colab_para_ranking = None
+                                
                                 for enc in encodings:
-                                    try:
-                                        file_colaboradores.seek(0)
-                                        df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=None, engine='python')
-                                        st.write(f"🔴 **CHECKPOINT 6: CSV carregado com encoding {enc}**")
+                                    for sep in separadores:
+                                        try:
+                                            file_colaboradores.seek(0)
+                                            df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=sep)
+                                            st.write(f"🔴 **CHECKPOINT 6: CSV carregado com encoding {enc} e sep '{sep}'**")
+                                            st.write(f"🔴 **Colunas encontradas: {list(df_colab_para_ranking.columns)[:5]}...**")
+                                            break
+                                        except Exception as e:
+                                            continue
+                                    if df_colab_para_ranking is not None:
                                         break
-                                    except:
-                                        continue
                             
                             st.write(f"🔴 **CHECKPOINT 7: df_colab_para_ranking is not None = {df_colab_para_ranking is not None}**")
                             if df_colab_para_ranking is not None:
