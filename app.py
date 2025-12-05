@@ -1231,13 +1231,13 @@ MAPA_CODIGOS = {1: 'P', 2: 'FI', 4: 'FA', 3: 'FÉRIAS-BH', 5: 'DESLIGADO'}
 
 MAPA_CORES = {
     'P': 'FF90EE90',      # Verde claro
-    'FI': 'FFFF0000',     # Vermelho puro (mais nítido)
-    'FA': 'FFFFFF00',     # Amarelo puro (mais nítido)
-    'Afastamento': 'FFC0C0C0',  # Cinza (mesma cor de D)
-    'FERIADO': 'FF000000',      # Preto (com texto branco)
-    'FÉRIAS-BH': 'FF000000',    # Preto (com texto branco)
-    'DESLIGADO': 'FF800080',   # Roxo
-    'DESCANSO': 'FFC0C0C0'  # Cinza
+    'FI': 'FF007864',     # Verde médio Profarma (unjustified)
+    'FA': 'FF008C4B',     # Verde claro Profarma (justified)
+    'Afastamento': 'FFF0F0F0',  # Cinza claro Profarma
+    'FERIADO': 'FF0D4F45',      # Verde escuro Profarma (com texto branco)
+    'FÉRIAS-BH': 'FF0D4F45',    # Verde escuro Profarma (com texto branco)
+    'DESLIGADO': 'FF0D4F45',   # Verde escuro Profarma
+    'DESCANSO': 'FFF0F0F0'  # Cinza claro Profarma
 }
 
 col1, col2 = st.columns(2)
@@ -1858,10 +1858,10 @@ with col_btn_processar:
                             width = calc_width(df_mest_final, col_name, min_width=15, max_width=40)
                             worksheet.column_dimensions[get_column_letter(col_idx)].width = width
                         elif col_name == 'AREA':
-                            col_fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')  # Verde claro suave
+                            col_fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')  # Verde claro suave
                             worksheet.column_dimensions[get_column_letter(col_idx)].width = 25
                         elif col_name == 'GESTOR':
-                            col_fill = PatternFill(start_color='FFffbf5e', end_color='FFffbf5e', fill_type='solid')  # Laranja #ffbf5e
+                            col_fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')  # Laranja #ffbf5e
                             width = calc_width(df_mest_final, col_name, min_width=15, max_width=40)
                             worksheet.column_dimensions[get_column_letter(col_idx)].width = width
                         else:
@@ -2791,7 +2791,7 @@ with col_btn_processar:
                             # Referencia: célula do TOTAL (row_total_faltas) / HC da data respectiva (mesmo col_letter em row_total_hc) * 100
                             cell_acum_data.value = f'=IFERROR(({col_letter}{row_total_faltas}/{col_letter}{row_total_hc})*100,0)'
                             cell_acum_data.number_format = '0.00"%"'
-                            cell_acum_data.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                            cell_acum_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                             cell_acum_data.font = Font(bold=True)
                         
                         cell_acum_data.alignment = Alignment(horizontal='center', vertical='center')
@@ -2834,7 +2834,7 @@ with col_btn_processar:
                         ws_turno.merge_cells('A1:Z1')
                         titulo_turno = ws_turno.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO POR TURNO')
                         titulo_turno.font = Font(bold=True, size=14, color='FFFFFF')
-                        titulo_turno.fill = PatternFill(start_color='FF2C3E50', end_color='FF2C3E50', fill_type='solid')
+                        titulo_turno.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                         
                         row_turno = 3
                         
@@ -2847,21 +2847,21 @@ with col_btn_processar:
                             ws_turno.merge_cells(f'A{row_turno}:Z{row_turno}')
                             cell_turno_header = ws_turno.cell(row=row_turno, column=1, value=turno_label)
                             cell_turno_header.font = Font(bold=True, size=12, color='FFFFFF')
-                            cell_turno_header.fill = PatternFill(start_color='FF34495E', end_color='FF34495E', fill_type='solid')
+                            cell_turno_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                             row_turno += 1
                             
                             # ===== M&A / BLOQ =====
                             # Header M&A / BLOQ com datas
                             cell_ma_header = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
                             cell_ma_header.font = Font(bold=True, color='FFFFFF', size=10)
-                            cell_ma_header.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                            cell_ma_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                             
                             for dia in range(1, dias_no_mes + 1):
                                 data_formatada = f"{dia:02d}/{mes_dados:02d}"
                                 col_idx = dia + 1
                                 cell_header_data_ma = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
                                 cell_header_data_ma.font = Font(bold=True, color='FFFFFF', size=9)
-                                cell_header_data_ma.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                                cell_header_data_ma.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                                 cell_header_data_ma.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
@@ -2977,14 +2977,14 @@ with col_btn_processar:
                             # Header CRDK / D&E com datas
                             cell_crdk_header = ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
                             cell_crdk_header.font = Font(bold=True, color='FFFFFF', size=10)
-                            cell_crdk_header.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                            cell_crdk_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                             
                             for dia in range(1, dias_no_mes + 1):
                                 data_formatada = f"{dia:02d}/{mes_dados:02d}"
                                 col_idx = dia + 1
                                 cell_header_data_crdk = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
                                 cell_header_data_crdk.font = Font(bold=True, color='FFFFFF', size=9)
-                                cell_header_data_crdk.fill = PatternFill(start_color='FF5D6D7B', end_color='FF5D6D7B', fill_type='solid')
+                                cell_header_data_crdk.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                                 cell_header_data_crdk.alignment = Alignment(horizontal='center', vertical='center')
                             row_turno += 1
                             
@@ -3519,6 +3519,12 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+
+
+
+
 
 
 
