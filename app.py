@@ -710,9 +710,16 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         st.write(traceback.format_exc())
         return False
 
-def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
+def criar_sheet_ranking_abs(df_mest, w, mapa_colors, df_colaboradores=None):
     """
     Cria sheet 'Ranking ABS' com TOP 10 colaboradores com mais FA e TOP 10 com mais FI
+    Opcionalmente enriquece com dados do CSV de colaboradores (Data Admissão, Gênero)
+    
+    Args:
+        df_mest: DataFrame da planilha mestra
+        w: Workbook
+        mapa_colors: Dicionário de cores
+        df_colaboradores: DataFrame do CSV com dados de colaboradores (opcional)
     """
     try:
         from openpyxl.styles import Border, Side
@@ -736,6 +743,14 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         # TOP 10 FA e FI
         top10_fa = df_ranking.nlargest(10, 'FA')
         top10_fi = df_ranking.nlargest(10, 'FI')
+        
+        # Enriquecer com dados do CSV de colaboradores (se fornecido)
+        if df_colaboradores is not None:
+            try:
+                top10_fa, top10_fi = enriquecer_ranking_com_dados_csv(top10_fa, top10_fi, df_colaboradores)
+            except Exception as e:
+                st.warning(f"Aviso: Não foi possível enriquecer ranking com dados do CSV: {str(e)}")
+                # Continua mesmo sem enriquecimento
         
         # Cria o sheet
         ws = w.book.create_sheet('Ranking ABS')
@@ -1107,6 +1122,7 @@ with col1:
     st.header("Upload")
     file_mestra = st.file_uploader("Planilha MESTRA", type=["xlsx"])
     files_encarregado = st.file_uploader("Planilhas ENCARREGADO (múltiplas permitidas)", type=["xlsx"], accept_multiple_files=True)
+    file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking)", type=["csv", "xlsx"])
 
 with col2:
     st.header("Config")
@@ -3144,7 +3160,28 @@ with col_btn_processar:
                     # ===== CRIAR SHEET DE RANKING DE ABS =====
                     status_text.info("🏆 Gerando ranking de absenteísmo...")
                     progress_bar.progress(72)
-                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
+                    
+                    # Carrega CSV de colaboradores se fornecido
+                    df_colab_para_ranking = None
+                    if file_colaboradores is not None:
+                        try:
+                            file_colaboradores.seek(0)
+                            if file_colaboradores.name.endswith('.xlsx'):
+                                df_colab_para_ranking = pd.read_excel(file_colaboradores)
+                            else:
+                                # Tenta diferentes encodings para CSV
+                                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                                for enc in encodings:
+                                    try:
+                                        file_colaboradores.seek(0)
+                                        df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=None, engine='python')
+                                        break
+                                    except:
+                                        continue
+                        except Exception as e:
+                            st.warning(f"Aviso: Não foi possível carregar CSV de colaboradores: {str(e)}")
+                    
+                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES, df_colab_para_ranking)
                     
                     # ===== COLORIR CÉLULAS INCOMUNS NA PLANILHA DADOS =====
                     status_text.info("🎯 Marcando presença incomum...")
