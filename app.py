@@ -978,6 +978,11 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
         if col_upper == 'SEXO':
             col_sexo = col
     
+    # DEBUG: mostrar colunas encontradas
+    st.write(f"🔴 **DEBUG: col_nome_csv = {col_nome_csv}**")
+    st.write(f"🔴 **DEBUG: col_data_adm = {col_data_adm}**")
+    st.write(f"🔴 **DEBUG: col_sexo = {col_sexo}**")
+    
     # Fallback: se não encontrou, usa índices conhecidos
     if col_nome_csv is None and len(df_colaboradores.columns) > 3:
         col_nome_csv = df_colaboradores.columns[3]
@@ -3260,9 +3265,10 @@ with col_btn_processar:
                                     for sep in separadores:
                                         try:
                                             file_colaboradores.seek(0)
-                                            df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=sep)
+                                            # Skip primeira linha se for só "Colaboradores"
+                                            df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=sep, skiprows=1)
                                             st.write(f"🔴 **CHECKPOINT 6: CSV carregado com encoding {enc} e sep '{sep}'**")
-                                            st.write(f"🔴 **Colunas encontradas: {list(df_colab_para_ranking.columns)[:5]}...**")
+                                            st.write(f"🔴 **Primeiras colunas: {list(df_colab_para_ranking.columns)[:5]}**")
                                             break
                                         except Exception as e:
                                             continue
