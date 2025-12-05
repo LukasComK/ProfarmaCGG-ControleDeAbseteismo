@@ -530,16 +530,13 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         # Preenche o sheet com PERÍODO + PERÍODOS
         row_idx = 3
         
-        # PERÍODO INTEIRO
-        ws.cell(row=row_idx, column=1, value='PERÍODO INTEIRO')
-        ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-        ws.merge_cells(f'A{row_idx}:H{row_idx}')
+        ws.merge_cells(f'A{row_idx}:I{row_idx}')
         ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
         ws.cell(row=row_idx, column=1).border = thin_border
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Índice Concentração']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Com Faltas (X/Y)', 'Índice Concentração']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -591,8 +588,16 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_pct_colab.font = Font(bold=True)
             cell_pct_colab.border = thin_border
             
-            # Coluna 8: Índice de Concentração (0-100)
-            cell_indice = ws.cell(row=row_idx, column=8)
+            # Coluna 8: X/Y Colaboradores com Faltas
+            cell_colab_ratio = ws.cell(row=row_idx, column=8)
+            cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
+            cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
+            cell_colab_ratio.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+            cell_colab_ratio.font = Font(bold=True)
+            cell_colab_ratio.border = thin_border
+            
+            # Coluna 9: Índice de Concentração (0-100)
+            cell_indice = ws.cell(row=row_idx, column=9)
             cell_indice.value = round(dado['indice_concentracao'], 1)
             cell_indice.number_format = '0.0'
             cell_indice.alignment = Alignment(horizontal='center', vertical='center')
@@ -615,7 +620,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             row_idx += 1
             ws.cell(row=row_idx, column=1, value=label)
             ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-            ws.merge_cells(f'A{row_idx}:H{row_idx}')
+            ws.merge_cells(f'A{row_idx}:I{row_idx}')
             ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
             ws.cell(row=row_idx, column=1).border = thin_border
             row_idx += 1
@@ -672,8 +677,16 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell_pct_colab.font = Font(bold=True)
                 cell_pct_colab.border = thin_border
                 
-                # Coluna 8: Índice de Concentração (0-100)
-                cell_indice = ws.cell(row=row_idx, column=8)
+                # Coluna 8: X/Y Colaboradores com Faltas
+                cell_colab_ratio = ws.cell(row=row_idx, column=8)
+                cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
+                cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
+                cell_colab_ratio.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                cell_colab_ratio.font = Font(bold=True)
+                cell_colab_ratio.border = thin_border
+                
+                # Coluna 9: Índice de Concentração (0-100)
+                cell_indice = ws.cell(row=row_idx, column=9)
                 cell_indice.value = round(dado['indice_concentracao'], 1)
                 cell_indice.number_format = '0.0'
                 cell_indice.alignment = Alignment(horizontal='center', vertical='center')
@@ -699,7 +712,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 16
         ws.column_dimensions['G'].width = 18  # % Colab. com Faltas
-        ws.column_dimensions['H'].width = 16  # Média Faltas/Pessoa
+        ws.column_dimensions['H'].width = 14  # Com Faltas (X/Y)
+        ws.column_dimensions['I'].width = 18  # Índice Concentração
         
         return True
     except Exception as e:
