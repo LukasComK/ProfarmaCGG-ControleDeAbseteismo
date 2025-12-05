@@ -601,15 +601,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_indice.value = round(dado['indice_concentracao'], 1)
             cell_indice.number_format = '0.0'
             cell_indice.alignment = Alignment(horizontal='center', vertical='center')
-            # Cor dinâmica: verde (distribuído) até vermelho (concentrado)
-            concentracao = dado['indice_concentracao']
-            if concentracao < 33:
-                cor = 'FFC6EFCE'  # Verde
-            elif concentracao < 67:
-                cor = 'FFFFFF99'  # Amarelo
-            else:
-                cor = 'FFFFCCCC'  # Vermelho claro
-            cell_indice.fill = PatternFill(start_color=cor, end_color=cor, fill_type='solid')
+            cell_indice.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
             cell_indice.font = Font(bold=True)
             cell_indice.border = thin_border
             
@@ -690,15 +682,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell_indice.value = round(dado['indice_concentracao'], 1)
                 cell_indice.number_format = '0.0'
                 cell_indice.alignment = Alignment(horizontal='center', vertical='center')
-                # Cor dinâmica: verde (distribuído) até vermelho (concentrado)
-                concentracao = dado['indice_concentracao']
-                if concentracao < 33:
-                    cor = 'FFC6EFCE'  # Verde
-                elif concentracao < 67:
-                    cor = 'FFFFFF99'  # Amarelo
-                else:
-                    cor = 'FFFFCCCC'  # Vermelho claro
-                cell_indice.fill = PatternFill(start_color=cor, end_color=cor, fill_type='solid')
+                cell_indice.fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
                 cell_indice.font = Font(bold=True)
                 cell_indice.border = thin_border
                 
