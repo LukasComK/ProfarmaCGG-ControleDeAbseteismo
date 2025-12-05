@@ -3235,13 +3235,19 @@ with col_btn_processar:
                     criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
                     
                     # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
+                    st.write("🔴 **CHECKPOINT 1: Iniciando enriquecimento de ranking**")
                     status_text.info("📊 Capturando dados do CSV de colaboradores...")
                     progress_bar.progress(73)
                     
+                    st.write(f"🔴 **CHECKPOINT 2: file_colaboradores = {file_colaboradores}**")
+                    
                     if file_colaboradores is not None:
+                        st.write("🔴 **CHECKPOINT 3: Entrando no if file_colaboradores**")
                         try:
+                            st.write("🔴 **CHECKPOINT 4: Inside try block**")
                             # Carrega CSV de colaboradores
                             file_colaboradores.seek(0)
+                            st.write(f"🔴 **CHECKPOINT 5: file name = {file_colaboradores.name}**")
                             if file_colaboradores.name.endswith('.xlsx'):
                                 df_colab_para_ranking = pd.read_excel(file_colaboradores)
                             else:
@@ -3252,10 +3258,12 @@ with col_btn_processar:
                                     try:
                                         file_colaboradores.seek(0)
                                         df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=None, engine='python')
+                                        st.write(f"🔴 **CHECKPOINT 6: CSV carregado com encoding {enc}**")
                                         break
                                     except:
                                         continue
                             
+                            st.write(f"🔴 **CHECKPOINT 7: df_colab_para_ranking is not None = {df_colab_para_ranking is not None}**")
                             if df_colab_para_ranking is not None:
                                 # Re-gera TOP 10 para enriquecimento
                                 colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
