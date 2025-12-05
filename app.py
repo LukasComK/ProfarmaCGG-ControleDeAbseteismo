@@ -4,6 +4,7 @@ import pandas as pd
 from unidecode import unidecode
 import io
 import datetime
+from dateutil.relativedelta import relativedelta
 import re
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment
@@ -889,6 +890,106 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
         import traceback
         st.write(traceback.format_exc())
         return False
+
+
+def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
+    """
+    Enriquece os TOP 10 FA e FI com dados do CSV de colaboradores.
+    
+    Extrai:
+    - Data de Admissão (coluna "Data Admissao") → calcula Anos, Meses, Semanas
+    - Gênero (coluna "SEXO")
+    
+    Args:
+        top_10_fa: DataFrame com TOP 10 FA
+        top_10_fi: DataFrame com TOP 10 FI
+        df_colaboradores: DataFrame com dados dos colaboradores (CSV)
+    
+    Returns:
+        tuple: (df_fa_enriquecido, df_fi_enriquecido)
+    """
+    
+    def calcular_tempo_admissao(data_admissao):
+        """Calcula Anos, Meses, Semanas desde a data de admissão"""
+        try:
+            if pd.isna(data_admissao):
+                return "N/A", "N/A", "N/A"
+            
+            # Converte para datetime se necessário
+            if isinstance(data_admissao, str):
+                # Tenta diferentes formatos
+                try:
+                    data = pd.to_datetime(data_admissao, format='%d/%m/%Y')
+                except:
+                    try:
+                        data = pd.to_datetime(data_admissao, format='%Y-%m-%d')
+                    except:
+                        return "N/A", "N/A", "N/A"
+            else:
+                data = pd.to_datetime(data_admissao)
+            
+            hoje = datetime.datetime.now()
+            
+            # Calcula diferença
+            diff = relativedelta(hoje, data)
+            anos = diff.years
+            meses = diff.months
+            semanas = (diff.days % 30) // 7
+            
+            return f"{anos}a", f"{meses}m", f"{semanas}s"
+        except:
+            return "N/A", "N/A", "N/A"
+    
+    # Fazer merge dos DataFrames
+    df_fa_enriquecido = top_10_fa.copy()
+    df_fi_enriquecido = top_10_fi.copy()
+    
+    # Preparar lookup do CSV (case-insensitive)
+    df_lookup = df_colaboradores.copy()
+    if 'NOME' in df_lookup.columns:
+        df_lookup['NOME_UPPER'] = df_lookup['NOME'].str.upper()
+    
+    # Função para buscar dados do colaborador
+    def buscar_dados_colaborador(nome):
+        nome_upper = str(nome).strip().upper()
+        
+        match = df_lookup[df_lookup['NOME_UPPER'] == nome_upper]
+        
+        if len(match) > 0:
+            data_adm = match.iloc[0].get('Data Admissao', None)
+            sexo = match.iloc[0].get('SEXO', 'N/A')
+            
+            anos, meses, semanas = calcular_tempo_admissao(data_adm)
+            
+            return {
+                'Data Admissão': data_adm if pd.notna(data_adm) else 'N/A',
+                'Tempo (Anos)': anos,
+                'Tempo (Meses)': meses,
+                'Tempo (Semanas)': semanas,
+                'Gênero': sexo
+            }
+        else:
+            return {
+                'Data Admissão': 'N/A',
+                'Tempo (Anos)': 'N/A',
+                'Tempo (Meses)': 'N/A',
+                'Tempo (Semanas)': 'N/A',
+                'Gênero': 'N/A'
+            }
+    
+    # Aplicar busca para FA
+    for idx, row in df_fa_enriquecido.iterrows():
+        dados = buscar_dados_colaborador(row['NOME'])
+        for col, val in dados.items():
+            df_fa_enriquecido.at[idx, col] = val
+    
+    # Aplicar busca para FI
+    for idx, row in df_fi_enriquecido.iterrows():
+        dados = buscar_dados_colaborador(row['NOME'])
+        for col, val in dados.items():
+            df_fi_enriquecido.at[idx, col] = val
+    
+    return df_fa_enriquecido, df_fi_enriquecido
 
 
 def colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas):
