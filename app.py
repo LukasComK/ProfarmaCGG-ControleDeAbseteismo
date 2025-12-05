@@ -744,13 +744,33 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, df_colaboradores=None):
         top10_fa = df_ranking.nlargest(10, 'FA')
         top10_fi = df_ranking.nlargest(10, 'FI')
         
+        # DEBUG: Mostrar estado inicial
+        print(f"\n=== DEBUG RANKING ABS ===")
+        print(f"TOP 10 FA (antes enriquecimento):\n{top10_fa}")
+        print(f"TOP 10 FI (antes enriquecimento):\n{top10_fi}")
+        print(f"Colunas TOP 10 FA: {top10_fa.columns.tolist()}")
+        print(f"Colunas TOP 10 FI: {top10_fi.columns.tolist()}")
+        
         # Enriquecer com dados do CSV de colaboradores (se fornecido)
         if df_colaboradores is not None:
+            print(f"\n>>> Tentando enriquecer com CSV...")
+            print(f"DF Colaboradores shape: {df_colaboradores.shape}")
+            print(f"Colunas CSV: {df_colaboradores.columns.tolist()}")
             try:
                 top10_fa, top10_fi = enriquecer_ranking_com_dados_csv(top10_fa, top10_fi, df_colaboradores)
+                print(f"✓ Enriquecimento bem-sucedido!")
+                print(f"Colunas TOP 10 FA (após): {top10_fa.columns.tolist()}")
+                print(f"TOP 10 FA (após):\n{top10_fa}")
             except Exception as e:
+                print(f"✗ Erro ao enriquecer: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 st.warning(f"Aviso: Não foi possível enriquecer ranking com dados do CSV: {str(e)}")
                 # Continua mesmo sem enriquecimento
+        else:
+            print(f">>> CSV não fornecido (df_colaboradores is None)")
+        
+        print(f"=== FIM DEBUG ===\n")
         
         # Cria o sheet
         ws = w.book.create_sheet('Ranking ABS')
@@ -963,6 +983,12 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     if 'NOME' in df_lookup.columns:
         df_lookup['NOME_UPPER'] = df_lookup['NOME'].str.upper()
     
+    print(f"  >> Lookup preparado com {len(df_lookup)} registros")
+    print(f"  >> Colunas no lookup: {df_lookup.columns.tolist()}")
+    print(f"  >> Tem 'NOME_UPPER'? {'NOME_UPPER' in df_lookup.columns}")
+    print(f"  >> Tem 'Data Admissao'? {'Data Admissao' in df_lookup.columns}")
+    print(f"  >> Tem 'SEXO'? {'SEXO' in df_lookup.columns}")
+    
     # Função para buscar dados do colaborador
     def buscar_dados_colaborador(nome):
         nome_upper = str(nome).strip().upper()
@@ -975,12 +1001,15 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
             
             tempo_servico = calcular_tempo_admissao(data_adm)
             
+            print(f"  >> ✓ Encontrado: {nome} -> Data: {data_adm}, Sexo: {sexo}, Tempo: {tempo_servico}")
+            
             return {
                 'Data Admissão': data_adm if pd.notna(data_adm) else 'N/A',
                 'Tempo de Serviço': tempo_servico,
                 'Gênero': sexo
             }
         else:
+            print(f"  >> ✗ NÃO encontrado: {nome}")
             return {
                 'Data Admissão': 'N/A',
                 'Tempo de Serviço': 'N/A',
@@ -988,16 +1017,21 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
             }
     
     # Aplicar busca para FA
+    print(f"\n  >> Processando TOP 10 FA ({len(df_fa_enriquecido)} registros)...")
     for idx, row in df_fa_enriquecido.iterrows():
         dados = buscar_dados_colaborador(row['NOME'])
         for col, val in dados.items():
             df_fa_enriquecido.at[idx, col] = val
     
     # Aplicar busca para FI
+    print(f"\n  >> Processando TOP 10 FI ({len(df_fi_enriquecido)} registros)...")
     for idx, row in df_fi_enriquecido.iterrows():
         dados = buscar_dados_colaborador(row['NOME'])
         for col, val in dados.items():
             df_fi_enriquecido.at[idx, col] = val
+    
+    print(f"  >> Resultado FA: {df_fa_enriquecido.columns.tolist()}")
+    print(f"  >> Resultado FI: {df_fi_enriquecido.columns.tolist()}")
     
     return df_fa_enriquecido, df_fi_enriquecido
 
