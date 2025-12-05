@@ -710,16 +710,14 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         st.write(traceback.format_exc())
         return False
 
-def criar_sheet_ranking_abs(df_mest, w, mapa_colors, df_colaboradores=None):
+def criar_sheet_ranking_abs(df_mest, w, mapa_colors):
     """
     Cria sheet 'Ranking ABS' com TOP 10 colaboradores com mais FA e TOP 10 com mais FI
-    Opcionalmente enriquece com dados do CSV de colaboradores (Data Admissão, Gênero)
     
     Args:
         df_mest: DataFrame da planilha mestra
         w: Workbook
         mapa_colors: Dicionário de cores
-        df_colaboradores: DataFrame do CSV com dados de colaboradores (opcional)
     """
     try:
         from openpyxl.styles import Border, Side
@@ -743,34 +741,6 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, df_colaboradores=None):
         # TOP 10 FA e FI
         top10_fa = df_ranking.nlargest(10, 'FA')
         top10_fi = df_ranking.nlargest(10, 'FI')
-        
-        # DEBUG: Mostrar estado inicial
-        print(f"\n=== DEBUG RANKING ABS ===")
-        print(f"TOP 10 FA (antes enriquecimento):\n{top10_fa}")
-        print(f"TOP 10 FI (antes enriquecimento):\n{top10_fi}")
-        print(f"Colunas TOP 10 FA: {top10_fa.columns.tolist()}")
-        print(f"Colunas TOP 10 FI: {top10_fi.columns.tolist()}")
-        
-        # Enriquecer com dados do CSV de colaboradores (se fornecido)
-        if df_colaboradores is not None:
-            print(f"\n>>> Tentando enriquecer com CSV...")
-            print(f"DF Colaboradores shape: {df_colaboradores.shape}")
-            print(f"Colunas CSV: {df_colaboradores.columns.tolist()}")
-            try:
-                top10_fa, top10_fi = enriquecer_ranking_com_dados_csv(top10_fa, top10_fi, df_colaboradores)
-                print(f"✓ Enriquecimento bem-sucedido!")
-                print(f"Colunas TOP 10 FA (após): {top10_fa.columns.tolist()}")
-                print(f"TOP 10 FA (após):\n{top10_fa}")
-            except Exception as e:
-                print(f"✗ Erro ao enriquecer: {str(e)}")
-                import traceback
-                traceback.print_exc()
-                st.warning(f"Aviso: Não foi possível enriquecer ranking com dados do CSV: {str(e)}")
-                # Continua mesmo sem enriquecimento
-        else:
-            print(f">>> CSV não fornecido (df_colaboradores is None)")
-        
-        print(f"=== FIM DEBUG ===\n")
         
         # Cria o sheet
         ws = w.book.create_sheet('Ranking ABS')
@@ -919,7 +889,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, df_colaboradores=None):
         ws.column_dimensions['E'].width = 38
         ws.column_dimensions['F'].width = 12
         
-        return True
+        return (top10_fa, top10_fi)
     except Exception as e:
         st.error(f"Erro ao criar sheet de ranking: {str(e)}")
         import traceback
@@ -930,10 +900,12 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, df_colaboradores=None):
 def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     """
     Enriquece os TOP 10 FA e FI com dados do CSV de colaboradores.
+    Usa fuzzy matching (LIKE) para encontrar nomes mesmo com pequenas diferenças.
     
     Extrai:
-    - Data de Admissão (coluna "Data Admissao") → calcula Anos e Meses
-    - Gênero (coluna "SEXO")
+    - Data de Admissão (coluna "Data Admissão")
+    - Gênero (coluna "Sexo")
+    - Calcula Tempo de Serviço em Anos e Meses
     
     Args:
         top_10_fa: DataFrame com TOP 10 FA
@@ -943,6 +915,7 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     Returns:
         tuple: (df_fa_enriquecido, df_fi_enriquecido)
     """
+    from difflib import SequenceMatcher
     
     def calcular_tempo_admissao(data_admissao):
         """Calcula Anos e Meses desde a data de admissão (formato: XaYm)"""
@@ -974,42 +947,89 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
         except:
             return "N/A"
     
+    def similarity_ratio(a, b):
+        """Calcula o índice de similaridade entre duas strings (0 a 1)"""
+        return SequenceMatcher(None, a.upper().strip(), b.upper().strip()).ratio()
+    
     # Fazer merge dos DataFrames
     df_fa_enriquecido = top_10_fa.copy()
     df_fi_enriquecido = top_10_fi.copy()
     
-    # Preparar lookup do CSV (case-insensitive)
-    df_lookup = df_colaboradores.copy()
-    if 'NOME' in df_lookup.columns:
-        df_lookup['NOME_UPPER'] = df_lookup['NOME'].str.upper()
+    # Procurar colunas de colaborador (tenta variações)
+    col_nome_csv = None
+    for col in df_colaboradores.columns:
+        col_upper = col.upper().strip()
+        if col_upper in ['COLABORADOR', 'NOME', 'NOME COLABORADOR'] or 'COLABORADOR' in col_upper:
+            col_nome_csv = col
+            break
     
-    print(f"  >> Lookup preparado com {len(df_lookup)} registros")
-    print(f"  >> Colunas no lookup: {df_lookup.columns.tolist()}")
-    print(f"  >> Tem 'NOME_UPPER'? {'NOME_UPPER' in df_lookup.columns}")
-    print(f"  >> Tem 'Data Admissao'? {'Data Admissao' in df_lookup.columns}")
-    print(f"  >> Tem 'SEXO'? {'SEXO' in df_lookup.columns}")
+    if col_nome_csv is None:
+        col_nome_csv = df_colaboradores.columns[3]  # Coluna 4 (índice 3) é "Colaborador" no CSV
     
-    # Função para buscar dados do colaborador
-    def buscar_dados_colaborador(nome):
-        nome_upper = str(nome).strip().upper()
+    # Procurar colunas de data admissão
+    col_data_adm = None
+    for col in df_colaboradores.columns:
+        col_upper = col.upper().strip()
+        if 'ADMISS' in col_upper or 'DATA' in col_upper:
+            col_data_adm = col
+            break
+    
+    # Procurar coluna de sexo/gênero
+    col_sexo = None
+    for col in df_colaboradores.columns:
+        col_upper = col.upper().strip()
+        if 'SEXO' in col_upper or 'GENERO' in col_upper or 'GÊNERO' in col_upper:
+            col_sexo = col
+            break
+    
+    # Função para buscar dados do colaborador com fuzzy matching
+    def buscar_dados_colaborador(nome_ranking):
+        nome_ranking_upper = str(nome_ranking).strip().upper()
         
-        match = df_lookup[df_lookup['NOME_UPPER'] == nome_upper]
-        
-        if len(match) > 0:
-            data_adm = match.iloc[0].get('Data Admissao', None)
-            sexo = match.iloc[0].get('SEXO', 'N/A')
+        # Busca por correspondência exata primeiro
+        if col_nome_csv:
+            matches_exatos = [
+                idx for idx, row in df_colaboradores.iterrows()
+                if str(row[col_nome_csv]).strip().upper() == nome_ranking_upper
+            ]
             
+            if matches_exatos:
+                idx_match = matches_exatos[0]
+            else:
+                # Busca por fuzzy matching (similaridade >= 0.8)
+                melhor_idx = None
+                melhor_score = 0
+                
+                for idx, row in df_colaboradores.iterrows():
+                    nome_csv = str(row[col_nome_csv]).strip()
+                    score = similarity_ratio(nome_ranking_upper, nome_csv)
+                    
+                    if score > melhor_score:
+                        melhor_score = score
+                        melhor_idx = idx
+                
+                # Só aceita se a similaridade for >= 80%
+                if melhor_score >= 0.80:
+                    idx_match = melhor_idx
+                else:
+                    idx_match = None
+        else:
+            idx_match = None
+        
+        if idx_match is not None:
+            row_match = df_colaboradores.iloc[idx_match]
+            
+            # Extrai dados
+            data_adm = row_match[col_data_adm] if col_data_adm else None
+            sexo = row_match[col_sexo] if col_sexo else 'N/A'
             tempo_servico = calcular_tempo_admissao(data_adm)
-            
-            print(f"  >> ✓ Encontrado: {nome} -> Data: {data_adm}, Sexo: {sexo}, Tempo: {tempo_servico}")
             
             return {
                 'Data Admissão': data_adm if pd.notna(data_adm) else 'N/A',
                 'Tempo de Serviço': tempo_servico,
-                'Gênero': sexo
+                'Gênero': sexo if pd.notna(sexo) else 'N/A'
             }
         else:
-            print(f"  >> ✗ NÃO encontrado: {nome}")
             return {
                 'Data Admissão': 'N/A',
                 'Tempo de Serviço': 'N/A',
@@ -1017,21 +1037,16 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
             }
     
     # Aplicar busca para FA
-    print(f"\n  >> Processando TOP 10 FA ({len(df_fa_enriquecido)} registros)...")
     for idx, row in df_fa_enriquecido.iterrows():
         dados = buscar_dados_colaborador(row['NOME'])
         for col, val in dados.items():
             df_fa_enriquecido.at[idx, col] = val
     
     # Aplicar busca para FI
-    print(f"\n  >> Processando TOP 10 FI ({len(df_fi_enriquecido)} registros)...")
     for idx, row in df_fi_enriquecido.iterrows():
         dados = buscar_dados_colaborador(row['NOME'])
         for col, val in dados.items():
             df_fi_enriquecido.at[idx, col] = val
-    
-    print(f"  >> Resultado FA: {df_fa_enriquecido.columns.tolist()}")
-    print(f"  >> Resultado FI: {df_fi_enriquecido.columns.tolist()}")
     
     return df_fa_enriquecido, df_fi_enriquecido
 
@@ -3190,16 +3205,22 @@ with col_btn_processar:
                     status_text.info("🏆 Gerando ranking de absenteísmo...")
                     progress_bar.progress(72)
                     
-                    # Carrega CSV de colaboradores se fornecido
-                    df_colab_para_ranking = None
+                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
+                    
+                    # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
+                    status_text.info("📊 Capturando dados do CSV de colaboradores...")
+                    progress_bar.progress(73)
+                    
                     if file_colaboradores is not None:
                         try:
+                            # Carrega CSV de colaboradores
                             file_colaboradores.seek(0)
                             if file_colaboradores.name.endswith('.xlsx'):
                                 df_colab_para_ranking = pd.read_excel(file_colaboradores)
                             else:
                                 # Tenta diferentes encodings para CSV
                                 encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                                df_colab_para_ranking = None
                                 for enc in encodings:
                                     try:
                                         file_colaboradores.seek(0)
@@ -3207,10 +3228,56 @@ with col_btn_processar:
                                         break
                                     except:
                                         continue
+                            
+                            if df_colab_para_ranking is not None:
+                                # Re-gera TOP 10 para enriquecimento
+                                colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
+                                df_ranking_temp = pd.DataFrame({
+                                    'NOME': df_mest_marcado['NOME'],
+                                    'GESTOR': df_mest_marcado['GESTOR'],
+                                    'FUNÇÃO': df_mest_marcado['FUNÇÃO'],
+                                    'AREA': df_mest_marcado['AREA'],
+                                    'FI': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FI').sum(), axis=1),
+                                    'FA': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FA').sum(), axis=1),
+                                }).copy()
+                                df_ranking_temp = df_ranking_temp[df_ranking_temp['NOME'].notna() & (df_ranking_temp['NOME'] != '')]
+                                
+                                top10_fa_display = df_ranking_temp.nlargest(10, 'FA')
+                                top10_fi_display = df_ranking_temp.nlargest(10, 'FI')
+                                
+                                # Enriquece com dados do CSV
+                                top10_fa_display, top10_fi_display = enriquecer_ranking_com_dados_csv(top10_fa_display, top10_fi_display, df_colab_para_ranking)
+                                
+                                # DEBUG: Mostra colunas do dataframe enriquecido
+                                st.write("🔍 **Debug - Colunas após enriquecimento FA:**", list(top10_fa_display.columns))
+                                st.write("🔍 **Debug - Colunas após enriquecimento FI:**", list(top10_fi_display.columns))
+                                st.write("🔍 **Debug - DataFrame FA enriquecido:**")
+                                st.write(top10_fa_display)
+                                
+                                status_text.info("✅ Dados capturados do CSV com sucesso!")
+                                progress_bar.progress(74)
+                                
+                                # Exibe TOP 10 FA no workflow
+                                with st.expander("📋 TOP 10 FA - Nomes e Dados Capturados", expanded=True):
+                                    st.write("**Faltas por Atestado (FA) - Dados do CSV**")
+                                    cols_fa = ['NOME', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
+                                    cols_fa_display = [col for col in cols_fa if col in top10_fa_display.columns]
+                                    if cols_fa_display:
+                                        st.dataframe(top10_fa_display[cols_fa_display], use_container_width=True)
+                                    else:
+                                        st.warning("Dados de enriquecimento não disponíveis")
+                                
+                                # Exibe TOP 10 FI no workflow
+                                with st.expander("📋 TOP 10 FI - Nomes e Dados Capturados", expanded=True):
+                                    st.write("**Faltas Injustificadas (FI) - Dados do CSV**")
+                                    cols_fi = ['NOME', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
+                                    cols_fi_display = [col for col in cols_fi if col in top10_fi_display.columns]
+                                    if cols_fi_display:
+                                        st.dataframe(top10_fi_display[cols_fi_display], use_container_width=True)
+                                    else:
+                                        st.warning("Dados de enriquecimento não disponíveis")
                         except Exception as e:
-                            st.warning(f"Aviso: Não foi possível carregar CSV de colaboradores: {str(e)}")
-                    
-                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES, df_colab_para_ranking)
+                            st.warning(f"⚠️ Não foi possível enriquecer ranking com CSV: {str(e)}")
                     
                     # ===== COLORIR CÉLULAS INCOMUNS NA PLANILHA DADOS =====
                     status_text.info("🎯 Marcando presença incomum...")
