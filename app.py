@@ -490,6 +490,23 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                         # Normaliza para 0-100
                         indice_concentracao = min(100, (sum_desvios / total_faltas * 10) if total_faltas > 0 else 0)
                 
+                # Calcula porcentagem de gênero
+                genero_counts = {'M': 0, 'F': 0}
+                for idx, row in colaboradores_gestor.iterrows():
+                    # Procura o gênero do colaborador
+                    if 'GÊNERO' in colaboradores_gestor.columns:
+                        genero = str(row['GÊNERO']).strip().upper() if pd.notna(row['GÊNERO']) else ''
+                        if genero in ['M', 'F']:
+                            genero_counts[genero] += 1
+                
+                total_com_genero = genero_counts['M'] + genero_counts['F']
+                if total_com_genero > 0:
+                    pct_feminino = (genero_counts['F'] / total_com_genero) * 100
+                    pct_masculino = (genero_counts['M'] / total_com_genero) * 100
+                    genero_str = f"F: {pct_feminino:.0f}% / M: {pct_masculino:.0f}%"
+                else:
+                    genero_str = "N/A"
+                
                 if percentual > 20:
                     status = '🔴 CRÍTICO'
                     status_color = 'FFFF0000'
@@ -509,9 +526,9 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     'total_faltas': total_faltas,
                     'percentual': percentual,
                     'pct_colab_com_faltas': pct_colab_com_faltas,
-                    'colab_com_faltas': colab_com_faltas,
                     'media_faltas_por_colab': media_faltas_por_colab,
                     'indice_concentracao': indice_concentracao,
+                    'genero': genero_str,
                     'status': status,
                     'status_color': status_color
                 })
@@ -534,13 +551,13 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         # Título PERÍODO INTEIRO
         ws.cell(row=row_idx, column=1, value='PERÍODO INTEIRO DE (MÊS)')
         ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-        ws.merge_cells(f'A{row_idx}:I{row_idx}')
+        ws.merge_cells(f'A{row_idx}:J{row_idx}')
         ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
         ws.cell(row=row_idx, column=1).border = thin_border
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Com Faltas (X/Y)', 'Índice Concentração']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Índice Concentração', 'Gênero']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -583,31 +600,22 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     cell.font = Font(bold=True, color='FFFFFFFF')
             
-            # Coluna 7: % Colaboradores com Faltas (fórmula)
-            cell_pct_colab = ws.cell(row=row_idx, column=7)
-            cell_pct_colab.value = dado['pct_colab_com_faltas']
-            cell_pct_colab.number_format = '0.00"%"'
-            cell_pct_colab.alignment = Alignment(horizontal='center', vertical='center')
-            cell_pct_colab.fill = PatternFill(start_color='FF8CC850', end_color='FF8CC850', fill_type='solid')  # Verde light
-            cell_pct_colab.font = Font(bold=True, color='FF000000')
-            cell_pct_colab.border = thin_border
-            
-            # Coluna 8: X/Y Colaboradores com Faltas
-            cell_colab_ratio = ws.cell(row=row_idx, column=8)
-            cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
-            cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
-            cell_colab_ratio.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            cell_colab_ratio.font = Font(bold=True)
-            cell_colab_ratio.border = thin_border
-            
-            # Coluna 9: Índice de Concentração (0-100)
-            cell_indice = ws.cell(row=row_idx, column=9)
+            # Coluna 8: Índice de Concentração (0-100) - cinza claro
+            cell_indice = ws.cell(row=row_idx, column=8)
             cell_indice.value = round(dado['indice_concentracao'], 1)
             cell_indice.number_format = '0.0'
             cell_indice.alignment = Alignment(horizontal='center', vertical='center')
             cell_indice.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_indice.font = Font(bold=True)
             cell_indice.border = thin_border
+            
+            # Coluna 9: Gênero (% Feminino / % Masculino)
+            cell_genero = ws.cell(row=row_idx, column=9)
+            cell_genero.value = dado['genero']
+            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
+            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+            cell_genero.font = Font(bold=True)
+            cell_genero.border = thin_border
             
             row_idx += 1
         
@@ -616,7 +624,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             row_idx += 1
             ws.cell(row=row_idx, column=1, value=label)
             ws.cell(row=row_idx, column=1).font = Font(bold=True, size=11)
-            ws.merge_cells(f'A{row_idx}:I{row_idx}')
+            ws.merge_cells(f'A{row_idx}:J{row_idx}')
             ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal='left')
             ws.cell(row=row_idx, column=1).border = thin_border
             row_idx += 1
@@ -673,22 +681,22 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell_pct_colab.font = Font(bold=True, color='FF000000')
                 cell_pct_colab.border = thin_border
                 
-                # Coluna 8: X/Y Colaboradores com Faltas - cinza claro
-                cell_colab_ratio = ws.cell(row=row_idx, column=8)
-                cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
-                cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
-                cell_colab_ratio.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                cell_colab_ratio.font = Font(bold=True)
-                cell_colab_ratio.border = thin_border
-                
-                # Coluna 9: Índice de Concentração (0-100) - cinza claro
-                cell_indice = ws.cell(row=row_idx, column=9)
+                # Coluna 8: Índice de Concentração (0-100) - cinza claro
+                cell_indice = ws.cell(row=row_idx, column=8)
                 cell_indice.value = round(dado['indice_concentracao'], 1)
                 cell_indice.number_format = '0.0'
                 cell_indice.alignment = Alignment(horizontal='center', vertical='center')
                 cell_indice.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                 cell_indice.font = Font(bold=True)
                 cell_indice.border = thin_border
+                
+                # Coluna 9: Gênero (% Feminino / % Masculino) - cinza claro
+                cell_genero = ws.cell(row=row_idx, column=9)
+                cell_genero.value = dado['genero']
+                cell_genero.alignment = Alignment(horizontal='center', vertical='center')
+                cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                cell_genero.font = Font(bold=True)
+                cell_genero.border = thin_border
                 
                 row_idx += 1
         
@@ -700,8 +708,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 16
         ws.column_dimensions['G'].width = 18  # % Colab. com Faltas
-        ws.column_dimensions['H'].width = 14  # Com Faltas (X/Y)
-        ws.column_dimensions['I'].width = 18  # Índice Concentração
+        ws.column_dimensions['H'].width = 18  # Índice Concentração
+        ws.column_dimensions['I'].width = 20  # Gênero (F% / M%)
         
         return True
     except Exception as e:
