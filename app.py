@@ -765,7 +765,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx = 1
         
         # Título geral
-        ws.merge_cells('A1:I1')
+        ws.merge_cells('A1:H1')
         title_cell = ws.cell(row=row_idx, column=1, value='🏆 RANKING DE ABSENTEÍSMO')
         title_cell.font = Font(bold=True, size=14, color='FFFFFF')
         title_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
@@ -774,7 +774,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx += 2
         
         # ===== TOP 10 FA =====
-        ws.merge_cells(f'A{row_idx}:I{row_idx}')
+        ws.merge_cells(f'A{row_idx}:H{row_idx}')
         fa_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS POR ATESTADO (FA)')
         fa_header.font = Font(bold=True, size=12, color='FFFFFFFF')
         fa_header.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
@@ -782,7 +782,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx += 1
         
         # Headers FA
-        headers_fa = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FA', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
+        headers_fa = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FA', 'Data Admissão', 'Tempo de Serviço']
         for col_idx, header in enumerate(headers_fa, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -842,19 +842,14 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell_tempo.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
             
-            # Gênero
-            genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
-            cell_genero = ws.cell(row=row_idx, column=9, value=genero)
-            cell_genero.border = thin_border
-            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
+            row_idx += 1
             
             row_idx += 1
         
         row_idx += 2
         
         # ===== TOP 10 FI =====
-        ws.merge_cells(f'A{row_idx}:I{row_idx}')
+        ws.merge_cells(f'A{row_idx}:H{row_idx}')
         fi_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS INJUSTIFICADAS (FI)')
         fi_header.font = Font(bold=True, size=12, color='FFFFFFFF')
         fi_header.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
@@ -862,7 +857,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx += 1
         
         # Headers FI
-        headers_fi = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FI', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
+        headers_fi = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FI', 'Data Admissão', 'Tempo de Serviço']
         for col_idx, header in enumerate(headers_fi, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -922,13 +917,6 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell_tempo.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
             
-            # Gênero
-            genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
-            cell_genero = ws.cell(row=row_idx, column=9, value=genero)
-            cell_genero.border = thin_border
-            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
-            
             row_idx += 1
         
         # Ajusta largura das colunas
@@ -940,7 +928,6 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         ws.column_dimensions['F'].width = 12
         ws.column_dimensions['G'].width = 15  # Data Admissão
         ws.column_dimensions['H'].width = 18  # Tempo de Serviço
-        ws.column_dimensions['I'].width = 14  # Gênero
         
         return (top10_fa, top10_fi)
     except Exception as e:
