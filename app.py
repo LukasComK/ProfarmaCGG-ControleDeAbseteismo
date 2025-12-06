@@ -497,25 +497,41 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 colunas_disponiveis = colaboradores_gestor.columns.tolist()
                 genero_col = None
                 
+                # Debug: Print de todas as colunas disponíveis
+                print(f"\n=== DEBUG GÊNERO para GESTOR: {gestor} ===")
+                print(f"Colunas disponíveis: {colunas_disponiveis}")
+                
                 # Procura pela coluna de gênero (pode ter nomes variados)
                 for col in colunas_disponiveis:
                     if 'GÊNERO' in col.upper() or 'GENERO' in col.upper():
                         genero_col = col
+                        print(f"Coluna de gênero encontrada: {genero_col}")
                         break
                 
                 if genero_col:
+                    print(f"Processando {len(colaboradores_gestor)} colaboradores com a coluna: {genero_col}")
                     for idx, row in colaboradores_gestor.iterrows():
                         genero = str(row[genero_col]).strip().upper() if pd.notna(row[genero_col]) else ''
                         if genero in ['M', 'F']:
                             genero_counts[genero] += 1
+                            print(f"  - {row.get('NOME', 'N/A')}: {genero}")
+                        else:
+                            print(f"  - {row.get('NOME', 'N/A')}: {genero} (INVÁLIDO)")
+                else:
+                    print("ATENÇÃO: Coluna de gênero NÃO ENCONTRADA!")
+                    print(f"Colunas procuradas: GÊNERO, GENERO")
                 
                 total_com_genero = genero_counts['M'] + genero_counts['F']
+                print(f"Totais - M: {genero_counts['M']}, F: {genero_counts['F']}, Total: {total_com_genero}")
+                
                 if total_com_genero > 0:
                     pct_feminino = (genero_counts['F'] / total_com_genero) * 100
                     pct_masculino = (genero_counts['M'] / total_com_genero) * 100
                     genero_str = f"F: {pct_feminino:.0f}% / M: {pct_masculino:.0f}%"
+                    print(f"Resultado: {genero_str}")
                 else:
                     genero_str = "N/A"
+                    print(f"Resultado: N/A (nenhum gênero válido encontrado)")
                 
                 if percentual > 20:
                     status = '🔴 CRÍTICO'
