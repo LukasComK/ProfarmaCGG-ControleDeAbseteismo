@@ -492,10 +492,20 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 
                 # Calcula porcentagem de gênero
                 genero_counts = {'M': 0, 'F': 0}
-                for idx, row in colaboradores_gestor.iterrows():
-                    # Procura o gênero do colaborador
-                    if 'GÊNERO' in colaboradores_gestor.columns:
-                        genero = str(row['GÊNERO']).strip().upper() if pd.notna(row['GÊNERO']) else ''
+                
+                # Debug: verifica colunas disponíveis
+                colunas_disponiveis = colaboradores_gestor.columns.tolist()
+                genero_col = None
+                
+                # Procura pela coluna de gênero (pode ter nomes variados)
+                for col in colunas_disponiveis:
+                    if 'GÊNERO' in col.upper() or 'GENERO' in col.upper():
+                        genero_col = col
+                        break
+                
+                if genero_col:
+                    for idx, row in colaboradores_gestor.iterrows():
+                        genero = str(row[genero_col]).strip().upper() if pd.notna(row[genero_col]) else ''
                         if genero in ['M', 'F']:
                             genero_counts[genero] += 1
                 
@@ -674,8 +684,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 
                 # Coluna 7: % Colaboradores com Faltas - verde light
                 cell_pct_colab = ws.cell(row=row_idx, column=7)
-                cell_pct_colab.value = dado['pct_colab_com_faltas']
-                cell_pct_colab.number_format = '0.00"%"'
+                cell_pct_colab.value = dado['pct_colab_com_faltas'] / 100  # Converte para decimal (0-1)
+                cell_pct_colab.number_format = '0.00%'
                 cell_pct_colab.alignment = Alignment(horizontal='center', vertical='center')
                 cell_pct_colab.fill = PatternFill(start_color='FF8CC850', end_color='FF8CC850', fill_type='solid')
                 cell_pct_colab.font = Font(bold=True, color='FF000000')
