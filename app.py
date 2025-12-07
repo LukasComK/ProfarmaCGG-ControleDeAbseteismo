@@ -300,13 +300,128 @@ def detectar_afastamentos_no_dataframe(df, mapa_datas):
     
     return afastamentos
 
-def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=None):
+def calcular_genero_gestor(gestor_nome, colaboradores_gestor_df, df_colab_csv, colunas_datas):
+    """
+    Calcula a proporção de Feminino e Masculino para um gestor.
+    Contabiliza colaboradores DISTINTOS que têm pelo menos 1 FI ou FA.
+    
+    Exemplo:
+    - Sergio (M): FI -> contabilizado 1x como masculino
+    - Paula (F): FA -> contabilizado 1x como feminino
+    - Clara (F): FA -> contabilizado 1x como feminino
+    - Maria (F): FI -> contabilizado 1x como feminino
+    Resultado: 25% Masculino | 75% Feminino
+    
+    Parâmetros:
+    - gestor_nome: nome do gestor (string)
+    - colaboradores_gestor_df: DataFrame com colaboradores do gestor
+    - df_colab_csv: DataFrame com colunas 'Nome' (ou similar) e 'Sexo' (ou 'Genero')
+    - colunas_datas: lista com nomes das colunas de datas
+    
+    Retorna:
+    - string no formato "Fem X% | Mas Y%" (ex: "Fem 75% | Mas 25%")
+    """
+    if df_colab_csv is None or df_colab_csv.empty or len(colaboradores_gestor_df) == 0:
+        return "N/A"
+    
+    try:
+        # Detecta coluna de nome (tenta vários nomes comuns)
+        col_nome = None
+        for possible_name in ['Nome', 'NOME', 'nome', 'Colaborador', 'COLABORADOR', 'Funcionário', 'FUNCIONÁRIO']:
+            if possible_name in df_colab_csv.columns:
+                col_nome = possible_name
+                break
+        
+        # Detecta coluna de sexo/gênero
+        col_sexo = None
+        for possible_sexo in ['Sexo', 'SEXO', 'sexo', 'Genero', 'GENERO', 'genero', 'Género', 'GÉNERO']:
+            if possible_sexo in df_colab_csv.columns:
+                col_sexo = possible_sexo
+                break
+        
+        if col_nome is None or col_sexo is None:
+            return "N/A"
+        
+        # Dicionário para armazenar gênero por colaborador (evita contar 2x)
+        colaboradores_genero = {}  # {nome_limpo: 'F' ou 'M'}
+        
+        # Para cada colaborador do gestor
+        for idx, row in colaboradores_gestor_df.iterrows():
+            nome_colab = str(row['NOME']).strip() if pd.notna(row['NOME']) else ''
+            
+            if not nome_colab:
+                continue
+            
+            # Verifica se tem FI ou FA nas colunas de data
+            tem_falta = False
+            for col_data in colunas_datas:
+                if col_data not in colaboradores_gestor_df.columns:
+                    continue
+                valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
+                if valor in ['FI', 'FA']:
+                    tem_falta = True
+                    break
+            
+            # Só processa colaboradores com faltas
+            if not tem_falta:
+                continue
+            
+            # Procura no CSV para pegar o gênero
+            nome_limpo = unidecode(nome_colab).upper()
+            
+            # Se já encontrou este colaborador, pula (já está contabilizado)
+            if nome_limpo in colaboradores_genero:
+                continue
+            
+            # Procura no CSV
+            for csv_idx, csv_row in df_colab_csv.iterrows():
+                csv_nome = str(df_colab_csv.iloc[csv_idx][col_nome]).strip().upper() if pd.notna(df_colab_csv.iloc[csv_idx][col_nome]) else ''
+                csv_nome_limpo = unidecode(csv_nome).upper()
+                
+                # Tenta busca exata ou parcial
+                if nome_limpo == csv_nome_limpo or nome_limpo in csv_nome_limpo or csv_nome_limpo in nome_limpo:
+                    sexo = str(df_colab_csv.iloc[csv_idx][col_sexo]).strip().upper() if pd.notna(df_colab_csv.iloc[csv_idx][col_sexo]) else ''
+                    
+                    # Detecta feminino
+                    if sexo in ['F', 'FEMININO', 'MULHER', 'FEMINO']:
+                        colaboradores_genero[nome_limpo] = 'F'
+                        break
+                    # Detecta masculino
+                    elif sexo in ['M', 'MASCULINO', 'HOMEM', 'MASC']:
+                        colaboradores_genero[nome_limpo] = 'M'
+                        break
+        
+        # Conta totais
+        total_feminino = sum(1 for genero in colaboradores_genero.values() if genero == 'F')
+        total_masculino = sum(1 for genero in colaboradores_genero.values() if genero == 'M')
+        total_colaboradores = total_feminino + total_masculino
+        
+        if total_colaboradores == 0:
+            return "N/A"
+        
+        # Calcula proporções
+        pct_fem = (total_feminino / total_colaboradores * 100) if total_colaboradores > 0 else 0
+        pct_masc = (total_masculino / total_colaboradores * 100) if total_colaboradores > 0 else 0
+        
+        # Ordena por percentual maior (vem primeiro)
+        if pct_fem >= pct_masc:
+            return f"Fem {pct_fem:.0f}% | Mas {pct_masc:.0f}%"
+        else:
+            return f"Mas {pct_masc:.0f}% | Fem {pct_fem:.0f}%"
+    
+    except Exception as e:
+        print(f"Erro ao calcular gênero para gestor {gestor_nome}: {e}")
+        return "Erro"
+
+
+def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=None, df_colab_csv=None):
     """
     Cria sheet 'Ofensores de ABS' mostrando por GESTOR e TURNO:
     - PERÍODO INTEIRO
     - Semana 1, 2, 3, 4 (dados na mesma sheet)
     
     afastamentos: dicionário com índices de linhas que têm afastamento
+    df_colab_csv: DataFrame com informações de colaboradores (para gênero)
     """
     if afastamentos is None:
         afastamentos = {}
@@ -397,6 +512,11 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     else:
                         gestor_turno = 'N/A'
                 
+                # Calcula proporção de gênero dos colaboradores do gestor
+                genero_gestor = 'N/A'
+                if df_colab_csv is not None:
+                    genero_gestor = calcular_genero_gestor(gestor, colaboradores_gestor, df_colab_csv, colunas_processar)
+                
                 total_fi = 0
                 total_fa = 0
                 
@@ -448,47 +568,10 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 # Porcentagem de colaboradores com faltas
                 pct_colab_com_faltas = (colab_com_faltas / total_colab * 100) if total_colab > 0 else 0
                 
-                # OPÇÃO 2: Média de faltas por colaborador (Total Faltas / Total Colaboradores)
-                media_faltas_por_colab = (total_faltas / total_colab) if total_colab > 0 else 0
-                
-                # ÍNDICE DE CONCENTRAÇÃO: Mede o quanto as faltas estão concentradas em poucas pessoas
-                # Usa o Índice de Gini (0-100): 0 = distribuído entre todos, 100 = concentrado em 1 pessoa
-                indice_concentracao = 0
-                if total_faltas > 0:
-                    # Conta faltas de cada colaborador
-                    faltas_por_colab = {}
-                    for idx, row in colaboradores_gestor.iterrows():
-                        tem_afastamento = idx in afastamentos
-                        faltas_pessoa = 0
-                        
-                        for col_data in colunas_processar:
-                            if col_data not in df_mest.columns:
-                                continue
-                            valor = str(row[col_data]).strip().upper() if pd.notna(row[col_data]) else ''
-                            
-                            if valor == 'FERIADO':
-                                continue
-                            if valor == 'FI':
-                                faltas_pessoa += 1
-                            elif valor == 'FA' and not tem_afastamento:
-                                faltas_pessoa += 1
-                        
-                        if faltas_pessoa > 0:
-                            faltas_por_colab[idx] = faltas_pessoa
-                    
-                    # Calcula Índice de Gini simplificado (0-100)
-                    if len(faltas_por_colab) > 0:
-                        faltas_sorted = sorted(faltas_por_colab.values(), reverse=True)
-                        cumsum = 0
-                        sum_desvios = 0
-                        
-                        for i, faltas in enumerate(faltas_sorted):
-                            cumsum += faltas
-                            # Quanto mais distante da média, maior o desvio
-                            sum_desvios += abs(cumsum - (i + 1) * (total_faltas / len(faltas_sorted)))
-                        
-                        # Normaliza para 0-100
-                        indice_concentracao = min(100, (sum_desvios / total_faltas * 10) if total_faltas > 0 else 0)
+                # Calcular Score de Risco
+                # Fórmula: (Porcentagem) + ((Total de Faltas / Total de Colaboradores) × 50)
+                intensidade_faltas = (total_faltas / total_colab * 50) if total_colab > 0 else 0
+                score_risco = pct_colab_com_faltas + intensidade_faltas
                 
                 if percentual > 20:
                     status = '🔴 CRÍTICO'
@@ -510,14 +593,14 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     'percentual': percentual,
                     'pct_colab_com_faltas': pct_colab_com_faltas,
                     'colab_com_faltas': colab_com_faltas,
-                    'media_faltas_por_colab': media_faltas_por_colab,
-                    'indice_concentracao': indice_concentracao,
+                    'score_risco': score_risco,
                     'status': status,
-                    'status_color': status_color
+                    'status_color': status_color,
+                    'genero': genero_gestor
                 })
             
-            # Ordena por % de colaboradores com faltas (descendente) - maiores porcentagens primeiro
-            dados_gestores.sort(key=lambda x: x['pct_colab_com_faltas'], reverse=True)
+            # Ordena por Score de Risco (descendente) - maiores scores primeiro
+            dados_gestores.sort(key=lambda x: x['score_risco'], reverse=True)
             return dados_gestores
         
         # PERÍODO INTEIRO
@@ -540,7 +623,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Com Faltas (X/Y)', 'Índice Concentração']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Score de Risco', 'Gênero']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -583,7 +666,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                     cell.font = Font(bold=True, color='FFFFFFFF')
             
-            # Coluna 7: % Colaboradores com Faltas (fórmula)
+            # Coluna 7: % Colaboradores com Faltas
             cell_pct_colab = ws.cell(row=row_idx, column=7)
             cell_pct_colab.value = dado['pct_colab_com_faltas']
             cell_pct_colab.number_format = '0.00"%"'
@@ -592,22 +675,22 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_pct_colab.font = Font(bold=True, color='FF000000')
             cell_pct_colab.border = thin_border
             
-            # Coluna 8: X/Y Colaboradores com Faltas
-            cell_colab_ratio = ws.cell(row=row_idx, column=8)
-            cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
-            cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
-            cell_colab_ratio.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            cell_colab_ratio.font = Font(bold=True)
-            cell_colab_ratio.border = thin_border
+            # Coluna 8: Score de Risco
+            cell_score_risco = ws.cell(row=row_idx, column=8)
+            cell_score_risco.value = dado['score_risco']
+            cell_score_risco.number_format = '0.00'
+            cell_score_risco.alignment = Alignment(horizontal='center', vertical='center')
+            cell_score_risco.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')  # Cinza padrão
+            cell_score_risco.font = Font(bold=True)
+            cell_score_risco.border = thin_border
             
-            # Coluna 9: Índice de Concentração (0-100)
-            cell_indice = ws.cell(row=row_idx, column=9)
-            cell_indice.value = round(dado['indice_concentracao'], 1)
-            cell_indice.number_format = '0.0'
-            cell_indice.alignment = Alignment(horizontal='center', vertical='center')
-            cell_indice.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            cell_indice.font = Font(bold=True)
-            cell_indice.border = thin_border
+            # Coluna 9: GENERO
+            cell_genero = ws.cell(row=row_idx, column=9)
+            cell_genero.value = dado['genero']
+            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
+            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+            cell_genero.font = Font(bold=True)
+            cell_genero.border = thin_border
             
             row_idx += 1
         
@@ -673,22 +756,22 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell_pct_colab.font = Font(bold=True, color='FF000000')
                 cell_pct_colab.border = thin_border
                 
-                # Coluna 8: X/Y Colaboradores com Faltas - cinza claro
-                cell_colab_ratio = ws.cell(row=row_idx, column=8)
-                cell_colab_ratio.value = f"{dado['colab_com_faltas']}/{dado['total_colab']}"
-                cell_colab_ratio.alignment = Alignment(horizontal='center', vertical='center')
-                cell_colab_ratio.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                cell_colab_ratio.font = Font(bold=True)
-                cell_colab_ratio.border = thin_border
+                # Coluna 8: Score de Risco
+                cell_score_risco = ws.cell(row=row_idx, column=8)
+                cell_score_risco.value = dado['score_risco']
+                cell_score_risco.number_format = '0.00'
+                cell_score_risco.alignment = Alignment(horizontal='center', vertical='center')
+                cell_score_risco.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')  # Cinza padrão
+                cell_score_risco.font = Font(bold=True)
+                cell_score_risco.border = thin_border
                 
-                # Coluna 9: Índice de Concentração (0-100) - cinza claro
-                cell_indice = ws.cell(row=row_idx, column=9)
-                cell_indice.value = round(dado['indice_concentracao'], 1)
-                cell_indice.number_format = '0.0'
-                cell_indice.alignment = Alignment(horizontal='center', vertical='center')
-                cell_indice.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                cell_indice.font = Font(bold=True)
-                cell_indice.border = thin_border
+                # Coluna 9: GENERO
+                cell_genero = ws.cell(row=row_idx, column=9)
+                cell_genero.value = dado['genero']
+                cell_genero.alignment = Alignment(horizontal='center', vertical='center')
+                cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                cell_genero.font = Font(bold=True)
+                cell_genero.border = thin_border
                 
                 row_idx += 1
         
@@ -700,8 +783,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 16
         ws.column_dimensions['G'].width = 18  # % Colab. com Faltas
-        ws.column_dimensions['H'].width = 14  # Com Faltas (X/Y)
-        ws.column_dimensions['I'].width = 18  # Índice Concentração
+        ws.column_dimensions['H'].width = 18  # Score de Risco
+        ws.column_dimensions['I'].width = 15 * 1.2  # Gênero (20% maior)
         
         return True
     except Exception as e:
@@ -765,7 +848,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx = 1
         
         # Título geral
-        ws.merge_cells('A1:I1')
+        ws.merge_cells('A1:H1')
         title_cell = ws.cell(row=row_idx, column=1, value='🏆 RANKING DE ABSENTEÍSMO')
         title_cell.font = Font(bold=True, size=14, color='FFFFFF')
         title_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
@@ -774,7 +857,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx += 2
         
         # ===== TOP 10 FA =====
-        ws.merge_cells(f'A{row_idx}:I{row_idx}')
+        ws.merge_cells(f'A{row_idx}:H{row_idx}')
         fa_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS POR ATESTADO (FA)')
         fa_header.font = Font(bold=True, size=12, color='FFFFFFFF')
         fa_header.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
@@ -782,7 +865,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx += 1
         
         # Headers FA
-        headers_fa = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FA', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
+        headers_fa = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FA', 'Data Admissão', 'Tempo de Serviço']
         for col_idx, header in enumerate(headers_fa, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -842,19 +925,12 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell_tempo.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
             
-            # Gênero
-            genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
-            cell_genero = ws.cell(row=row_idx, column=9, value=genero)
-            cell_genero.border = thin_border
-            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
-            
             row_idx += 1
         
         row_idx += 2
         
         # ===== TOP 10 FI =====
-        ws.merge_cells(f'A{row_idx}:I{row_idx}')
+        ws.merge_cells(f'A{row_idx}:H{row_idx}')
         fi_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS INJUSTIFICADAS (FI)')
         fi_header.font = Font(bold=True, size=12, color='FFFFFFFF')
         fi_header.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
@@ -862,7 +938,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         row_idx += 1
         
         # Headers FI
-        headers_fi = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FI', 'Data Admissão', 'Tempo de Serviço', 'Gênero']
+        headers_fi = ['Posição', 'Nome', 'Gestor', 'Função', 'Área', 'FI', 'Data Admissão', 'Tempo de Serviço']
         for col_idx, header in enumerate(headers_fi, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -922,13 +998,6 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell_tempo.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
             cell_tempo.alignment = Alignment(horizontal='center', vertical='center')
             
-            # Gênero
-            genero = row.get('Gênero', 'N/A') if 'Gênero' in row.index else 'N/A'
-            cell_genero = ws.cell(row=row_idx, column=9, value=genero)
-            cell_genero.border = thin_border
-            cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            cell_genero.alignment = Alignment(horizontal='center', vertical='center')
-            
             row_idx += 1
         
         # Ajusta largura das colunas
@@ -940,7 +1009,6 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         ws.column_dimensions['F'].width = 12
         ws.column_dimensions['G'].width = 15  # Data Admissão
         ws.column_dimensions['H'].width = 18  # Tempo de Serviço
-        ws.column_dimensions['I'].width = 14  # Gênero
         
         return (top10_fa, top10_fi)
     except Exception as e:
@@ -3283,21 +3351,11 @@ with col_btn_processar:
                     progress_bar.progress(60)
                     df_mest_marcado = ler_dataframe_do_workbook(w.book)
                     
-                    # ===== CRIAR SHEET DE OFENSORES DE ABS (COM DADOS MARCADOS) =====
-                    status_text.info("📊 Gerando relatório de ofensores...")
-                    progress_bar.progress(70)
-                    criar_sheet_ofensores_abs(df_mest_marcado, w, mapa_datas, MAPA_CORES, afastamentos)
-                    
-                    # ===== CRIAR SHEET DE RANKING DE ABS =====
-                    status_text.info("🏆 Gerando ranking de absenteísmo...")
-                    progress_bar.progress(72)
-                    
-                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
-                    
-                    # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
+                    # ===== CARREGAR DADOS DO CSV DE COLABORADORES =====
                     status_text.info("📊 Capturando dados do CSV de colaboradores...")
-                    progress_bar.progress(73)
+                    progress_bar.progress(70)
                     
+                    df_colab_para_ranking = None
                     if file_colaboradores is not None:
                         try:
                             # Carrega CSV de colaboradores
@@ -3308,7 +3366,6 @@ with col_btn_processar:
                                 # Tenta diferentes encodings e separadores para CSV
                                 encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
                                 separadores = [',', ';', '\t', '|']
-                                df_colab_para_ranking = None
                                 
                                 for enc in encodings:
                                     for sep in separadores:
@@ -3321,39 +3378,57 @@ with col_btn_processar:
                                             continue
                                     if df_colab_para_ranking is not None:
                                         break
+                        except Exception as e:
+                            st.warning(f"⚠️ Não foi possível carregar CSV de colaboradores: {str(e)}")
+                    
+                    # ===== CRIAR SHEET DE OFENSORES DE ABS (COM DADOS MARCADOS) =====
+                    status_text.info("📊 Gerando relatório de ofensores...")
+                    progress_bar.progress(71)
+                    criar_sheet_ofensores_abs(df_mest_marcado, w, mapa_datas, MAPA_CORES, afastamentos, df_colab_para_ranking)
+                    
+                    # ===== CRIAR SHEET DE RANKING DE ABS =====
+                    status_text.info("🏆 Gerando ranking de absenteísmo...")
+                    progress_bar.progress(72)
+                    
+                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
+                    
+                    # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
+                    status_text.info("📊 Enriquecendo ranking com dados do CSV...")
+                    progress_bar.progress(73)
+                    
+                    if df_colab_para_ranking is not None:
+                        try:
+                            # Re-gera TOP 10 para enriquecimento
+                            colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
+                            df_ranking_temp = pd.DataFrame({
+                                'NOME': df_mest_marcado['NOME'],
+                                'GESTOR': df_mest_marcado['GESTOR'],
+                                'FUNÇÃO': df_mest_marcado['FUNÇÃO'],
+                                'AREA': df_mest_marcado['AREA'],
+                                'FI': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FI').sum(), axis=1),
+                                'FA': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FA').sum(), axis=1),
+                            }).copy()
+                            df_ranking_temp = df_ranking_temp[df_ranking_temp['NOME'].notna() & (df_ranking_temp['NOME'] != '')]
                             
-                            if df_colab_para_ranking is not None:
-                                # Re-gera TOP 10 para enriquecimento
-                                colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
-                                df_ranking_temp = pd.DataFrame({
-                                    'NOME': df_mest_marcado['NOME'],
-                                    'GESTOR': df_mest_marcado['GESTOR'],
-                                    'FUNÇÃO': df_mest_marcado['FUNÇÃO'],
-                                    'AREA': df_mest_marcado['AREA'],
-                                    'FI': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FI').sum(), axis=1),
-                                    'FA': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FA').sum(), axis=1),
-                                }).copy()
-                                df_ranking_temp = df_ranking_temp[df_ranking_temp['NOME'].notna() & (df_ranking_temp['NOME'] != '')]
-                                
-                                top10_fa_display = df_ranking_temp.nlargest(10, 'FA')
-                                top10_fi_display = df_ranking_temp.nlargest(10, 'FI')
-                                
-                                # Enriquece com dados do CSV
-                                top10_fa_display, top10_fi_display = enriquecer_ranking_com_dados_csv(top10_fa_display, top10_fi_display, df_colab_para_ranking)
-                                
-                                # Recreia o sheet de ranking com dados enriquecidos
-                                status_text.info("✅ Atualizando ranking com dados do CSV...")
-                                progress_bar.progress(74)
-                                
-                                # Remove o sheet anterior (se existir)
-                                if 'Ranking ABS' in w.book.sheetnames:
-                                    del w.book['Ranking ABS']
-                                
-                                # Cria novo sheet com dados enriquecidos
-                                criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES, top10_fa_display, top10_fi_display)
-                                
-                                status_text.info("✅ Ranking atualizado com sucesso!")
-                                progress_bar.progress(75)
+                            top10_fa_display = df_ranking_temp.nlargest(10, 'FA')
+                            top10_fi_display = df_ranking_temp.nlargest(10, 'FI')
+                            
+                            # Enriquece com dados do CSV
+                            top10_fa_display, top10_fi_display = enriquecer_ranking_com_dados_csv(top10_fa_display, top10_fi_display, df_colab_para_ranking)
+                            
+                            # Recreia o sheet de ranking com dados enriquecidos
+                            status_text.info("✅ Atualizando ranking com dados do CSV...")
+                            progress_bar.progress(74)
+                            
+                            # Remove o sheet anterior (se existir)
+                            if 'Ranking ABS' in w.book.sheetnames:
+                                del w.book['Ranking ABS']
+                            
+                            # Cria novo sheet com dados enriquecidos
+                            criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES, top10_fa_display, top10_fi_display)
+                            
+                            status_text.info("✅ Ranking atualizado com sucesso!")
+                            progress_bar.progress(75)
                         except Exception as e:
                             st.warning(f"⚠️ Não foi possível enriquecer ranking com CSV: {str(e)}")
                     
