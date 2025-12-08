@@ -567,11 +567,6 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 # Porcentagem de colaboradores com faltas
                 pct_colab_com_faltas = (colab_com_faltas / total_colab * 100) if total_colab > 0 else 0
                 
-                # Calcular Score de Risco
-                # Fórmula: (Porcentagem) + ((Total de Faltas / Total de Colaboradores) × 50)
-                intensidade_faltas = (total_faltas / total_colab * 50) if total_colab > 0 else 0
-                score_risco = pct_colab_com_faltas + intensidade_faltas
-                
                 if percentual > 20:
                     status = '🔴 CRÍTICO'
                     status_color = 'FFFF0000'
@@ -592,14 +587,13 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                     'percentual': percentual,
                     'pct_colab_com_faltas': pct_colab_com_faltas,
                     'colab_com_faltas': colab_com_faltas,
-                    'score_risco': score_risco,
                     'status': status,
                     'status_color': status_color,
                     'genero': genero_gestor
                 })
             
-            # Ordena por Score de Risco (descendente) - maiores scores primeiro
-            dados_gestores.sort(key=lambda x: x['score_risco'], reverse=True)
+            # Ordena por porcentagem de colaboradores com faltas (descendente)
+            dados_gestores.sort(key=lambda x: x['pct_colab_com_faltas'], reverse=True)
             return dados_gestores
         
         # PERÍODO INTEIRO
@@ -621,7 +615,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         row_idx += 1
         
         # Headers
-        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Score de Risco', 'Gênero']
+        headers = ['GESTOR', 'TURNO', 'Total de Colaboradores', 'Com Faltas (FI)', 'Com Faltas (FA)', 'Total de Faltas', '% Colab. com Faltas', 'Gênero']
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.value = header
@@ -673,17 +667,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             cell_pct_colab.font = Font(bold=True, color='FF000000')
             cell_pct_colab.border = thin_border
             
-            # Coluna 8: Score de Risco
-            cell_score_risco = ws.cell(row=row_idx, column=8)
-            cell_score_risco.value = dado['score_risco']
-            cell_score_risco.number_format = '0.00'
-            cell_score_risco.alignment = Alignment(horizontal='center', vertical='center')
-            cell_score_risco.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')  # Cinza padrão
-            cell_score_risco.font = Font(bold=True)
-            cell_score_risco.border = thin_border
-            
-            # Coluna 9: GENERO
-            cell_genero = ws.cell(row=row_idx, column=9)
+            # Coluna 8: GENERO
+            cell_genero = ws.cell(row=row_idx, column=8)
             cell_genero.value = dado['genero']
             cell_genero.alignment = Alignment(horizontal='center', vertical='center')
             cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
@@ -753,17 +738,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
                 cell_pct_colab.font = Font(bold=True, color='FF000000')
                 cell_pct_colab.border = thin_border
                 
-                # Coluna 8: Score de Risco
-                cell_score_risco = ws.cell(row=row_idx, column=8)
-                cell_score_risco.value = dado['score_risco']
-                cell_score_risco.number_format = '0.00'
-                cell_score_risco.alignment = Alignment(horizontal='center', vertical='center')
-                cell_score_risco.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')  # Cinza padrão
-                cell_score_risco.font = Font(bold=True)
-                cell_score_risco.border = thin_border
-                
-                # Coluna 9: GENERO
-                cell_genero = ws.cell(row=row_idx, column=9)
+                # Coluna 8: GENERO
+                cell_genero = ws.cell(row=row_idx, column=8)
                 cell_genero.value = dado['genero']
                 cell_genero.alignment = Alignment(horizontal='center', vertical='center')
                 cell_genero.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
@@ -780,8 +756,7 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         ws.column_dimensions['E'].width = 18
         ws.column_dimensions['F'].width = 16
         ws.column_dimensions['G'].width = 18  # % Colab. com Faltas
-        ws.column_dimensions['H'].width = 18  # Score de Risco
-        ws.column_dimensions['I'].width = 15 * 1.2  # Gênero (20% maior)
+        ws.column_dimensions['H'].width = 15 * 1.2  # Gênero (20% maior)
         
         return True
     except Exception as e:
@@ -1010,6 +985,160 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         return (top10_fa, top10_fi)
     except Exception as e:
         st.error(f"Erro ao criar sheet de ranking: {str(e)}")
+        import traceback
+        st.write(traceback.format_exc())
+        return False
+
+
+def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas):
+    """
+    Cria sheet 'Ofensores Semanais' mostrando:
+    - Semana (segunda a sábado)
+    - Nome do colaborador
+    - Gestor/Encarregado
+    - Quantidade de FI
+    - Quantidade de FA
+    """
+    try:
+        from openpyxl.styles import Border, Side
+        import calendar
+        
+        # Extrai colunas de datas
+        colunas_datas = [col for col in df_mest.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO', 'TURNO']]
+        datas_obj = sorted([d for d in mapa_datas.keys() if isinstance(d, datetime.date)])
+        
+        if not datas_obj:
+            return False
+        
+        # Define bordas
+        border_style = Side(style='thin', color='000000')
+        thin_border = Border(
+            left=border_style,
+            right=border_style,
+            top=border_style,
+            bottom=border_style
+        )
+        
+        # Cria o sheet
+        ws = w.book.create_sheet('Ofensores Semanais')
+        
+        # Header principal
+        titulo_cell = ws['A1']
+        titulo_cell.value = '📅 OFENSORES SEMANAIS (Segunda a Sábado)'
+        titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
+        titulo_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+        ws.merge_cells('A1:E1')
+        titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # Processa semanas
+        ano_dados = datas_obj[0].year
+        mes_dados = datas_obj[0].month
+        
+        # monthcalendar retorna semanas (segunda a domingo)
+        cal = calendar.monthcalendar(ano_dados, mes_dados)
+        
+        row_atual = 3
+        semana_num = 1
+        
+        for semana_dias in cal:
+            # Filtra apenas dias que existem em nosso dataset (segunda a sábado = índices 0-5)
+            dias_na_semana = [dia for dia in semana_dias[:6] if dia != 0]  # Pega segunda a sábado
+            
+            # Encontra quais datas do nosso dataset estão nesta semana
+            datas_nesta_semana = sorted([d for d in datas_obj if d.day in dias_na_semana])
+            
+            if not datas_nesta_semana:
+                continue
+            
+            # Header da semana
+            data_inicio = datas_nesta_semana[0]
+            data_fim = datas_nesta_semana[-1]
+            label_semana = f"Semana {semana_num} - {data_inicio.day:02d}/{data_inicio.month:02d} a {data_fim.day:02d}/{data_fim.month:02d}"
+            
+            semana_cell = ws[f'A{row_atual}']
+            semana_cell.value = label_semana
+            semana_cell.font = Font(bold=True, size=11, color='FFFFFF')
+            semana_cell.fill = PatternFill(start_color='FF1F4E3C', end_color='FF1F4E3C', fill_type='solid')
+            ws.merge_cells(f'A{row_atual}:E{row_atual}')
+            semana_cell.alignment = Alignment(horizontal='center', vertical='center')
+            row_atual += 1
+            
+            # Headers das colunas
+            headers = ['Nome', 'Gestor', 'FI', 'FA', 'Total Faltas']
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=row_atual, column=col_idx)
+                cell.value = header
+                cell.font = Font(bold=True, color='FFFFFF', size=10)
+                cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = thin_border
+            row_atual += 1
+            
+            # Colunas das datas nesta semana
+            colunas_semana = [mapa_datas[d] for d in datas_nesta_semana]
+            
+            # Coleta dados dos colaboradores que faltaram nesta semana
+            dados_colaboradores = []
+            
+            for idx, row_colab in df_mest.iterrows():
+                total_fi_semana = 0
+                total_fa_semana = 0
+                
+                for col_data in colunas_semana:
+                    if col_data not in df_mest.columns:
+                        continue
+                    
+                    valor = str(row_colab[col_data]).strip().upper() if pd.notna(row_colab[col_data]) else ''
+                    
+                    if valor == 'FI':
+                        total_fi_semana += 1
+                    elif valor == 'FA':
+                        total_fa_semana += 1
+                
+                # Inclui apenas colaboradores que tiveram faltas nesta semana
+                if total_fi_semana > 0 or total_fa_semana > 0:
+                    dados_colaboradores.append({
+                        'nome': row_colab.get('NOME', ''),
+                        'gestor': row_colab.get('GESTOR', ''),
+                        'fi': total_fi_semana,
+                        'fa': total_fa_semana,
+                        'total': total_fi_semana + total_fa_semana
+                    })
+            
+            # Ordena por total de faltas (descendente)
+            dados_colaboradores.sort(key=lambda x: x['total'], reverse=True)
+            
+            # Escreve dados na planilha
+            for dados in dados_colaboradores:
+                ws.cell(row=row_atual, column=1, value=dados['nome'])
+                ws.cell(row=row_atual, column=2, value=dados['gestor'])
+                ws.cell(row=row_atual, column=3, value=dados['fi'])
+                ws.cell(row=row_atual, column=4, value=dados['fa'])
+                ws.cell(row=row_atual, column=5, value=dados['total'])
+                
+                # Formatação
+                for col_idx in range(1, 6):
+                    cell = ws.cell(row=row_atual, column=col_idx)
+                    cell.border = thin_border
+                    if col_idx >= 3:  # Colunas numéricas
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                
+                row_atual += 1
+            
+            # Espaço entre semanas
+            row_atual += 1
+            semana_num += 1
+        
+        # Ajusta largura das colunas
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 10
+        ws.column_dimensions['D'].width = 10
+        ws.column_dimensions['E'].width = 15
+        
+        return True
+    except Exception as e:
+        st.error(f"Erro ao criar sheet de ofensores semanais: {str(e)}")
         import traceback
         st.write(traceback.format_exc())
         return False
@@ -2003,8 +2132,8 @@ with col_btn_processar:
                     
                     area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
                     
-                    # Linha 4: M&A / BLOQ com HC
-                    cell_ma = ws_porcentagens.cell(row=4, column=1, value='M&A / BLOQ')
+                    # Linha 4: M&A com HC
+                    cell_ma = ws_porcentagens.cell(row=4, column=1, value='M&A')
                     cell_ma.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                     cell_ma.font = Font(bold=True)
                     
@@ -2077,10 +2206,10 @@ with col_btn_processar:
                     
                     # Setores para porcentagens
                     setores_info_pct = [
-                        ('M&A / BLOQ', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
-                        ('M&A / BLOQ - Porcentagem', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
+                        ('M&A', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
+                        ('M&A - %', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
                         ('CRDK / D&E', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', '']),
-                        ('CRDK / D&E - Porcentagem', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', ''])
+                        ('CRDK / D&E - %', ['CROSSDOCK DISTRIBUICAO E EXPEDICAO', 'CRDK D&E|CD-RJ HB', 'DISTRIBUICAO E EXPEDICAO', ''])
                     ]
                     
                     row_pct = 9
@@ -2115,7 +2244,7 @@ with col_btn_processar:
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
-                                    if setor_nome == 'M&A / BLOQ':
+                                    if setor_nome == 'M&A':
                                         formula = (
                                             f'=SUMPRODUCT('
                                             f'(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))'
@@ -2154,10 +2283,10 @@ with col_btn_processar:
                                     cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                                     cell.font = Font(bold=True, color='FFFFFFFF')
                                 else:
-                                    if 'M&A / BLOQ - Porcentagem' in setor_nome:
-                                        contagem_row = row_pct - 1  # Linha anterior (M&A / BLOQ)
+                                    if 'M&A - %' in setor_nome:
+                                        contagem_row = row_pct - 1  # Linha anterior (M&A)
                                         hc_cell = 'B4'  # HC está em B4
-                                    else:  # CRDK / D&E - Porcentagem
+                                    else:  # CRDK / D&E - %
                                         contagem_row = row_pct - 1  # Linha anterior (CRDK / D&E)
                                         hc_cell = 'B5'  # HC está em B5
                                     
@@ -2419,20 +2548,14 @@ with col_btn_processar:
                     green_font = Font(bold=True, color='FFFFFFFF')
                     green_rule = CellIsRule(operator='lessThan', formula=['3'], fill=green_fill, font=green_font)
                     
-                    # Amarelo: >= 3% e <= 3.5% (AMARELO FORTE)
-                    yellow_fill = PatternFill(start_color='FFFF9900', end_color='FFFF9900', fill_type='solid')
-                    yellow_font = Font(bold=True, color='FFFFFFFF')
-                    yellow_rule = CellIsRule(operator='between', formula=['3', '3.5'], fill=yellow_fill, font=yellow_font)
-                    
-                    # Vermelho: > 3.5% (VERMELHO FORTE)
+                    # Vermelho: >= 3% (VERMELHO FORTE)
                     red_fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
                     red_font = Font(bold=True, color='FFFFFFFF')
-                    red_rule = CellIsRule(operator='greaterThan', formula=['3.5'], fill=red_fill, font=red_font)
+                    red_rule = CellIsRule(operator='greaterThanOrEqual', formula=['3'], fill=red_fill, font=red_font)
                     
                     # Aplica as regras ao intervalo de %Acumulado
                     acum_range = f'{get_column_letter(2)}{row_acumulado}:{get_column_letter(len(sorted(mapa_datas.keys()))+1)}{row_acumulado}'
                     ws_porcentagens.conditional_formatting.add(acum_range, green_rule)
-                    ws_porcentagens.conditional_formatting.add(acum_range, yellow_rule)
                     ws_porcentagens.conditional_formatting.add(acum_range, red_rule)
                     
                     # Ajusta largura das colunas
@@ -2440,277 +2563,6 @@ with col_btn_processar:
                     ws_porcentagens.column_dimensions['B'].width = 15
                     for col_idx in range(2, len(sorted(mapa_datas.keys())) + 2):
                         ws_porcentagens.column_dimensions[get_column_letter(col_idx)].width = 12
-                    
-                    # ===== PORCENTAGENS POR TURNO =====
-                    # Cria uma nova aba para porcentagens por turno
-                    if 'TURNO' in df_mest.columns:
-                        ws_turno = w.book.create_sheet('Porcentagens TURNO')
-                        
-                        # Linha 1: Título
-                        ws_turno.merge_cells('A1:Z1')
-                        titulo_turno = ws_turno.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO POR TURNO')
-                        titulo_turno.font = Font(bold=True, size=14, color='FFFFFF')
-                        titulo_turno.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                        
-                        row_turno = 3
-                        
-                        # Para cada turno (1, 2, 3)
-                        for turno_num in [1, 2, 3]:
-                            turno_label = f'TURNO {turno_num}'
-                            turno_value = f"TURNO {turno_num}"
-                            
-                            # Título do turno
-                            ws_turno.merge_cells(f'A{row_turno}:Z{row_turno}')
-                            cell_turno_header = ws_turno.cell(row=row_turno, column=1, value=turno_label)
-                            cell_turno_header.font = Font(bold=True, size=12, color='FFFFFF')
-                            cell_turno_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                            row_turno += 1
-                            
-                            # ===== M&A / BLOQ =====
-                            # Header M&A / BLOQ com datas
-                            cell_ma_header = ws_turno.cell(row=row_turno, column=1, value='M&A / BLOQ')
-                            cell_ma_header.font = Font(bold=True, color='FFFFFF', size=10)
-                            cell_ma_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                            
-                            for dia in range(1, dias_no_mes + 1):
-                                data_formatada = f"{dia:02d}/{mes_dados:02d}"
-                                col_idx = dia + 1
-                                cell_header_data_ma = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
-                                cell_header_data_ma.font = Font(bold=True, color='FFFFFF', size=9)
-                                cell_header_data_ma.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                                cell_header_data_ma.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 1
-                            
-                            # FI
-                            cell_fi_label = ws_turno.cell(row=row_turno, column=1, value='FI')
-                            cell_fi_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_fi_label.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
-                            turno_text = f"TURNO {turno_num}"
-                            for dia in range(1, dias_no_mes + 1):
-                                col_idx = dia + 1
-                                data_obj = datetime.date(ano_dados, mes_dados, dia)
-                                cell_fi = ws_turno.cell(row=row_turno, column=col_idx)
-                                
-                                # Detecta se é domingo (6) ou feriado
-                                eh_domingo = data_obj.weekday() == 6
-                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
-                                
-                                if eh_feriado:
-                                    cell_fi.value = "FERIADO"
-                                    cell_fi.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fi.font = Font(color='FFFFFFFF', bold=True)
-                                elif eh_domingo:
-                                    cell_fi.value = "DOMINGO"
-                                    cell_fi.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fi.font = Font(color='FFFFFFFF', bold=True)
-                                elif data_obj in mapa_datas:
-                                    col_data = mapa_datas[data_obj]
-                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                                    data_col_letter = get_column_letter(data_col_idx)
-                                    
-                                    cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
-                                    cell_fi.font = Font(bold=True, color='FFFFFFFF')
-                                else:
-                                    cell_fi.value = 0
-                                    cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
-                                    cell_fi.font = Font(bold=True, color='FFFFFFFF')
-                                cell_fi.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 1
-                            
-                            # FA
-                            cell_fa_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_fa_label.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
-                            for dia in range(1, dias_no_mes + 1):
-                                col_idx = dia + 1
-                                data_obj = datetime.date(ano_dados, mes_dados, dia)
-                                cell_fa = ws_turno.cell(row=row_turno, column=col_idx)
-                                
-                                # Detecta se é domingo (6) ou feriado
-                                eh_domingo = data_obj.weekday() == 6
-                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
-                                
-                                if eh_feriado:
-                                    cell_fa.value = "FERIADO"
-                                    cell_fa.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fa.font = Font(color='FFFFFFFF', bold=True)
-                                elif eh_domingo:
-                                    cell_fa.value = "DOMINGO"
-                                    cell_fa.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fa.font = Font(color='FFFFFFFF', bold=True)
-                                elif data_obj in mapa_datas:
-                                    col_data = mapa_datas[data_obj]
-                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                                    data_col_letter = get_column_letter(data_col_idx)
-                                    
-                                    cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
-                                    cell_fa.font = Font(bold=True, color='FFFFFFFF')
-                                else:
-                                    cell_fa.value = 0
-                                    cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
-                                    cell_fa.font = Font(bold=True, color='FFFFFFFF')
-                                cell_fa.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 1
-                            
-                            # TOTAL M&A
-                            cell_total_ma_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
-                            cell_total_ma_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_total_ma_label.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                            for dia in range(1, dias_no_mes + 1):
-                                col_idx = dia + 1
-                                data_obj = datetime.date(ano_dados, mes_dados, dia)
-                                cell_total_ma = ws_turno.cell(row=row_turno, column=col_idx)
-                                
-                                # Detecta se é domingo (6) ou feriado
-                                eh_domingo = data_obj.weekday() == 6
-                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
-                                
-                                # Soma FI + FA da linha anterior
-                                prev_row_fi = row_turno - 2
-                                prev_row_fa = row_turno - 1
-                                col_letter = get_column_letter(col_idx)
-                                
-                                if eh_feriado:
-                                    cell_total_ma.value = "FERIADO"
-                                elif eh_domingo:
-                                    cell_total_ma.value = "DOMINGO"
-                                else:
-                                    cell_total_ma.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
-                                
-                                if eh_feriado or eh_domingo:
-                                    cell_total_ma.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
-                                else:
-                                    # TOTAL com verde escuro Profarma
-                                    cell_total_ma.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                                    cell_total_ma.font = Font(color='FFFFFFFF', bold=True)
-                                cell_total_ma.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 2  # Espaço
-                            
-                            # ===== CRDK / D&E =====
-                            # Header CRDK / D&E com datas
-                            cell_crdk_header = ws_turno.cell(row=row_turno, column=1, value='CRDK / D&E')
-                            cell_crdk_header.font = Font(bold=True, color='FFFFFF', size=10)
-                            cell_crdk_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                            
-                            for dia in range(1, dias_no_mes + 1):
-                                data_formatada = f"{dia:02d}/{mes_dados:02d}"
-                                col_idx = dia + 1
-                                cell_header_data_crdk = ws_turno.cell(row=row_turno, column=col_idx, value=data_formatada)
-                                cell_header_data_crdk.font = Font(bold=True, color='FFFFFF', size=9)
-                                cell_header_data_crdk.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                                cell_header_data_crdk.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 1
-                            
-                            # FI CRDK
-                            cell_fi_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FI')
-                            cell_fi_crdk_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_fi_crdk_label.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
-                            for dia in range(1, dias_no_mes + 1):
-                                col_idx = dia + 1
-                                data_obj = datetime.date(ano_dados, mes_dados, dia)
-                                cell_fi_crdk = ws_turno.cell(row=row_turno, column=col_idx)
-                                
-                                # Detecta se é domingo (6) ou feriado
-                                eh_domingo = data_obj.weekday() == 6
-                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
-                                
-                                if eh_feriado:
-                                    cell_fi_crdk.value = "FERIADO"
-                                    cell_fi_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fi_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                elif eh_domingo:
-                                    cell_fi_crdk.value = "DOMINGO"
-                                    cell_fi_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fi_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                elif data_obj in mapa_datas:
-                                    col_data = mapa_datas[data_obj]
-                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                                    data_col_letter = get_column_letter(data_col_idx)
-                                    
-                                    cell_fi_crdk.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
-                                    cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
-                                else:
-                                    cell_fi_crdk.value = 0
-                                    cell_fi_crdk.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
-                                    cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
-                                cell_fi_crdk.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 1
-                            
-                            # FA CRDK
-                            cell_fa_crdk_label = ws_turno.cell(row=row_turno, column=1, value='FA')
-                            cell_fa_crdk_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_fa_crdk_label.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
-                            for dia in range(1, dias_no_mes + 1):
-                                col_idx = dia + 1
-                                data_obj = datetime.date(ano_dados, mes_dados, dia)
-                                cell_fa_crdk = ws_turno.cell(row=row_turno, column=col_idx)
-                                
-                                # Detecta se é domingo (6) ou feriado
-                                eh_domingo = data_obj.weekday() == 6
-                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
-                                
-                                if eh_feriado:
-                                    cell_fa_crdk.value = "FERIADO"
-                                    cell_fa_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fa_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                elif eh_domingo:
-                                    cell_fa_crdk.value = "DOMINGO"
-                                    cell_fa_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                    cell_fa_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                elif data_obj in mapa_datas:
-                                    col_data = mapa_datas[data_obj]
-                                    data_col_idx = list(df_mest_final.columns).index(col_data) + 1
-                                    data_col_letter = get_column_letter(data_col_idx)
-                                    
-                                    cell_fa_crdk.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
-                                    cell_fa_crdk.font = Font(bold=True, color='FFFFFFFF')
-                                else:
-                                    cell_fa_crdk.value = 0
-                                    cell_fa_crdk.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
-                                    cell_fa_crdk.font = Font(bold=True, color='FFFFFFFF')
-                                cell_fa_crdk.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 1
-                            
-                            # TOTAL CRDK
-                            cell_total_crdk_label = ws_turno.cell(row=row_turno, column=1, value='TOTAL')
-                            cell_total_crdk_label.font = Font(bold=True, color='FFFFFFFF')
-                            cell_total_crdk_label.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                            for dia in range(1, dias_no_mes + 1):
-                                col_idx = dia + 1
-                                data_obj = datetime.date(ano_dados, mes_dados, dia)
-                                cell_total_crdk = ws_turno.cell(row=row_turno, column=col_idx)
-                                
-                                # Detecta se é domingo (6) ou feriado
-                                eh_domingo = data_obj.weekday() == 6
-                                eh_feriado = data_obj in feriados_temp if 'feriados_temp' in locals() else False
-                                
-                                # Soma FI + FA da linha anterior
-                                prev_row_fi = row_turno - 2
-                                prev_row_fa = row_turno - 1
-                                col_letter = get_column_letter(col_idx)
-                                
-                                if eh_feriado:
-                                    cell_total_crdk.value = "FERIADO"
-                                elif eh_domingo:
-                                    cell_total_crdk.value = "DOMINGO"
-                                else:
-                                    cell_total_crdk.value = f'={col_letter}{prev_row_fi}+{col_letter}{prev_row_fa}'
-                                
-                                # TOTAL com verde escuro Profarma
-                                if eh_feriado or eh_domingo:
-                                    cell_total_crdk.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                                else:
-                                    cell_total_crdk.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                                cell_total_crdk.font = Font(color='FFFFFFFF', bold=True)
-                                cell_total_crdk.alignment = Alignment(horizontal='center', vertical='center')
-                            row_turno += 3  # Espaço entre turnos
-                        
-                        
-                        # Ajusta largura das colunas
-                        ws_turno.column_dimensions['A'].width = 25
-                        for col_idx in range(2, dias_no_mes + 2):
-                            ws_turno.column_dimensions[get_column_letter(col_idx)].width = 10
                     
                     # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
                     progress_bar = st.progress(0)
@@ -2787,6 +2639,12 @@ with col_btn_processar:
                     progress_bar.progress(72)
                     
                     criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
+                    
+                    # ===== CRIAR SHEET DE OFENSORES SEMANAIS =====
+                    status_text.info("📅 Gerando ofensores semanais...")
+                    progress_bar.progress(72.5)
+                    
+                    criar_sheet_ofensores_semanais(df_mest_marcado, w, mapa_datas)
                     
                     # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
                     status_text.info("📊 Enriquecendo ranking com dados do CSV...")
