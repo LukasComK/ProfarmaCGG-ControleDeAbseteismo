@@ -990,7 +990,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         return False
 
 
-def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas):
+def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas, df_colaboradores=None):
     """
     Cria sheet 'Ofensores Semanais' mostrando:
     - Semana (segunda a sábado)
@@ -998,10 +998,85 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas):
     - Gestor/Encarregado
     - Quantidade de FI
     - Quantidade de FA
+    - Tempo de Serviço (se disponível no CSV)
     """
     try:
         from openpyxl.styles import Border, Side
         import calendar
+        from dateutil.relativedelta import relativedelta
+        
+        # Função para calcular tempo de admissão
+        def calcular_tempo_admissao(data_admissao):
+            """Calcula Anos e Meses desde a data de admissão (formato: XaYm)"""
+            try:
+                if pd.isna(data_admissao):
+                    return "N/A"
+                
+                # Converte para datetime se necessário
+                if isinstance(data_admissao, str):
+                    # Tenta diferentes formatos
+                    try:
+                        data = pd.to_datetime(data_admissao, format='%d/%m/%Y')
+                    except:
+                        try:
+                            data = pd.to_datetime(data_admissao, format='%Y-%m-%d')
+                        except:
+                            return "N/A"
+                else:
+                    data = pd.to_datetime(data_admissao)
+                
+                hoje = datetime.datetime.now()
+                
+                # Calcula diferença
+                diff = relativedelta(hoje, data)
+                anos = diff.years
+                meses = diff.months
+                
+                return f"{anos}a {meses}m"
+            except:
+                return "N/A"
+        
+        # Função para obter tempo de serviço do colaborador
+        def obter_tempo_servico(nome_colab, df_colab):
+            """Busca o tempo de serviço do colaborador no CSV"""
+            if df_colab is None or df_colab.empty:
+                return "N/A"
+            
+            from difflib import SequenceMatcher
+            
+            def similarity_ratio(a, b):
+                return SequenceMatcher(None, a.upper().strip(), b.upper().strip()).ratio()
+            
+            # Procura pela coluna de colaborador
+            col_nome_csv = None
+            col_data_adm = None
+            
+            for col in df_colab.columns:
+                col_upper = col.upper().strip()
+                if col_upper == 'COLABORADOR':
+                    col_nome_csv = col
+                if 'DATA ADMISS' in col_upper:
+                    col_data_adm = col
+            
+            if col_nome_csv is None or col_data_adm is None:
+                return "N/A"
+            
+            # Busca o colaborador com fuzzy matching
+            melhor_match = None
+            melhor_score = 0
+            
+            for idx, row in df_colab.iterrows():
+                nome_csv = str(row[col_nome_csv]).strip() if pd.notna(row[col_nome_csv]) else ""
+                score = similarity_ratio(nome_colab, nome_csv)
+                
+                if score > melhor_score and score > 0.7:  # Threshold de 70%
+                    melhor_score = score
+                    melhor_match = row[col_data_adm]
+            
+            if melhor_match is not None:
+                return calcular_tempo_admissao(melhor_match)
+            
+            return "N/A"
         
         # Extrai colunas de datas
         colunas_datas = [col for col in df_mest.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO', 'TURNO']]
@@ -1059,12 +1134,12 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas):
             semana_cell.value = label_semana
             semana_cell.font = Font(bold=True, size=11, color='FFFFFF')
             semana_cell.fill = PatternFill(start_color='FF1F4E3C', end_color='FF1F4E3C', fill_type='solid')
-            ws.merge_cells(f'A{row_atual}:E{row_atual}')
+            ws.merge_cells(f'A{row_atual}:F{row_atual}')
             semana_cell.alignment = Alignment(horizontal='center', vertical='center')
             row_atual += 1
             
             # Headers das colunas
-            headers = ['Nome', 'Gestor', 'FI', 'FA', 'Total Faltas']
+            headers = ['Nome', 'Gestor', 'FI', 'FA', 'Total Faltas', 'Tempo de Serviço']
             for col_idx, header in enumerate(headers, 1):
                 cell = ws.cell(row=row_atual, column=col_idx)
                 cell.value = header
@@ -1097,12 +1172,16 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas):
                 
                 # Inclui apenas colaboradores que tiveram faltas nesta semana
                 if total_fi_semana > 0 or total_fa_semana > 0:
+                    # Obtém tempo de serviço do colaborador
+                    tempo_srv = obter_tempo_servico(row_colab.get('NOME', ''), df_colaboradores)
+                    
                     dados_colaboradores.append({
                         'nome': row_colab.get('NOME', ''),
                         'gestor': row_colab.get('GESTOR', ''),
                         'fi': total_fi_semana,
                         'fa': total_fa_semana,
-                        'total': total_fi_semana + total_fa_semana
+                        'total': total_fi_semana + total_fa_semana,
+                        'tempo_servico': tempo_srv
                     })
             
             # Ordena por total de faltas (descendente)
@@ -1112,12 +1191,22 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas):
             for dados in dados_colaboradores:
                 ws.cell(row=row_atual, column=1, value=dados['nome'])
                 ws.cell(row=row_atual, column=2, value=dados['gestor'])
-                ws.cell(row=row_atual, column=3, value=dados['fi'])
-                ws.cell(row=row_atual, column=4, value=dados['fa'])
+                
+                # Coluna FI com cor verde
+                cell_fi = ws.cell(row=row_atual, column=3, value=dados['fi'])
+                cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
+                cell_fi.font = Font(bold=True, color='FFFFFFFF')
+                
+                # Coluna FA com cor verde mais claro
+                cell_fa = ws.cell(row=row_atual, column=4, value=dados['fa'])
+                cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                cell_fa.font = Font(bold=True, color='FFFFFFFF')
+                
                 ws.cell(row=row_atual, column=5, value=dados['total'])
+                ws.cell(row=row_atual, column=6, value=dados['tempo_servico'])
                 
                 # Formatação
-                for col_idx in range(1, 6):
+                for col_idx in range(1, 7):
                     cell = ws.cell(row=row_atual, column=col_idx)
                     cell.border = thin_border
                     if col_idx >= 3:  # Colunas numéricas
@@ -1130,11 +1219,12 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas):
             semana_num += 1
         
         # Ajusta largura das colunas
-        ws.column_dimensions['A'].width = 25
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 10
-        ws.column_dimensions['D'].width = 10
-        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['A'].width = 43   # Nome
+        ws.column_dimensions['B'].width = 42   # Gestor
+        ws.column_dimensions['C'].width = 10   # FI
+        ws.column_dimensions['D'].width = 10   # FA
+        ws.column_dimensions['E'].width = 15   # Total Faltas
+        ws.column_dimensions['F'].width = 18   # Tempo de Serviço
         
         return True
     except Exception as e:
@@ -2642,13 +2732,13 @@ with col_btn_processar:
                     
                     # ===== CRIAR SHEET DE OFENSORES SEMANAIS =====
                     status_text.info("📅 Gerando ofensores semanais...")
-                    progress_bar.progress(72.5)
+                    progress_bar.progress(73)
                     
-                    criar_sheet_ofensores_semanais(df_mest_marcado, w, mapa_datas)
+                    criar_sheet_ofensores_semanais(df_mest_marcado, w, mapa_datas, df_colab_para_ranking)
                     
                     # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
                     status_text.info("📊 Enriquecendo ranking com dados do CSV...")
-                    progress_bar.progress(73)
+                    progress_bar.progress(74)
                     
                     if df_colab_para_ranking is not None:
                         try:
