@@ -456,7 +456,6 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
         titulo_cell.border = thin_border
         
-        # Agrupa datas por período com labels de data (segunda a domingo, ou dias restantes)
         datas_obj = sorted([d for d in mapa_datas.keys() if isinstance(d, datetime.date)])
         periodos_dict = {}  # {label: [colunas_datas], ...}
         
@@ -606,7 +605,6 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
         # PERÍODO INTEIRO
         dados_periodo = processar_analise(colunas_datas)
         
-        # PERÍODOS (com labels de datas)
         dados_periodos = {}
         for label, colunas_periodo in periodos_dict.items():
             dados_periodos[label] = processar_analise(colunas_periodo)
@@ -694,7 +692,6 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
             
             row_idx += 1
         
-        # PERÍODOS (com labels de data)
         for label, dados_periodo_especifico in dados_periodos.items():
             row_idx += 1
             ws.cell(row=row_idx, column=1, value=label)
@@ -2511,7 +2508,6 @@ with col_btn_processar:
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
-                                    cell_fi.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
                                     cell_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                     cell_fi.font = Font(bold=True, color='FFFFFFFF')
                                 else:
@@ -2547,7 +2543,6 @@ with col_btn_processar:
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
-                                    cell_fa.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))+ISNUMBER(SEARCH("BLOQ";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CD-RJ | FOB";Dados!$' + area_col_letter + ':$' + area_col_letter + ')))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
                                     cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                                     cell_fa.font = Font(bold=True, color='FFFFFFFF')
                                 else:
@@ -2633,7 +2628,6 @@ with col_btn_processar:
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
-                                    cell_fi_crdk.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FI"))'
                                     cell_fi_crdk.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
                                     cell_fi_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 else:
@@ -2669,7 +2663,6 @@ with col_btn_processar:
                                     data_col_idx = list(df_mest_final.columns).index(col_data) + 1
                                     data_col_letter = get_column_letter(data_col_idx)
                                     
-                                    cell_fa_crdk.value = '=SUMPRODUCT((ISNUMBER(SEARCH("' + turno_text + '";Dados!$' + turno_col_letter + ':$' + turno_col_letter + ')))*(ISNUMBER(SEARCH("CROSSDOCK DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB";Dados!$' + area_col_letter + ':$' + area_col_letter + '))+ISNUMBER(SEARCH("DISTRIBUICAO E EXPEDICAO";Dados!$' + area_col_letter + ':$' + area_col_letter + '))*NOT(ISNUMBER(SEARCH("CROSSDOCK";Dados!$' + area_col_letter + ':$' + area_col_letter + '))))*(Dados!$' + data_col_letter + ':$' + data_col_letter + '="FA"))'
                                     cell_fa_crdk.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                                     cell_fa_crdk.font = Font(bold=True, color='FFFFFFFF')
                                 else:
@@ -2720,70 +2713,7 @@ with col_btn_processar:
                             ws_turno.column_dimensions[get_column_letter(col_idx)].width = 10
                     
                     # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
-                    datas_lista = sorted(mapa_datas.keys())
-                    mes_atual = datas_lista[0].month if datas_lista else 1
-                    ano_atual = datas_lista[0].year if datas_lista else 2025
-                    
-                    # ===== FERIADOS E MARCAR NA PLANILHA =====
-                    
-                    # ===== GRÁFICO 1: Faltas por Tipo (DINÂMICO) =====
-                    
-                    row_data = row_grafico + 1
-                    
-                    # Dados FI
-                    row_data += 1
-                    # Fórmula que busca a coluna da data selecionada e retorna FI
-                    cell_fi.value = "=IFERROR(INDEX('Porcentagens ABS'!15:15,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
-                    cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
-                    
-                    # Dados FA
-                    row_data += 1
-                    # Fórmula que busca a coluna da data selecionada e retorna FA
-                    cell_fa.value = "=IFERROR(INDEX('Porcentagens ABS'!16:16,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
-                    cell_fa.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
-                    
-                    row_fi_fa_data = row_data
-                    
-                    # Cria gráfico de pizza para tipos de faltas
-                    pie_chart_1 = PieChart()
-                    pie_chart_1.title = 'Faltas por Tipo (Data Selecionada)'
-                    pie_chart_1.style = 10
-                    pie_chart_1.add_data(data, titles_from_data=True)
-                    pie_chart_1.set_categories(labels)
-                    pie_chart_1.height = 10
-                    pie_chart_1.width = 13
-                    
-                    # ===== GRÁFICO 2: Faltas por Setor (DINÂMICO) =====
-                    col_grafico_setor = 5
-                    
-                    row_data = row_grafico + 1
-                    
-                    # Dados M&A / BLOQ
-                    row_data += 1
-                    # Fórmula que busca a coluna da data selecionada e retorna M&A
-                    cell_ma.value = "=IFERROR(INDEX('Porcentagens ABS'!9:9,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
-                    cell_ma.fill = PatternFill(start_color='FFE8F5E0', end_color='FFE8F5E0', fill_type='solid')
-                    
-                    # Dados CRDK / D&E
-                    row_data += 1
-                    # Fórmula que busca a coluna da data selecionada e retorna CRDK
-                    cell_crdk.value = "=IFERROR(INDEX('Porcentagens ABS'!11:11,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
-                    cell_crdk.fill = PatternFill(start_color='FFE6F2FF', end_color='FFE6F2FF', fill_type='solid')
-                    
-                    row_setor_data = row_data
-                    
-                    # Cria gráfico de pizza para setores
-                    pie_chart_2 = PieChart()
-                    pie_chart_2.title = 'Faltas por Setor (Data Selecionada)'
-                    pie_chart_2.style = 10
-                    pie_chart_2.add_data(data_2, titles_from_data=True)
-                    pie_chart_2.set_categories(labels_2)
-                    pie_chart_2.height = 10
-                    pie_chart_2.width = 13
-                    
-                    # Ajusta largura das colunas
-                    
-                    # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
+                    progress_bar = st.progress(0)
                     status_text = st.empty()
                     
                     status_text.info("📥 Obtendo feriados nacionais...")
