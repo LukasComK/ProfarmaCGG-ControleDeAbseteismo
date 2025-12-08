@@ -2719,84 +2719,25 @@ with col_btn_processar:
                         for col_idx in range(2, dias_no_mes + 2):
                             ws_turno.column_dimensions[get_column_letter(col_idx)].width = 10
                     
-                    
-                    # Linha 1: Título
-                    ws_graficos.merge_cells('A1:H1')
-                    titulo_graficos = ws_graficos.cell(row=1, column=1, value='📊 ANÁLISE GRÁFICA DE ABSENTEÍSMO')
-                    titulo_graficos.font = Font(bold=True, size=14, color='FFFFFF')
-                    titulo_graficos.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                    ws_graficos.row_dimensions[1].height = 25
-                    
-                    from openpyxl.chart import PieChart, BarChart, Reference
-                    from openpyxl.worksheet.datavalidation import DataValidation
-                    
-                    # ===== SEÇÃO 1: Seletor de Data =====
-                    row_selector = 3
-                    ws_graficos.cell(row=row_selector, column=1, value='📅 Selecione a Data:').font = Font(bold=True, size=11)
-                    
-                    # Cria lista de datas para o dropdown - TODOS os dias do mês
+                    # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
                     datas_lista = sorted(mapa_datas.keys())
                     mes_atual = datas_lista[0].month if datas_lista else 1
                     ano_atual = datas_lista[0].year if datas_lista else 2025
                     
-                    # Gera lista com todos os dias do mês (1-31)
-                    import calendar
-                    dias_no_mes = calendar.monthrange(ano_atual, mes_atual)[1]
-                    datas_completas = [f"{dia:02d}/{mes_atual:02d}" for dia in range(1, dias_no_mes + 1)]
-                    datas_formatadas = ','.join(datas_completas)
-                    
-                    # Data Validation na célula B3
-                    dv = DataValidation(type='list', formula1=f'"{datas_formatadas}"', allow_blank=False)
-                    dv.error = 'Por favor, selecione uma data da lista'
-                    dv.errorTitle = 'Seleção Inválida'
-                    ws_graficos.add_data_validation(dv)
-                    
-                    # Define valor padrão (primeira data com dados)
-                    cell_selector = ws_graficos.cell(row=row_selector, column=2, value=datas_lista[0].strftime('%d/%m'))
-                    cell_selector.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
-                    cell_selector.font = Font(bold=True, size=11)
-                    cell_selector.number_format = '@'  # Formato de texto para manter como "dd/mm"
-                    dv.add(cell_selector)
-                    
-                    # ===== SEÇÃO 2: Gráficos Dinâmicos =====
-                    row_grafico = 6
-                    
-                    # Células de cálculo ocultas para dados dinâmicos
-                    # Coluna J e K para dados de FI/FA
-                    # Coluna L e M para dados de setores
-                    
-                    ws_graficos.column_dimensions['J'].hidden = True
-                    ws_graficos.column_dimensions['K'].hidden = True
-                    ws_graficos.column_dimensions['L'].hidden = True
-                    ws_graficos.column_dimensions['M'].hidden = True
-                    
-                    # Cria lista de colunas de data no Relatório para MATCH
-                    col_letras_datas = []
-                    for data_idx, data_obj in enumerate(datas_lista):
-                        col_letra = get_column_letter(data_idx + 2)  # Começa na coluna B (coluna 2) na aba Porcentagens
-                        col_letras_datas.append((data_obj.strftime('%d/%m'), col_letra))
+                    # ===== FERIADOS E MARCAR NA PLANILHA =====
                     
                     # ===== GRÁFICO 1: Faltas por Tipo (DINÂMICO) =====
-                    ws_graficos.cell(row=row_grafico, column=1, value='Faltas por Tipo').font = Font(bold=True, size=11)
                     
                     row_data = row_grafico + 1
-                    ws_graficos.cell(row=row_data, column=1, value='Tipo').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=2, value='Quantidade').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
-                    ws_graficos.cell(row=row_data, column=2).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
                     # Dados FI
                     row_data += 1
-                    ws_graficos.cell(row=row_data, column=1, value='FI - Injustificadas').font = Font(bold=True)
-                    cell_fi = ws_graficos.cell(row=row_data, column=2)
                     # Fórmula que busca a coluna da data selecionada e retorna FI
                     cell_fi.value = "=IFERROR(INDEX('Porcentagens ABS'!15:15,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
                     cell_fi.fill = PatternFill(start_color='FFFFE6E6', end_color='FFFFE6E6', fill_type='solid')
                     
                     # Dados FA
                     row_data += 1
-                    ws_graficos.cell(row=row_data, column=1, value='FA - Atestado').font = Font(bold=True)
-                    cell_fa = ws_graficos.cell(row=row_data, column=2)
                     # Fórmula que busca a coluna da data selecionada e retorna FA
                     cell_fa.value = "=IFERROR(INDEX('Porcentagens ABS'!16:16,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
                     cell_fa.fill = PatternFill(start_color='FFFFECC8', end_color='FFFFECC8', fill_type='solid')
@@ -2807,36 +2748,24 @@ with col_btn_processar:
                     pie_chart_1 = PieChart()
                     pie_chart_1.title = 'Faltas por Tipo (Data Selecionada)'
                     pie_chart_1.style = 10
-                    labels = Reference(ws_graficos, min_col=1, min_row=row_grafico+2, max_row=row_fi_fa_data)
-                    data = Reference(ws_graficos, min_col=2, min_row=row_grafico+1, max_row=row_fi_fa_data)
                     pie_chart_1.add_data(data, titles_from_data=True)
                     pie_chart_1.set_categories(labels)
                     pie_chart_1.height = 10
                     pie_chart_1.width = 13
-                    ws_graficos.add_chart(pie_chart_1, 'A10')
                     
                     # ===== GRÁFICO 2: Faltas por Setor (DINÂMICO) =====
                     col_grafico_setor = 5
-                    ws_graficos.cell(row=row_grafico, column=col_grafico_setor, value='Faltas por Setor').font = Font(bold=True, size=11)
                     
                     row_data = row_grafico + 1
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor, value='Setor').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor+1, value='Faltas').font = Font(bold=True)
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor+1).fill = PatternFill(start_color='FFC5D9F1', end_color='FFC5D9F1', fill_type='solid')
                     
                     # Dados M&A / BLOQ
                     row_data += 1
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor, value='M&A / BLOQ').font = Font(bold=True)
-                    cell_ma = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
                     # Fórmula que busca a coluna da data selecionada e retorna M&A
                     cell_ma.value = "=IFERROR(INDEX('Porcentagens ABS'!9:9,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
                     cell_ma.fill = PatternFill(start_color='FFE8F5E0', end_color='FFE8F5E0', fill_type='solid')
                     
                     # Dados CRDK / D&E
                     row_data += 1
-                    ws_graficos.cell(row=row_data, column=col_grafico_setor, value='CRDK / D&E').font = Font(bold=True)
-                    cell_crdk = ws_graficos.cell(row=row_data, column=col_grafico_setor+1)
                     # Fórmula que busca a coluna da data selecionada e retorna CRDK
                     cell_crdk.value = "=IFERROR(INDEX('Porcentagens ABS'!11:11,MATCH(B3,'Porcentagens ABS'!8:8,0)),0)"
                     cell_crdk.fill = PatternFill(start_color='FFE6F2FF', end_color='FFE6F2FF', fill_type='solid')
@@ -2847,22 +2776,14 @@ with col_btn_processar:
                     pie_chart_2 = PieChart()
                     pie_chart_2.title = 'Faltas por Setor (Data Selecionada)'
                     pie_chart_2.style = 10
-                    labels_2 = Reference(ws_graficos, min_col=col_grafico_setor, min_row=row_grafico+2, max_row=row_setor_data)
-                    data_2 = Reference(ws_graficos, min_col=col_grafico_setor+1, min_row=row_grafico+1, max_row=row_setor_data)
                     pie_chart_2.add_data(data_2, titles_from_data=True)
                     pie_chart_2.set_categories(labels_2)
                     pie_chart_2.height = 10
                     pie_chart_2.width = 13
-                    ws_graficos.add_chart(pie_chart_2, 'F10')
                     
                     # Ajusta largura das colunas
-                    ws_graficos.column_dimensions['A'].width = 25
-                    ws_graficos.column_dimensions['B'].width = 15
-                    ws_graficos.column_dimensions['E'].width = 25
-                    ws_graficos.column_dimensions['F'].width = 15
                     
                     # ===== OBTER FERIADOS E MARCAR NA PLANILHA =====
-                    progress_bar = st.progress(0)
                     status_text = st.empty()
                     
                     status_text.info("📥 Obtendo feriados nacionais...")
@@ -2997,16 +2918,15 @@ with col_btn_processar:
                     )
                     white_fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
                     
-                    # Aplica a todas as abas EXCETO Gráficos
+                    # Aplica a todas as abas
                     for ws_name in w.book.sheetnames:
-                        if ws_name != 'Gráficos':  # Ignora a aba de Gráficos
-                            worksheet = w.book[ws_name]
-                            for row in worksheet.iter_rows():
-                                for cell in row:
-                                    cell.border = no_border
-                                    # Só muda background se não tiver cor específica atribuída (mantém cores de header e dados)
-                                    if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
-                                        cell.fill = white_fill
+                        worksheet = w.book[ws_name]
+                        for row in worksheet.iter_rows():
+                            for cell in row:
+                                cell.border = no_border
+                                # Só muda background se não tiver cor específica atribuída (mantém cores de header e dados)
+                                if cell.fill.start_color.index == '00000000' or cell.fill.start_color.index == 'FFFFFFFF' or cell.fill.start_color.index == '0':
+                                    cell.fill = white_fill
                     
                     out.seek(0)
                 
