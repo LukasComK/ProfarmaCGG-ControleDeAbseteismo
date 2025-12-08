@@ -1202,9 +1202,9 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas, df_colaboradores=None
                 cell_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
                 cell_fa.font = Font(bold=True, color='FFFFFFFF')
                 
-                # Coluna Total Faltas com cor laranja
+                # Coluna Total Faltas com cor verde escuro corporativo Profarma
                 cell_total = ws.cell(row=row_atual, column=5, value=dados['total'])
-                cell_total.fill = PatternFill(start_color='FFFF9500', end_color='FFFF9500', fill_type='solid')
+                cell_total.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                 cell_total.font = Font(bold=True, color='FFFFFFFF')
                 
                 ws.cell(row=row_atual, column=6, value=dados['tempo_servico'])
