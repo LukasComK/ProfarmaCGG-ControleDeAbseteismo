@@ -26,7 +26,15 @@ file_banco_horas = st.file_uploader(
     key="banco_horas"
 )
 
-if file_banco_horas:
+# Upload do CSV com dados de colaboradores
+st.subheader("📥 Selecione a BASE CSV de Colaboradores")
+file_csv_colaboradores = st.file_uploader(
+    "Arquivo CSV com dados de colaboradores (colunas: Colaborador, Nome Gestor)",
+    type=["csv"],
+    key="csv_colaboradores"
+)
+
+if file_banco_horas and file_csv_colaboradores:
     try:
         # Carrega o arquivo
         df = pd.read_excel(file_banco_horas)
@@ -360,6 +368,38 @@ if file_banco_horas:
                     # Remove grid lines da sheet CONSOLIDAÇÃO
                     ws1.sheet_view.showGridLines = False
                     
+                    # Carrega dados do CSV para lookup de gestores
+                    df_gestores = None
+                    try:
+                        df_gestores = pd.read_csv(file_csv_colaboradores)
+                        st.success("✅ CSV de colaboradores carregado!")
+                    except Exception as e:
+                        st.warning(f"⚠️ Não foi possível carregar o CSV: {e}")
+                        df_gestores = None
+                    
+                    # Função para fazer lookup do gestor (PROCV)
+                    def buscar_gestor(nome_colaborador, df_csv):
+                        """
+                        Busca o gestor de um colaborador no DataFrame CSV
+                        Retorna o nome do gestor ou 'N/A' se não encontrar
+                        """
+                        if df_csv is None or df_csv.empty:
+                            return "N/A"
+                        
+                        try:
+                            # Limpa o nome para comparação
+                            nome_limpo = str(nome_colaborador).strip().upper()
+                            
+                            # Procura na coluna 'Colaborador'
+                            if 'Colaborador' in df_csv.columns:
+                                linha = df_csv[df_csv['Colaborador'].astype(str).str.strip().str.upper() == nome_limpo]
+                                if not linha.empty and 'Nome Gestor' in df_csv.columns:
+                                    return str(linha.iloc[0]['Nome Gestor']).strip()
+                        except Exception as e:
+                            pass
+                        
+                        return "N/A"
+                    
                     # ===== SHEET 2: OFENSORES (Positivos + Negativos) =====
                     ws2 = wb.create_sheet("OFENSORES")
                     
@@ -421,11 +461,12 @@ if file_banco_horas:
                     
                     # Dados POSITIVOS
                     for idx, (_, row) in enumerate(df_top15_pos.iterrows(), 1):
-                        ws2.cell(row=row_idx, column=1, value=row['Colaborador'])
+                        nome_colab = row['Colaborador']
+                        ws2.cell(row=row_idx, column=1, value=nome_colab)
                         ws2.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
                         ws2.cell(row=row_idx, column=3, value=row['POSITIVO'])
                         ws2.cell(row=row_idx, column=4, value="POSITIVO")
-                        ws2.cell(row=row_idx, column=5, value="N/A")
+                        ws2.cell(row=row_idx, column=5, value=buscar_gestor(nome_colab, df_gestores))
                         
                         for col in range(1, 6):
                             cell = ws2.cell(row=row_idx, column=col)
@@ -464,11 +505,12 @@ if file_banco_horas:
                     
                     # Dados NEGATIVOS
                     for idx, (_, row) in enumerate(df_top15_neg.iterrows(), 1):
-                        ws2.cell(row=row_idx, column=1, value=row['Colaborador'])
+                        nome_colab = row['Colaborador']
+                        ws2.cell(row=row_idx, column=1, value=nome_colab)
                         ws2.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
                         ws2.cell(row=row_idx, column=3, value=row['NEGATIVO'])
                         ws2.cell(row=row_idx, column=4, value="NEGATIVO")
-                        ws2.cell(row=row_idx, column=5, value="N/A")
+                        ws2.cell(row=row_idx, column=5, value=buscar_gestor(nome_colab, df_gestores))
                         
                         for col in range(1, 6):
                             cell = ws2.cell(row=row_idx, column=col)
