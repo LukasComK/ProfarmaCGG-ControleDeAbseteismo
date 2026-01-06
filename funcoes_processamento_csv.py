@@ -27,13 +27,15 @@ def determinar_turno(jornada: str) -> str:
     
     jornada_str = str(jornada).strip()
     
-    # Extrai APENAS o primeiro horário (antes do primeiro espaço ou hífen)
-    # Ex: "21:00 01:00 02:00 05:55 Seg a Sex - 5X2" → "21:00"
-    # Ex: "06:00 10:00 11:00 14:20 - 6x1" → "06:00"
-    primeiro_horario = jornada_str.split()[0] if jornada_str else ""
+    # Extrai TODOS os horários no formato HH:MM usando regex
+    # Procura por padrão: 2 dígitos : 2 dígitos
+    horarios_encontrados = re.findall(r'\b\d{2}:\d{2}\b', jornada_str)
     
-    # Remove possíveis caracteres especiais (como hífen ou parênteses)
-    primeiro_horario = re.sub(r'[^\d:]', '', primeiro_horario)
+    if not horarios_encontrados:
+        return "Indeterminado"
+    
+    # Pega o PRIMEIRO horário encontrado
+    primeiro_horario = horarios_encontrados[0]
     
     # Horários TURNO 1
     turno_1_horarios = ["06:00", "07:00", "08:00", "09:00"]
