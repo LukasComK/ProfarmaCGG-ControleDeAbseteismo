@@ -1484,7 +1484,7 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas):
         print(traceback.format_exc())
         return False
 
-st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Controle de Absenteísmo", layout="wide", initial_sidebar_state="collapsed")
 
 # CSS para expandir containers em full width
 st.markdown("""
