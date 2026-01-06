@@ -18,21 +18,25 @@ st.write("Relatório consolidado de banco de horas com TOP 15 ofensores")
 
 st.divider()
 
-# Upload do arquivo
-st.subheader("📥 Selecione o arquivo de Banco de Horas")
-file_banco_horas = st.file_uploader(
-    "Arquivo XLSX com banco de horas",
-    type=["xlsx"],
-    key="banco_horas"
-)
+# Upload dos arquivos em duas colunas
+st.subheader("📥 Carregue os arquivos necessários")
+col1, col2 = st.columns(2)
 
-# Upload do CSV com dados de colaboradores
-st.subheader("📥 Selecione a BASE CSV de Colaboradores")
-file_csv_colaboradores = st.file_uploader(
-    "Arquivo CSV com dados de colaboradores (colunas: Colaborador, Nome Gestor)",
-    type=["csv"],
-    key="csv_colaboradores"
-)
+with col1:
+    st.write("**Arquivo de Banco de Horas**")
+    file_banco_horas = st.file_uploader(
+        "Arquivo XLSX com banco de horas",
+        type=["xlsx"],
+        key="banco_horas"
+    )
+
+with col2:
+    st.write("**BASE CSV de Colaboradores**")
+    file_csv_colaboradores = st.file_uploader(
+        "Arquivo CSV com dados de colaboradores (colunas: Colaborador, Nome Gestor)",
+        type=["csv"],
+        key="csv_colaboradores"
+    )
 
 if file_banco_horas and file_csv_colaboradores:
     try:
