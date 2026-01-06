@@ -245,45 +245,49 @@ if file_banco_horas:
                     ws1.cell(row=2, column=3).alignment = header_alignment
                     ws1.cell(row=2, column=3).border = border
                     
+                    # Define cores branco e preto para dados
+                    white_fill = PatternFill(start_color="FFFFFFFF", end_color="FFFFFFFF", fill_type="solid")
+                    black_font = Font(bold=False, size=11, color="FF000000", name="Calibri")
+                    
                     # Linha 3: POSITIVO
                     ws1.cell(row=3, column=2, value="POSITIVO")
-                    ws1.cell(row=3, column=2).fill = header_fill_principal
-                    ws1.cell(row=3, column=2).font = header_font_principal
+                    ws1.cell(row=3, column=2).fill = white_fill
+                    ws1.cell(row=3, column=2).font = black_font
                     ws1.cell(row=3, column=2).alignment = left_alignment
                     ws1.cell(row=3, column=2).border = border
                     
                     ws1.cell(row=3, column=3, value=horas_para_tempo(total_positivo))
-                    ws1.cell(row=3, column=3).fill = header_fill_horas
-                    ws1.cell(row=3, column=3).font = header_font_horas
+                    ws1.cell(row=3, column=3).fill = white_fill
+                    ws1.cell(row=3, column=3).font = black_font
                     ws1.cell(row=3, column=3).alignment = center_alignment
                     ws1.cell(row=3, column=3).border = border
                     
                     # Linha 4: NEGATIVO
                     ws1.cell(row=4, column=2, value="NEGATIVO")
-                    ws1.cell(row=4, column=2).fill = header_fill_principal
-                    ws1.cell(row=4, column=2).font = header_font_principal
+                    ws1.cell(row=4, column=2).fill = white_fill
+                    ws1.cell(row=4, column=2).font = black_font
                     ws1.cell(row=4, column=2).alignment = left_alignment
                     ws1.cell(row=4, column=2).border = border
                     
                     ws1.cell(row=4, column=3, value=horas_para_tempo(total_negativo))
-                    ws1.cell(row=4, column=3).fill = header_fill_horas
-                    ws1.cell(row=4, column=3).font = header_font_horas
+                    ws1.cell(row=4, column=3).fill = white_fill
+                    ws1.cell(row=4, column=3).font = black_font
                     ws1.cell(row=4, column=3).alignment = center_alignment
                     ws1.cell(row=4, column=3).border = border
                     
-                    # Linha 6: Total Geral
+                    # Linha 5: Total Geral
                     total_geral = total_positivo + abs(total_negativo)
-                    ws1.cell(row=6, column=2, value="Total Geral")
-                    ws1.cell(row=6, column=2).fill = header_fill_principal
-                    ws1.cell(row=6, column=2).font = header_font_principal
-                    ws1.cell(row=6, column=2).alignment = left_alignment
-                    ws1.cell(row=6, column=2).border = border
+                    ws1.cell(row=5, column=2, value="Total Geral")
+                    ws1.cell(row=5, column=2).fill = header_fill_principal
+                    ws1.cell(row=5, column=2).font = header_font_principal
+                    ws1.cell(row=5, column=2).alignment = left_alignment
+                    ws1.cell(row=5, column=2).border = border
                     
-                    ws1.cell(row=6, column=3, value=horas_para_tempo(total_geral))
-                    ws1.cell(row=6, column=3).fill = header_fill_horas
-                    ws1.cell(row=6, column=3).font = header_font_horas
-                    ws1.cell(row=6, column=3).alignment = center_alignment
-                    ws1.cell(row=6, column=3).border = border
+                    ws1.cell(row=5, column=3, value=horas_para_tempo(total_geral))
+                    ws1.cell(row=5, column=3).fill = header_fill_horas
+                    ws1.cell(row=5, column=3).font = header_font_horas
+                    ws1.cell(row=5, column=3).alignment = center_alignment
+                    ws1.cell(row=5, column=3).border = border
                     
                     # Headers
                     headers = ['Centro de Custo', 'POSITIVO', 'NEGATIVO']
