@@ -2385,7 +2385,7 @@ with col_btn_processar:
                                         hc_cell = 'B5'  # HC está em B5
                                     
                                     col_letter = get_column_letter(col_idx)
-                                    formula_pct = f'=IFERROR(({col_letter}{contagem_row}/{hc_cell})*100,0)'
+                                    formula_pct = f'=ROUND(IFERROR(({col_letter}{contagem_row}/{hc_cell})*100,0),2)'
                                     cell.value = formula_pct
                                     cell.number_format = '0.00"%"'
                                     cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
