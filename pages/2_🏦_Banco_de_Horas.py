@@ -551,33 +551,26 @@ if file_banco_horas and file_csv_colaboradores:
                         
                         return "Indeterminado"
                     
-                    # Processa dados dos colaboradores com turno
-                    df_com_turno = df_top15_pos[['Colaborador', 'CentroDeCustos', 'POSITIVO_num', 'POSITIVO']].copy()
-                    df_com_turno['Turno'] = df_com_turno['Colaborador'].apply(
+                    # ===== SHEETS DE OFENSORES POR TURNO =====
+                    # Adiciona turno para TODOS os colaboradores (não apenas TOP 15)
+                    df_com_todos_turnos = df_processado[['Colaborador', 'CentroDeCustos', 'POSITIVO_num', 'NEGATIVO_num']].copy()
+                    df_com_todos_turnos['Turno'] = df_com_todos_turnos['Colaborador'].apply(
                         lambda x: buscar_turno_colaborador(x, df_gestores)
                     )
-                    df_com_turno['Tipo'] = 'POSITIVO'
-                    
-                    # Também adiciona negativos
-                    df_neg_com_turno = df_top15_neg[['Colaborador', 'CentroDeCustos', 'NEGATIVO_num', 'NEGATIVO']].copy()
-                    df_neg_com_turno.columns = ['Colaborador', 'CentroDeCustos', 'SALDO_num', 'SALDO']
-                    df_neg_com_turno['Turno'] = df_neg_com_turno['Colaborador'].apply(
-                        lambda x: buscar_turno_colaborador(x, df_gestores)
-                    )
-                    df_neg_com_turno['Tipo'] = 'NEGATIVO'
-                    df_com_turno.columns = ['Colaborador', 'CentroDeCustos', 'SALDO_num', 'SALDO', 'Turno', 'Tipo']
-                    
-                    # Combina positivos e negativos
-                    df_todos_ofensores = pd.concat([df_com_turno, df_neg_com_turno], ignore_index=True)
                     
                     # Cria sheets para cada turno
                     for num_turno in [1, 2, 3]:
                         turno_label = f"TURNO {num_turno}"
-                        df_turno = df_todos_ofensores[df_todos_ofensores['Turno'] == turno_label].copy()
                         
-                        # Separa positivos e negativos
-                        df_turno_pos = df_turno[df_turno['Tipo'] == 'POSITIVO'].nlargest(15, 'SALDO_num')
-                        df_turno_neg = df_turno[df_turno['Tipo'] == 'NEGATIVO'].nlargest(15, 'SALDO_num')
+                        # Filtra apenas colaboradores deste turno
+                        df_turno_todos = df_com_todos_turnos[df_com_todos_turnos['Turno'] == turno_label].copy()
+                        
+                        # Pega TOP 15 positivos e negativos deste turno
+                        df_turno_pos = df_turno_todos.nlargest(15, 'POSITIVO_num')[['Colaborador', 'CentroDeCustos', 'POSITIVO_num']].copy()
+                        df_turno_pos['POSITIVO'] = df_turno_pos['POSITIVO_num'].apply(horas_para_tempo)
+                        
+                        df_turno_neg = df_turno_todos.nlargest(15, 'NEGATIVO_num')[['Colaborador', 'CentroDeCustos', 'NEGATIVO_num']].copy()
+                        df_turno_neg['NEGATIVO'] = df_turno_neg['NEGATIVO_num'].apply(horas_para_tempo)
                         
                         # Cria sheet apenas se houver dados
                         if len(df_turno_pos) > 0 or len(df_turno_neg) > 0:
@@ -603,7 +596,7 @@ if file_banco_horas and file_csv_colaboradores:
                                     nome_colab = row['Colaborador']
                                     ws_turno.cell(row=row_idx, column=1, value=nome_colab)
                                     ws_turno.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
-                                    ws_turno.cell(row=row_idx, column=3, value=row['SALDO'])
+                                    ws_turno.cell(row=row_idx, column=3, value=row['POSITIVO'])
                                     ws_turno.cell(row=row_idx, column=4, value="POSITIVO")
                                     ws_turno.cell(row=row_idx, column=5, value=buscar_gestor(nome_colab, df_gestores))
                                     
@@ -649,7 +642,7 @@ if file_banco_horas and file_csv_colaboradores:
                                     nome_colab = row['Colaborador']
                                     ws_turno.cell(row=row_idx, column=1, value=nome_colab)
                                     ws_turno.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
-                                    ws_turno.cell(row=row_idx, column=3, value=row['SALDO'])
+                                    ws_turno.cell(row=row_idx, column=3, value=row['NEGATIVO'])
                                     ws_turno.cell(row=row_idx, column=4, value="NEGATIVO")
                                     ws_turno.cell(row=row_idx, column=5, value=buscar_gestor(nome_colab, df_gestores))
                                     
