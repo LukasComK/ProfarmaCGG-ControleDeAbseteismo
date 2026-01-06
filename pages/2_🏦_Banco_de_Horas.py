@@ -268,14 +268,30 @@ if file_banco_horas:
                     total_font_principal = Font(bold=True, size=11, color="FFFFFFFF", name="Calibri")
                     total_font_horas = Font(bold=True, size=11, color="FF000000", name="Calibri")
                     
-                    ws1.cell(row=total_row, column=5, value="Total Geral")
+                    total_positivo = df_resumo['POSITIVO_num'].sum()
+                    total_negativo = df_resumo['NEGATIVO_num'].sum()
+                    
+                    # Linha de NEGATIVO
+                    ws1.cell(row=total_row, column=5, value="NEGATIVO")
                     ws1.cell(row=total_row, column=5).fill = total_fill_principal
                     ws1.cell(row=total_row, column=5).font = total_font_principal
                     ws1.cell(row=total_row, column=5).alignment = left_alignment
                     ws1.cell(row=total_row, column=5).border = border
                     
-                    total_positivo = df_resumo['POSITIVO_num'].sum()
-                    total_negativo = df_resumo['NEGATIVO_num'].sum()
+                    ws1.cell(row=total_row, column=6, value=horas_para_tempo(total_negativo))
+                    ws1.cell(row=total_row, column=6).fill = total_fill_horas
+                    ws1.cell(row=total_row, column=6).font = total_font_horas
+                    ws1.cell(row=total_row, column=6).alignment = center_alignment
+                    ws1.cell(row=total_row, column=6).border = border
+                    
+                    total_row += 1
+                    
+                    # Linha de POSITIVO
+                    ws1.cell(row=total_row, column=5, value="POSITIVO")
+                    ws1.cell(row=total_row, column=5).fill = total_fill_principal
+                    ws1.cell(row=total_row, column=5).font = total_font_principal
+                    ws1.cell(row=total_row, column=5).alignment = left_alignment
+                    ws1.cell(row=total_row, column=5).border = border
                     
                     ws1.cell(row=total_row, column=6, value=horas_para_tempo(total_positivo))
                     ws1.cell(row=total_row, column=6).fill = total_fill_horas
@@ -283,14 +299,21 @@ if file_banco_horas:
                     ws1.cell(row=total_row, column=6).alignment = center_alignment
                     ws1.cell(row=total_row, column=6).border = border
                     
-                    if total_negativo > 0:
-                        ws1.cell(row=total_row, column=7, value=horas_para_tempo(total_negativo))
-                    else:
-                        ws1.cell(row=total_row, column=7, value='')
-                    ws1.cell(row=total_row, column=7).fill = total_fill_horas
-                    ws1.cell(row=total_row, column=7).font = total_font_horas
-                    ws1.cell(row=total_row, column=7).alignment = center_alignment
-                    ws1.cell(row=total_row, column=7).border = border
+                    total_row += 1
+                    
+                    # Linha de Total Geral
+                    ws1.cell(row=total_row, column=5, value="Total Geral")
+                    ws1.cell(row=total_row, column=5).fill = total_fill_principal
+                    ws1.cell(row=total_row, column=5).font = total_font_principal
+                    ws1.cell(row=total_row, column=5).alignment = left_alignment
+                    ws1.cell(row=total_row, column=5).border = border
+                    
+                    total_geral = total_positivo + abs(total_negativo)
+                    ws1.cell(row=total_row, column=6, value=horas_para_tempo(total_geral))
+                    ws1.cell(row=total_row, column=6).fill = total_fill_horas
+                    ws1.cell(row=total_row, column=6).font = total_font_horas
+                    ws1.cell(row=total_row, column=6).alignment = center_alignment
+                    ws1.cell(row=total_row, column=6).border = border
                     
                     ws1.column_dimensions['E'].width = 50
                     ws1.column_dimensions['F'].width = 18
@@ -432,62 +455,6 @@ if file_banco_horas:
                     
                     # Remove grid lines da sheet OFENSORES
                     ws2.sheet_view.showGridLines = False
-                    
-                    # Adiciona linha de Total Geral
-                    row_idx += 1
-                    total_row = row_idx
-                    
-                    # Calcula totais
-                    total_pos = df_top15_pos['POSITIVO_num'].sum()
-                    total_neg = df_top15_neg['NEGATIVO_num'].sum()
-                    total_geral = total_pos + abs(total_neg)
-                    
-                    # Estilo para total
-                    total_fill = PatternFill(start_color="FF265216", end_color="FF265216", fill_type="solid")
-                    total_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
-                    
-                    # Linha de NEGATIVO
-                    ws2.cell(row=total_row, column=1, value="NEGATIVO")
-                    ws2.cell(row=total_row, column=1).fill = total_fill
-                    ws2.cell(row=total_row, column=1).font = total_font
-                    ws2.cell(row=total_row, column=1).border = border_normal
-                    ws2.cell(row=total_row, column=1).alignment = left_alignment
-                    
-                    ws2.cell(row=total_row, column=3, value=horas_para_tempo(total_neg))
-                    ws2.cell(row=total_row, column=3).fill = total_fill
-                    ws2.cell(row=total_row, column=3).font = total_font
-                    ws2.cell(row=total_row, column=3).border = border_normal
-                    ws2.cell(row=total_row, column=3).alignment = center_alignment
-                    
-                    total_row += 1
-                    
-                    # Linha de POSITIVO
-                    ws2.cell(row=total_row, column=1, value="POSITIVO")
-                    ws2.cell(row=total_row, column=1).fill = total_fill
-                    ws2.cell(row=total_row, column=1).font = total_font
-                    ws2.cell(row=total_row, column=1).border = border_normal
-                    ws2.cell(row=total_row, column=1).alignment = left_alignment
-                    
-                    ws2.cell(row=total_row, column=3, value=horas_para_tempo(total_pos))
-                    ws2.cell(row=total_row, column=3).fill = total_fill
-                    ws2.cell(row=total_row, column=3).font = total_font
-                    ws2.cell(row=total_row, column=3).border = border_normal
-                    ws2.cell(row=total_row, column=3).alignment = center_alignment
-                    
-                    total_row += 1
-                    
-                    # Linha de Total Geral
-                    ws2.cell(row=total_row, column=1, value="Total Geral")
-                    ws2.cell(row=total_row, column=1).fill = total_fill
-                    ws2.cell(row=total_row, column=1).font = total_font
-                    ws2.cell(row=total_row, column=1).border = border_normal
-                    ws2.cell(row=total_row, column=1).alignment = left_alignment
-                    
-                    ws2.cell(row=total_row, column=3, value=horas_para_tempo(total_geral))
-                    ws2.cell(row=total_row, column=3).fill = total_fill
-                    ws2.cell(row=total_row, column=3).font = total_font
-                    ws2.cell(row=total_row, column=3).border = border_normal
-                    ws2.cell(row=total_row, column=3).alignment = center_alignment
                     
                     ws2.column_dimensions['A'].width = 42
                     ws2.column_dimensions['B'].width = 45
