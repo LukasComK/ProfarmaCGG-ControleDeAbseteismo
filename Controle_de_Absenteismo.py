@@ -1484,10 +1484,7 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas):
         print(traceback.format_exc())
         return False
 
-st.set_page_config(page_title="Controle de Absenteísmo", layout="wide", initial_sidebar_state="collapsed")
-
-# Customizar sidebar com o nome da aplicação
-st.sidebar.title("📊 Controle de Absenteísmo")
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
 
 # CSS para expandir containers em full width
 st.markdown("""
@@ -2330,7 +2327,7 @@ with col_btn_processar:
                             eh_domingo = data_obj.weekday() == 6
                             eh_feriado = data_obj in feriados_temp
                             
-                            if '%' not in setor_nome:
+                            if 'Porcentagem' not in setor_nome:
                                 # Linhas de contagem FI+FA
                                 if eh_feriado:
                                     cell.value = "FERIADO"
