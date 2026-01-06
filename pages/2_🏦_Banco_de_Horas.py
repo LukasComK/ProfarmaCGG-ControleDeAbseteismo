@@ -47,12 +47,6 @@ if file_banco_horas and file_csv_colaboradores:
         
         st.divider()
         
-        # Preview dos dados
-        with st.expander("👀 Visualizar dados carregados (primeiras linhas)"):
-            st.dataframe(df.head(10), use_container_width=True)
-        
-        st.divider()
-        
         # Botão para gerar relatório
         if st.button("📊 Gerar Relatório", use_container_width=True):
             try:
@@ -81,7 +75,9 @@ if file_banco_horas and file_csv_colaboradores:
                     # Remove centro de custo "RECURSOS HUMANOS"
                     df_processado = df_processado[df_processado['CentroDeCustos'].str.strip().str.upper() != 'RECURSOS HUMANOS']
                     
-                    st.info(f"📊 Total de linhas processadas: {len(df_processado)}")
+                    # Cria barra de progresso
+                    progress_bar = st.progress(0, text="⏳ Processando dados...")
+                    status_text = st.empty()
                     
                     # Função para converter tempo (HH:MM:SS) para horas decimais, detectando sinal
                     def tempo_para_horas(valor):
@@ -163,6 +159,9 @@ if file_banco_horas and file_csv_colaboradores:
                         st.write(f"- Soma POSITIVO: {df_processado['POSITIVO_num'].sum():.4f}")
                         st.write(f"- Soma NEGATIVO: {df_processado['NEGATIVO_num'].sum():.4f}")
                     
+                    progress_bar.progress(25, text="⏳ Processando dados... (25%)")
+                    status_text.text("Convertendo horas...")
+                    
                     # Função para converter horas decimais de volta para HH:MM:SS
                     def horas_para_tempo(horas):
                         if pd.isna(horas) or horas == 0:
@@ -177,10 +176,6 @@ if file_banco_horas and file_csv_colaboradores:
                     # ===== SHEET 1: CONSOLIDAÇÃO POR CENTRO DE CUSTO =====
                     df_resumo = df_processado.groupby('CentroDeCustos')[['POSITIVO_num', 'NEGATIVO_num']].sum().reset_index()
                     df_resumo.columns = ['Centro de Custo', 'POSITIVO_num', 'NEGATIVO_num']
-                    
-                    st.info(f"📋 Total de centros de custo únicos: {len(df_resumo)}")
-                    st.info(f"✅ POSITIVO total: {df_resumo['POSITIVO_num'].sum():.2f} horas")
-                    st.info(f"❌ NEGATIVO total: {df_resumo['NEGATIVO_num'].sum():.2f} horas")
                     
                     df_resumo['POSITIVO'] = df_resumo['POSITIVO_num'].apply(horas_para_tempo)
                     df_resumo['NEGATIVO'] = df_resumo['NEGATIVO_num'].apply(horas_para_tempo)
@@ -197,27 +192,8 @@ if file_banco_horas and file_csv_colaboradores:
                     df_top15_neg = df_top15_neg.reset_index(drop=True)
                     df_top15_neg.index = df_top15_neg.index + 1
                     
-                    st.success("✅ Relatório gerado com sucesso!")
-                    
-                    st.divider()
-                    
-                    # Preview dos dados
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        st.subheader("📋 Consolidação")
-                        df_display = df_resumo[['Centro de Custo', 'POSITIVO', 'NEGATIVO']]
-                        st.dataframe(df_display, use_container_width=True)
-                    
-                    with col2:
-                        st.subheader("🟢 TOP 15 Positivos")
-                        df_top15_pos_display = df_top15_pos[['Colaborador', 'CentroDeCustos', 'POSITIVO']]
-                        st.dataframe(df_top15_pos_display, use_container_width=True)
-                    
-                    with col3:
-                        st.subheader("🔴 TOP 15 Negativos")
-                        df_top15_neg_display = df_top15_neg[['Colaborador', 'CentroDeCustos', 'NEGATIVO']]
-                        st.dataframe(df_top15_neg_display, use_container_width=True)
+                    progress_bar.progress(75, text="⏳ Gerando arquivo Excel... (75%)")
+                    status_text.text("Criando sheets...")
                     
                     # Cria arquivo Excel para download com 2 SHEETS
                     wb = Workbook()
@@ -566,6 +542,11 @@ if file_banco_horas and file_csv_colaboradores:
                     output = io.BytesIO()
                     wb.save(output)
                     output.seek(0)
+                    
+                    progress_bar.progress(100, text="✅ Concluído! (100%)")
+                    status_text.text("Relatório pronto para download!")
+                    
+                    st.divider()
                     
                     # Botão de download
                     st.download_button(
