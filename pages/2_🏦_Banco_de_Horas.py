@@ -299,37 +299,44 @@ if file_banco_horas:
                     # ===== SHEET 2: OFENSORES (Positivos + Negativos) =====
                     ws2 = wb.create_sheet("OFENSORES")
                     
-                    # Header
-                    ws2.merge_cells('A1:E1')
-                    header_cell = ws2.cell(row=1, column=1, value="OFENSORES")
-                    header_cell.font = Font(bold=True, color="FFFFFFFF", size=12, name="Calibri")
-                    header_cell.fill = header_fill_principal
-                    header_cell.alignment = header_alignment
-                    ws2.row_dimensions[1].height = 25
+                    # Define estilos para OFENSORES
+                    header_ofensores_fill = PatternFill(start_color="FF265216", end_color="FF265216", fill_type="solid")
+                    header_ofensores_font = Font(bold=True, color="FFFFFFFF", size=11, name="Calibri")
                     
-                    # Headers das colunas (baseado na foto)
+                    data_fill = PatternFill(start_color="FFDBF2D0", end_color="FFDBF2D0", fill_type="solid")
+                    data_font = Font(color="FF000000", name="Calibri", size=11)
+                    
+                    status_pos_fill = PatternFill(start_color="FF8ED973", end_color="FF8ED973", fill_type="solid")
+                    status_pos_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
+                    
+                    status_neg_fill = PatternFill(start_color="FFFF0101", end_color="FFFF0101", fill_type="solid")
+                    status_neg_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
+                    
+                    border_thick = Border(
+                        left=Side(style="thick", color="000000"),
+                        right=Side(style="thick", color="000000"),
+                        top=Side(style="thick", color="000000"),
+                        bottom=Side(style="thick", color="000000")
+                    )
+                    
+                    # Headers das colunas
                     headers_ofensores = ['FUNCIONÁRIO', 'SETOR', 'SALDO ATUAL', 'STATUS', 'GESTOR']
-                    for col_idx, header in enumerate(headers_ofensores, 1):
-                        cell = ws2.cell(row=2, column=col_idx, value=header)
-                        cell.fill = header_fill_principal
-                        cell.font = header_font_principal
-                        cell.alignment = header_alignment
-                        cell.border = border
-                    
-                    ws2.row_dimensions[2].height = 20
                     
                     # ===== TOP 15 POSITIVOS =====
-                    row_idx = 3
-                    fill_positivo = PatternFill(start_color="FFC6E0B4", end_color="FFC6E0B4", fill_type="solid")
-                    font_positivo = Font(color="FF006100", name="Calibri", size=11)
+                    row_idx = 1
                     
-                    # Vamos obter gestor de cada colaborador
-                    def obter_gestor_colaborador(nome_colab):
-                        for _, row in df_processado.iterrows():
-                            if row['Colaborador'] == nome_colab:
-                                return "N/A"  # Sem gestor no banco de horas, usar N/A
-                        return "N/A"
+                    # Headers POSITIVOS
+                    for col_idx, header in enumerate(headers_ofensores, 1):
+                        cell = ws2.cell(row=row_idx, column=col_idx, value=header)
+                        cell.fill = header_ofensores_fill
+                        cell.font = header_ofensores_font
+                        cell.alignment = center_alignment
+                        cell.border = border_thick
                     
+                    ws2.row_dimensions[row_idx].height = 20
+                    row_idx += 1
+                    
+                    # Dados POSITIVOS
                     for idx, (_, row) in enumerate(df_top15_pos.iterrows(), 1):
                         ws2.cell(row=row_idx, column=1, value=row['Colaborador'])
                         ws2.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
@@ -339,9 +346,15 @@ if file_banco_horas:
                         
                         for col in range(1, 6):
                             cell = ws2.cell(row=row_idx, column=col)
-                            cell.fill = fill_positivo
-                            cell.border = border
-                            cell.font = font_positivo
+                            cell.border = border_thick
+                            cell.font = data_font
+                            
+                            if col == 4:  # STATUS
+                                cell.fill = status_pos_fill
+                                cell.font = status_pos_font
+                            else:
+                                cell.fill = data_fill
+                            
                             if col == 3 or col == 4:
                                 cell.alignment = center_alignment
                             else:
@@ -349,10 +362,21 @@ if file_banco_horas:
                         
                         row_idx += 1
                     
-                    # ===== TOP 15 NEGATIVOS =====
-                    fill_negativo = PatternFill(start_color="FFF4B084", end_color="FFF4B084", fill_type="solid")
-                    font_negativo = Font(color="FF9C6500", name="Calibri", size=11)
+                    # Linha de intervalo (quebra de linha)
+                    row_idx += 1
                     
+                    # Headers NEGATIVOS
+                    for col_idx, header in enumerate(headers_ofensores, 1):
+                        cell = ws2.cell(row=row_idx, column=col_idx, value=header)
+                        cell.fill = header_ofensores_fill
+                        cell.font = header_ofensores_font
+                        cell.alignment = center_alignment
+                        cell.border = border_thick
+                    
+                    ws2.row_dimensions[row_idx].height = 20
+                    row_idx += 1
+                    
+                    # Dados NEGATIVOS
                     for idx, (_, row) in enumerate(df_top15_neg.iterrows(), 1):
                         ws2.cell(row=row_idx, column=1, value=row['Colaborador'])
                         ws2.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
@@ -362,9 +386,15 @@ if file_banco_horas:
                         
                         for col in range(1, 6):
                             cell = ws2.cell(row=row_idx, column=col)
-                            cell.fill = fill_negativo
-                            cell.border = border
-                            cell.font = font_negativo
+                            cell.border = border_thick
+                            cell.font = data_font
+                            
+                            if col == 4:  # STATUS
+                                cell.fill = status_neg_fill
+                                cell.font = status_neg_font
+                            else:
+                                cell.fill = data_fill
+                            
                             if col == 3 or col == 4:
                                 cell.alignment = center_alignment
                             else:
