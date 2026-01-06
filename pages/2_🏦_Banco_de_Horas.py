@@ -142,22 +142,10 @@ if file_banco_horas and file_csv_colaboradores:
                         
                         return 0.0, 0.0
                     
-                    st.info(f"Tipo de dados da coluna SaldoInicial: {df_processado['SaldoInicial'].dtype}")
-                    
                     # Processa SaldoInicial
                     df_processado[['POSITIVO_num', 'NEGATIVO_num']] = df_processado['SaldoInicial'].apply(
                         lambda x: pd.Series(tempo_para_horas(x))
                     )
-                    
-                    with st.expander("🔍 Debug - Valores processados (primeiras 20 linhas)"):
-                        df_debug = df_processado.head(20).copy()
-                        st.dataframe(df_debug, use_container_width=True)
-                        
-                        st.write("**Estatísticas de processamento:**")
-                        st.write(f"- Linhas com POSITIVO > 0: {(df_processado['POSITIVO_num'] > 0).sum()}")
-                        st.write(f"- Linhas com NEGATIVO > 0: {(df_processado['NEGATIVO_num'] > 0).sum()}")
-                        st.write(f"- Soma POSITIVO: {df_processado['POSITIVO_num'].sum():.4f}")
-                        st.write(f"- Soma NEGATIVO: {df_processado['NEGATIVO_num'].sum():.4f}")
                     
                     progress_bar.progress(25, text="⏳ Processando dados... (25%)")
                     status_text.text("Convertendo horas...")
@@ -361,7 +349,6 @@ if file_banco_horas and file_csv_colaboradores:
                                     sep=';',  # Delimiter correto
                                     skiprows=1  # Pula a primeira linha "Colaboradores"
                                 )
-                                st.success(f"✅ CSV de colaboradores carregado! (Encoding: {encoding})")
                                 break
                             except Exception:
                                 continue
@@ -397,7 +384,7 @@ if file_banco_horas and file_csv_colaboradores:
                         return "N/A"
                     
                     # ===== SHEET 2: OFENSORES (Positivos + Negativos) =====
-                    ws2 = wb.create_sheet("OFENSORES")
+                    ws2 = wb.create_sheet("Ofensores")
                     
                     # Define estilos para OFENSORES
                     header_ofensores_fill = PatternFill(start_color="FF265216", end_color="FF265216", fill_type="solid")
