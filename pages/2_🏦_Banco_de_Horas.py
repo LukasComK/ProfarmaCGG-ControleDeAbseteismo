@@ -10,6 +10,7 @@ import datetime
 import io
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+from funcoes_processamento_csv import determinar_turno
 
 st.set_page_config(page_title="Banco de Horas", layout="wide")
 
@@ -524,6 +525,163 @@ if file_banco_horas and file_csv_colaboradores:
                     ws2.column_dimensions['C'].width = 13
                     ws2.column_dimensions['D'].width = 13
                     ws2.column_dimensions['E'].width = 45
+                    
+                    # ===== SHEETS DE OFENSORES POR TURNO =====
+                    # Função auxiliar para buscar turno de um colaborador
+                    def buscar_turno_colaborador(nome_colaborador, df_csv):
+                        """
+                        Busca o turno de um colaborador no DataFrame CSV
+                        Retorna o turno (TURNO 1, 2, 3 ou "Indeterminado")
+                        """
+                        if df_csv is None or df_csv.empty:
+                            return "Indeterminado"
+                        
+                        try:
+                            nome_limpo = str(nome_colaborador).strip().upper()
+                            
+                            # Procura na coluna 'Colaborador'
+                            if 'Colaborador' in df_csv.columns:
+                                linha = df_csv[df_csv['Colaborador'].astype(str).str.strip().str.upper() == nome_limpo]
+                                if not linha.empty and 'Jornada' in df_csv.columns:
+                                    jornada = str(linha.iloc[0]['Jornada']).strip()
+                                    turno = determinar_turno(jornada)
+                                    return turno
+                        except Exception:
+                            pass
+                        
+                        return "Indeterminado"
+                    
+                    # Processa dados dos colaboradores com turno
+                    df_com_turno = df_top15_pos[['Colaborador', 'CentroDeCustos', 'POSITIVO_num', 'POSITIVO']].copy()
+                    df_com_turno['Turno'] = df_com_turno['Colaborador'].apply(
+                        lambda x: buscar_turno_colaborador(x, df_gestores)
+                    )
+                    df_com_turno['Tipo'] = 'POSITIVO'
+                    
+                    # Também adiciona negativos
+                    df_neg_com_turno = df_top15_neg[['Colaborador', 'CentroDeCustos', 'NEGATIVO_num', 'NEGATIVO']].copy()
+                    df_neg_com_turno.columns = ['Colaborador', 'CentroDeCustos', 'SALDO_num', 'SALDO']
+                    df_neg_com_turno['Turno'] = df_neg_com_turno['Colaborador'].apply(
+                        lambda x: buscar_turno_colaborador(x, df_gestores)
+                    )
+                    df_neg_com_turno['Tipo'] = 'NEGATIVO'
+                    df_com_turno.columns = ['Colaborador', 'CentroDeCustos', 'SALDO_num', 'SALDO', 'Turno', 'Tipo']
+                    
+                    # Combina positivos e negativos
+                    df_todos_ofensores = pd.concat([df_com_turno, df_neg_com_turno], ignore_index=True)
+                    
+                    # Cria sheets para cada turno
+                    for num_turno in [1, 2, 3]:
+                        turno_label = f"TURNO {num_turno}"
+                        df_turno = df_todos_ofensores[df_todos_ofensores['Turno'] == turno_label].copy()
+                        
+                        # Separa positivos e negativos
+                        df_turno_pos = df_turno[df_turno['Tipo'] == 'POSITIVO'].nlargest(15, 'SALDO_num')
+                        df_turno_neg = df_turno[df_turno['Tipo'] == 'NEGATIVO'].nlargest(15, 'SALDO_num')
+                        
+                        # Cria sheet apenas se houver dados
+                        if len(df_turno_pos) > 0 or len(df_turno_neg) > 0:
+                            ws_turno = wb.create_sheet(f"Ofensores Turno {num_turno}")
+                            
+                            row_idx = 1
+                            
+                            # ===== POSITIVOS DO TURNO =====
+                            if len(df_turno_pos) > 0:
+                                # Headers POSITIVOS
+                                for col_idx, header in enumerate(headers_ofensores, 1):
+                                    cell = ws_turno.cell(row=row_idx, column=col_idx, value=header)
+                                    cell.fill = header_ofensores_fill
+                                    cell.font = header_ofensores_font
+                                    cell.alignment = center_alignment
+                                    cell.border = border_normal
+                                
+                                ws_turno.row_dimensions[row_idx].height = 20
+                                row_idx += 1
+                                
+                                # Dados POSITIVOS
+                                for idx, (_, row) in enumerate(df_turno_pos.iterrows(), 1):
+                                    nome_colab = row['Colaborador']
+                                    ws_turno.cell(row=row_idx, column=1, value=nome_colab)
+                                    ws_turno.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
+                                    ws_turno.cell(row=row_idx, column=3, value=row['SALDO'])
+                                    ws_turno.cell(row=row_idx, column=4, value="POSITIVO")
+                                    ws_turno.cell(row=row_idx, column=5, value=buscar_gestor(nome_colab, df_gestores))
+                                    
+                                    for col in range(1, 6):
+                                        cell = ws_turno.cell(row=row_idx, column=col)
+                                        cell.border = border_normal
+                                        cell.font = data_font
+                                        
+                                        if col == 4:  # STATUS
+                                            cell.fill = status_pos_fill
+                                            cell.font = status_pos_font
+                                        elif col == 3:  # SALDO ATUAL com cor por posição
+                                            color_key = idx if idx in saldo_colors else 15
+                                            cell.fill = PatternFill(start_color=saldo_colors[color_key], end_color=saldo_colors[color_key], fill_type="solid")
+                                        else:
+                                            cell.fill = data_fill
+                                        
+                                        if col == 3 or col == 4:
+                                            cell.alignment = center_alignment
+                                        else:
+                                            cell.alignment = left_alignment
+                                    
+                                    row_idx += 1
+                            
+                            # Blank line entre seções
+                            row_idx += 1
+                            
+                            # ===== NEGATIVOS DO TURNO =====
+                            if len(df_turno_neg) > 0:
+                                # Headers NEGATIVOS
+                                for col_idx, header in enumerate(headers_ofensores, 1):
+                                    cell = ws_turno.cell(row=row_idx, column=col_idx, value=header)
+                                    cell.fill = header_ofensores_fill
+                                    cell.font = header_ofensores_font
+                                    cell.alignment = center_alignment
+                                    cell.border = border_normal
+                                
+                                ws_turno.row_dimensions[row_idx].height = 20
+                                row_idx += 1
+                                
+                                # Dados NEGATIVOS
+                                for idx, (_, row) in enumerate(df_turno_neg.iterrows(), 1):
+                                    nome_colab = row['Colaborador']
+                                    ws_turno.cell(row=row_idx, column=1, value=nome_colab)
+                                    ws_turno.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
+                                    ws_turno.cell(row=row_idx, column=3, value=row['SALDO'])
+                                    ws_turno.cell(row=row_idx, column=4, value="NEGATIVO")
+                                    ws_turno.cell(row=row_idx, column=5, value=buscar_gestor(nome_colab, df_gestores))
+                                    
+                                    for col in range(1, 6):
+                                        cell = ws_turno.cell(row=row_idx, column=col)
+                                        cell.border = border_normal
+                                        cell.font = data_font
+                                        
+                                        if col == 4:  # STATUS
+                                            cell.fill = status_neg_fill
+                                            cell.font = status_neg_font
+                                        elif col == 3:  # SALDO ATUAL com cor por posição
+                                            color_key = idx if idx in saldo_colors else 15
+                                            cell.fill = PatternFill(start_color=saldo_colors[color_key], end_color=saldo_colors[color_key], fill_type="solid")
+                                        else:
+                                            cell.fill = data_fill
+                                        
+                                        if col == 3 or col == 4:
+                                            cell.alignment = center_alignment
+                                        else:
+                                            cell.alignment = left_alignment
+                                    
+                                    row_idx += 1
+                            
+                            # Remove grid lines
+                            ws_turno.sheet_view.showGridLines = False
+                            
+                            ws_turno.column_dimensions['A'].width = 42
+                            ws_turno.column_dimensions['B'].width = 45
+                            ws_turno.column_dimensions['C'].width = 13
+                            ws_turno.column_dimensions['D'].width = 13
+                            ws_turno.column_dimensions['E'].width = 45
                     
                     # Salva em memória
                     output = io.BytesIO()
