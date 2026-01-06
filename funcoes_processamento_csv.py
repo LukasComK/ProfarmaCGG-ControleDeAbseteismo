@@ -17,7 +17,7 @@ def determinar_turno(jornada: str) -> str:
     TURNO 3: 20:00, 21:00, 22:00
     
     Args:
-        jornada: String contendo a jornada (ex: "06:00 - 14:00")
+        jornada: String contendo a jornada (ex: "06:00 - 14:00" ou "06:00 10:00 11:00 14:20 - 6x1")
     
     Returns:
         String com o turno (TURNO 1, TURNO 2, TURNO 3 ou "Indeterminado")
@@ -27,23 +27,28 @@ def determinar_turno(jornada: str) -> str:
     
     jornada_str = str(jornada).strip()
     
+    # Extrai APENAS o primeiro horário (antes do primeiro espaço ou hífen)
+    # Ex: "21:00 01:00 02:00 05:55 Seg a Sex - 5X2" → "21:00"
+    # Ex: "06:00 10:00 11:00 14:20 - 6x1" → "06:00"
+    primeiro_horario = jornada_str.split()[0] if jornada_str else ""
+    
+    # Remove possíveis caracteres especiais (como hífen ou parênteses)
+    primeiro_horario = re.sub(r'[^\d:]', '', primeiro_horario)
+    
     # Horários TURNO 1
     turno_1_horarios = ["06:00", "07:00", "08:00", "09:00"]
-    for horario in turno_1_horarios:
-        if jornada_str.startswith(horario):
-            return "TURNO 1"
+    if primeiro_horario in turno_1_horarios:
+        return "TURNO 1"
     
     # Horários TURNO 2
     turno_2_horarios = ["10:00", "11:00", "12:00", "13:00", "13:40", "14:00"]
-    for horario in turno_2_horarios:
-        if jornada_str.startswith(horario):
-            return "TURNO 2"
+    if primeiro_horario in turno_2_horarios:
+        return "TURNO 2"
     
     # Horários TURNO 3
     turno_3_horarios = ["20:00", "21:00", "22:00"]
-    for horario in turno_3_horarios:
-        if jornada_str.startswith(horario):
-            return "TURNO 3"
+    if primeiro_horario in turno_3_horarios:
+        return "TURNO 3"
     
     return "Indeterminado"
 
