@@ -690,7 +690,7 @@ if file_banco_horas and file_csv_colaboradores:
                     st.download_button(
                         label="⬇️ Baixar Relatório (XLSX)",
                         data=output.getvalue(),
-                        file_name=f"Banco_de_Horas_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        file_name="Banco de Horas.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True
                     )
