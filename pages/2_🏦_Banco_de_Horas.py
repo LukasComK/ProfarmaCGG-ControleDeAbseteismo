@@ -284,40 +284,23 @@ if file_banco_horas:
                     ws1.cell(row=total_row, column=6).alignment = center_alignment
                     ws1.cell(row=total_row, column=6).border = border
                     
-                    total_row += 1
+                    # Linha de POSITIVO (mesma linha, coluna 7)
+                    ws1.cell(row=total_row, column=7, value="POSITIVO")
+                    ws1.cell(row=total_row, column=7).fill = total_fill_principal
+                    ws1.cell(row=total_row, column=7).font = total_font_principal
+                    ws1.cell(row=total_row, column=7).alignment = left_alignment
+                    ws1.cell(row=total_row, column=7).border = border
                     
-                    # Linha de POSITIVO
-                    ws1.cell(row=total_row, column=5, value="POSITIVO")
-                    ws1.cell(row=total_row, column=5).fill = total_fill_principal
-                    ws1.cell(row=total_row, column=5).font = total_font_principal
-                    ws1.cell(row=total_row, column=5).alignment = left_alignment
-                    ws1.cell(row=total_row, column=5).border = border
-                    
-                    ws1.cell(row=total_row, column=6, value=horas_para_tempo(total_positivo))
-                    ws1.cell(row=total_row, column=6).fill = total_fill_horas
-                    ws1.cell(row=total_row, column=6).font = total_font_horas
-                    ws1.cell(row=total_row, column=6).alignment = center_alignment
-                    ws1.cell(row=total_row, column=6).border = border
-                    
-                    total_row += 1
-                    
-                    # Linha de Total Geral
-                    ws1.cell(row=total_row, column=5, value="Total Geral")
-                    ws1.cell(row=total_row, column=5).fill = total_fill_principal
-                    ws1.cell(row=total_row, column=5).font = total_font_principal
-                    ws1.cell(row=total_row, column=5).alignment = left_alignment
-                    ws1.cell(row=total_row, column=5).border = border
-                    
-                    total_geral = total_positivo + abs(total_negativo)
-                    ws1.cell(row=total_row, column=6, value=horas_para_tempo(total_geral))
-                    ws1.cell(row=total_row, column=6).fill = total_fill_horas
-                    ws1.cell(row=total_row, column=6).font = total_font_horas
-                    ws1.cell(row=total_row, column=6).alignment = center_alignment
-                    ws1.cell(row=total_row, column=6).border = border
+                    ws1.cell(row=total_row, column=8, value=horas_para_tempo(total_positivo))
+                    ws1.cell(row=total_row, column=8).fill = total_fill_horas
+                    ws1.cell(row=total_row, column=8).font = total_font_horas
+                    ws1.cell(row=total_row, column=8).alignment = center_alignment
+                    ws1.cell(row=total_row, column=8).border = border
                     
                     ws1.column_dimensions['E'].width = 50
                     ws1.column_dimensions['F'].width = 18
                     ws1.column_dimensions['G'].width = 18
+                    ws1.column_dimensions['H'].width = 18
                     
                     # Remove grid lines da sheet CONSOLIDAÇÃO
                     ws1.sheet_view.showGridLines = False
