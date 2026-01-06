@@ -1486,6 +1486,9 @@ def colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas):
 
 st.set_page_config(page_title="Controle de Absenteísmo", layout="wide", initial_sidebar_state="collapsed")
 
+# Customizar sidebar com o nome da aplicação
+st.sidebar.title("📊 Controle de Absenteísmo")
+
 # CSS para expandir containers em full width
 st.markdown("""
 <style>
