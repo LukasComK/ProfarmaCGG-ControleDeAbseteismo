@@ -2327,7 +2327,7 @@ with col_btn_processar:
                             eh_domingo = data_obj.weekday() == 6
                             eh_feriado = data_obj in feriados_temp
                             
-                            if 'Porcentagem' not in setor_nome:
+                            if '%' not in setor_nome:
                                 # Linhas de contagem FI+FA
                                 if eh_feriado:
                                     cell.value = "FERIADO"
