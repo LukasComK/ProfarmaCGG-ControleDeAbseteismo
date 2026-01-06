@@ -227,6 +227,64 @@ if file_banco_horas:
                     center_alignment = Alignment(horizontal="center", vertical="center")
                     left_alignment = Alignment(horizontal="left", vertical="center")
                     
+                    # Calcula totais
+                    total_positivo = df_resumo['POSITIVO_num'].sum()
+                    total_negativo = df_resumo['NEGATIVO_num'].sum()
+                    
+                    # ===== SEÇÃO 1: RÓTULOS E SOMA DE SALDO (Colunas B-C) =====
+                    # Linha 2: Headers
+                    ws1.cell(row=2, column=2, value="ROTULO DE LINHA")
+                    ws1.cell(row=2, column=2).fill = header_fill_principal
+                    ws1.cell(row=2, column=2).font = header_font_principal
+                    ws1.cell(row=2, column=2).alignment = header_alignment
+                    ws1.cell(row=2, column=2).border = border
+                    
+                    ws1.cell(row=2, column=3, value="SOMA DE SALDO")
+                    ws1.cell(row=2, column=3).fill = header_fill_horas
+                    ws1.cell(row=2, column=3).font = header_font_horas
+                    ws1.cell(row=2, column=3).alignment = header_alignment
+                    ws1.cell(row=2, column=3).border = border
+                    
+                    # Linha 3: POSITIVO
+                    ws1.cell(row=3, column=2, value="POSITIVO")
+                    ws1.cell(row=3, column=2).fill = header_fill_principal
+                    ws1.cell(row=3, column=2).font = header_font_principal
+                    ws1.cell(row=3, column=2).alignment = left_alignment
+                    ws1.cell(row=3, column=2).border = border
+                    
+                    ws1.cell(row=3, column=3, value=horas_para_tempo(total_positivo))
+                    ws1.cell(row=3, column=3).fill = header_fill_horas
+                    ws1.cell(row=3, column=3).font = header_font_horas
+                    ws1.cell(row=3, column=3).alignment = center_alignment
+                    ws1.cell(row=3, column=3).border = border
+                    
+                    # Linha 4: NEGATIVO
+                    ws1.cell(row=4, column=2, value="NEGATIVO")
+                    ws1.cell(row=4, column=2).fill = header_fill_principal
+                    ws1.cell(row=4, column=2).font = header_font_principal
+                    ws1.cell(row=4, column=2).alignment = left_alignment
+                    ws1.cell(row=4, column=2).border = border
+                    
+                    ws1.cell(row=4, column=3, value=horas_para_tempo(total_negativo))
+                    ws1.cell(row=4, column=3).fill = header_fill_horas
+                    ws1.cell(row=4, column=3).font = header_font_horas
+                    ws1.cell(row=4, column=3).alignment = center_alignment
+                    ws1.cell(row=4, column=3).border = border
+                    
+                    # Linha 6: Total Geral
+                    total_geral = total_positivo + abs(total_negativo)
+                    ws1.cell(row=6, column=2, value="Total Geral")
+                    ws1.cell(row=6, column=2).fill = header_fill_principal
+                    ws1.cell(row=6, column=2).font = header_font_principal
+                    ws1.cell(row=6, column=2).alignment = left_alignment
+                    ws1.cell(row=6, column=2).border = border
+                    
+                    ws1.cell(row=6, column=3, value=horas_para_tempo(total_geral))
+                    ws1.cell(row=6, column=3).fill = header_fill_horas
+                    ws1.cell(row=6, column=3).font = header_font_horas
+                    ws1.cell(row=6, column=3).alignment = center_alignment
+                    ws1.cell(row=6, column=3).border = border
+                    
                     # Headers
                     headers = ['Centro de Custo', 'POSITIVO', 'NEGATIVO']
                     for col_idx, header in enumerate(headers, 5):
@@ -260,16 +318,13 @@ if file_banco_horas:
                             else:
                                 cell.alignment = center_alignment
                     
-                    # Linha de total
+                    # Linha de total (lado direito nas colunas E-G)
                     total_row = len(df_resumo) + 2
                     
                     total_fill_principal = PatternFill(start_color="FF275316", end_color="FF275316", fill_type="solid")
                     total_fill_horas = PatternFill(start_color="FFC0E6F5", end_color="FFC0E6F5", fill_type="solid")
                     total_font_principal = Font(bold=True, size=11, color="FFFFFFFF", name="Calibri")
                     total_font_horas = Font(bold=True, size=11, color="FF000000", name="Calibri")
-                    
-                    total_positivo = df_resumo['POSITIVO_num'].sum()
-                    total_negativo = df_resumo['NEGATIVO_num'].sum()
                     
                     # Coluna E: Total Geral (label)
                     ws1.cell(row=total_row, column=5, value="Total Geral")
@@ -292,6 +347,8 @@ if file_banco_horas:
                     ws1.cell(row=total_row, column=7).alignment = center_alignment
                     ws1.cell(row=total_row, column=7).border = border
                     
+                    ws1.column_dimensions['B'].width = 42
+                    ws1.column_dimensions['C'].width = 18
                     ws1.column_dimensions['E'].width = 50
                     ws1.column_dimensions['F'].width = 18
                     ws1.column_dimensions['G'].width = 18
