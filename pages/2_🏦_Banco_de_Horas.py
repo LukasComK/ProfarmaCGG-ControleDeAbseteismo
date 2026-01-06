@@ -207,7 +207,7 @@ if file_banco_horas:
                         df_top15_neg_display = df_top15_neg[['Colaborador', 'CentroDeCustos', 'NEGATIVO']]
                         st.dataframe(df_top15_neg_display, use_container_width=True)
                     
-                    # Cria arquivo Excel para download com 3 SHEETS
+                    # Cria arquivo Excel para download com 2 SHEETS
                     wb = Workbook()
                     
                     # ===== SHEET 1: CONSOLIDAÇÃO =====
@@ -296,91 +296,87 @@ if file_banco_horas:
                     ws1.column_dimensions['F'].width = 18
                     ws1.column_dimensions['G'].width = 18
                     
-                    # ===== SHEET 2: TOP 15 POSITIVOS =====
-                    ws2 = wb.create_sheet("TOP 15 Positivos")
+                    # ===== SHEET 2: OFENSORES (Positivos + Negativos) =====
+                    ws2 = wb.create_sheet("OFENSORES")
                     
-                    # Header TOP 15 Positivos
-                    ws2.merge_cells('A1:C1')
-                    header_cell = ws2.cell(row=1, column=1, value="🟢 TOP 15 POSITIVOS")
+                    # Header
+                    ws2.merge_cells('A1:E1')
+                    header_cell = ws2.cell(row=1, column=1, value="OFENSORES")
                     header_cell.font = Font(bold=True, color="FFFFFFFF", size=12, name="Calibri")
                     header_cell.fill = header_fill_principal
                     header_cell.alignment = header_alignment
                     ws2.row_dimensions[1].height = 25
                     
-                    # Headers das colunas
-                    headers_top = ['Posição', 'Colaborador', 'Centro de Custo', 'Horas']
-                    for col_idx, header in enumerate(headers_top, 1):
+                    # Headers das colunas (baseado na foto)
+                    headers_ofensores = ['FUNCIONÁRIO', 'SETOR', 'SALDO ATUAL', 'STATUS', 'GESTOR']
+                    for col_idx, header in enumerate(headers_ofensores, 1):
                         cell = ws2.cell(row=2, column=col_idx, value=header)
                         cell.fill = header_fill_principal
                         cell.font = header_font_principal
                         cell.alignment = header_alignment
                         cell.border = border
                     
-                    # Dados TOP 15 Positivos
-                    for row_idx, (idx, row) in enumerate(df_top15_pos.iterrows(), 3):
-                        ws2.cell(row=row_idx, column=1, value=idx)
-                        ws2.cell(row=row_idx, column=2, value=row['Colaborador'])
-                        ws2.cell(row=row_idx, column=3, value=row['CentroDeCustos'])
-                        ws2.cell(row=row_idx, column=4, value=row['POSITIVO'])
+                    ws2.row_dimensions[2].height = 20
+                    
+                    # ===== TOP 15 POSITIVOS =====
+                    row_idx = 3
+                    fill_positivo = PatternFill(start_color="FFC6E0B4", end_color="FFC6E0B4", fill_type="solid")
+                    font_positivo = Font(color="FF006100", name="Calibri", size=11)
+                    
+                    # Vamos obter gestor de cada colaborador
+                    def obter_gestor_colaborador(nome_colab):
+                        for _, row in df_processado.iterrows():
+                            if row['Colaborador'] == nome_colab:
+                                return "N/A"  # Sem gestor no banco de horas, usar N/A
+                        return "N/A"
+                    
+                    for idx, (_, row) in enumerate(df_top15_pos.iterrows(), 1):
+                        ws2.cell(row=row_idx, column=1, value=row['Colaborador'])
+                        ws2.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
+                        ws2.cell(row=row_idx, column=3, value=row['POSITIVO'])
+                        ws2.cell(row=row_idx, column=4, value="POSITIVO")
+                        ws2.cell(row=row_idx, column=5, value="N/A")
                         
-                        for col in range(1, 5):
+                        for col in range(1, 6):
                             cell = ws2.cell(row=row_idx, column=col)
-                            cell.fill = header_fill_horas
+                            cell.fill = fill_positivo
                             cell.border = border
-                            if col == 1:
-                                cell.alignment = center_alignment
-                            elif col == 4:
+                            cell.font = font_positivo
+                            if col == 3 or col == 4:
                                 cell.alignment = center_alignment
                             else:
                                 cell.alignment = left_alignment
-                    
-                    ws2.column_dimensions['A'].width = 12
-                    ws2.column_dimensions['B'].width = 40
-                    ws2.column_dimensions['C'].width = 30
-                    ws2.column_dimensions['D'].width = 18
-                    
-                    # ===== SHEET 3: TOP 15 NEGATIVOS =====
-                    ws3 = wb.create_sheet("TOP 15 Negativos")
-                    
-                    # Header TOP 15 Negativos
-                    ws3.merge_cells('A1:C1')
-                    header_cell = ws3.cell(row=1, column=1, value="🔴 TOP 15 NEGATIVOS")
-                    header_cell.font = Font(bold=True, color="FFFFFFFF", size=12, name="Calibri")
-                    header_cell.fill = PatternFill(start_color="FFFF0000", end_color="FFFF0000", fill_type="solid")
-                    header_cell.alignment = header_alignment
-                    ws3.row_dimensions[1].height = 25
-                    
-                    # Headers das colunas
-                    for col_idx, header in enumerate(headers_top, 1):
-                        cell = ws3.cell(row=2, column=col_idx, value=header)
-                        cell.fill = PatternFill(start_color="FFFF0000", end_color="FFFF0000", fill_type="solid")
-                        cell.font = Font(bold=True, color="FFFFFFFF", size=12, name="Calibri")
-                        cell.alignment = header_alignment
-                        cell.border = border
-                    
-                    # Dados TOP 15 Negativos
-                    header_fill_neg = PatternFill(start_color="FFFFE6E6", end_color="FFFFE6E6", fill_type="solid")
-                    for row_idx, (idx, row) in enumerate(df_top15_neg.iterrows(), 3):
-                        ws3.cell(row=row_idx, column=1, value=idx)
-                        ws3.cell(row=row_idx, column=2, value=row['Colaborador'])
-                        ws3.cell(row=row_idx, column=3, value=row['CentroDeCustos'])
-                        ws3.cell(row=row_idx, column=4, value=row['NEGATIVO'])
                         
-                        for col in range(1, 5):
-                            cell = ws3.cell(row=row_idx, column=col)
-                            cell.fill = header_fill_neg
+                        row_idx += 1
+                    
+                    # ===== TOP 15 NEGATIVOS =====
+                    fill_negativo = PatternFill(start_color="FFF4B084", end_color="FFF4B084", fill_type="solid")
+                    font_negativo = Font(color="FF9C6500", name="Calibri", size=11)
+                    
+                    for idx, (_, row) in enumerate(df_top15_neg.iterrows(), 1):
+                        ws2.cell(row=row_idx, column=1, value=row['Colaborador'])
+                        ws2.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
+                        ws2.cell(row=row_idx, column=3, value=row['NEGATIVO'])
+                        ws2.cell(row=row_idx, column=4, value="NEGATIVO")
+                        ws2.cell(row=row_idx, column=5, value="N/A")
+                        
+                        for col in range(1, 6):
+                            cell = ws2.cell(row=row_idx, column=col)
+                            cell.fill = fill_negativo
                             cell.border = border
-                            if col == 1:
-                                cell.alignment = center_alignment
-                            elif col == 4:
+                            cell.font = font_negativo
+                            if col == 3 or col == 4:
                                 cell.alignment = center_alignment
                             else:
                                 cell.alignment = left_alignment
+                        
+                        row_idx += 1
                     
-                    ws3.column_dimensions['A'].width = 12
-                    ws3.column_dimensions['B'].width = 40
-                    ws3.column_dimensions['C'].width = 30
-                    ws3.column_dimensions['D'].width = 18
+                    ws2.column_dimensions['A'].width = 35
+                    ws2.column_dimensions['B'].width = 28
+                    ws2.column_dimensions['C'].width = 18
+                    ws2.column_dimensions['D'].width = 15
+                    ws2.column_dimensions['E'].width = 25
                     
                     # Salva em memória
                     output = io.BytesIO()
