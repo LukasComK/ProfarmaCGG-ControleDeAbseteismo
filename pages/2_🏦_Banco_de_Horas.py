@@ -372,13 +372,24 @@ if file_banco_horas and file_csv_colaboradores:
                     # Remove grid lines da sheet CONSOLIDAÇÃO
                     ws1.sheet_view.showGridLines = False
                     
-                    # Carrega dados do CSV para lookup de gestores
+                    # Carrega dados do CSV para lookup de gestores (tenta múltiplos encodings)
                     df_gestores = None
                     try:
-                        df_gestores = pd.read_csv(file_csv_colaboradores)
-                        st.success("✅ CSV de colaboradores carregado!")
+                        # Tenta diferentes encodings
+                        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                        for encoding in encodings:
+                            try:
+                                df_gestores = pd.read_csv(file_csv_colaboradores, encoding=encoding)
+                                st.success(f"✅ CSV de colaboradores carregado! (Encoding: {encoding})")
+                                break
+                            except Exception:
+                                continue
+                        
+                        if df_gestores is None:
+                            st.warning("⚠️ Não foi possível carregar o CSV com os encodings disponíveis")
+                            df_gestores = None
                     except Exception as e:
-                        st.warning(f"⚠️ Não foi possível carregar o CSV: {e}")
+                        st.warning(f"⚠️ Erro ao carregar CSV: {e}")
                         df_gestores = None
                     
                     # Função para fazer lookup do gestor (PROCV)
