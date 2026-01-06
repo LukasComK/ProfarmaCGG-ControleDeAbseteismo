@@ -296,6 +296,9 @@ if file_banco_horas:
                     ws1.column_dimensions['F'].width = 18
                     ws1.column_dimensions['G'].width = 18
                     
+                    # Remove grid lines da sheet CONSOLIDAÇÃO
+                    ws1.sheet_view.showGridLines = False
+                    
                     # ===== SHEET 2: OFENSORES (Positivos + Negativos) =====
                     ws2 = wb.create_sheet("OFENSORES")
                     
@@ -312,11 +315,30 @@ if file_banco_horas:
                     status_neg_fill = PatternFill(start_color="FFFF0101", end_color="FFFF0101", fill_type="solid")
                     status_neg_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
                     
-                    border_thick = Border(
-                        left=Side(style="thick", color="000000"),
-                        right=Side(style="thick", color="000000"),
-                        top=Side(style="thick", color="000000"),
-                        bottom=Side(style="thick", color="000000")
+                    # Cores para coluna SALDO ATUAL por posição (1-15)
+                    saldo_colors = {
+                        1: "FFF8696B",
+                        2: "FFFCA477",
+                        3: "FFFCB37A",
+                        4: "FFFDC07C",
+                        5: "FFFED17F",
+                        6: "FFFFE483",
+                        7: "FFFFEB84",
+                        8: "FFFEEB85",
+                        9: "FFFCEA83",
+                        10: "FFF1E783",
+                        11: "FFE5E382",
+                        12: "FFB1D47F",
+                        13: "FF8CCA7D",
+                        14: "FF71C37A",
+                        15: "FF62BF7B"
+                    }
+                    
+                    border_normal = Border(
+                        left=Side(style="thin", color="000000"),
+                        right=Side(style="thin", color="000000"),
+                        top=Side(style="thin", color="000000"),
+                        bottom=Side(style="thin", color="000000")
                     )
                     
                     # Headers das colunas
@@ -331,7 +353,7 @@ if file_banco_horas:
                         cell.fill = header_ofensores_fill
                         cell.font = header_ofensores_font
                         cell.alignment = center_alignment
-                        cell.border = border_thick
+                        cell.border = border_normal
                     
                     ws2.row_dimensions[row_idx].height = 20
                     row_idx += 1
@@ -346,12 +368,15 @@ if file_banco_horas:
                         
                         for col in range(1, 6):
                             cell = ws2.cell(row=row_idx, column=col)
-                            cell.border = border_thick
+                            cell.border = border_normal
                             cell.font = data_font
                             
                             if col == 4:  # STATUS
                                 cell.fill = status_pos_fill
                                 cell.font = status_pos_font
+                            elif col == 3:  # SALDO ATUAL com cor por posição
+                                color_key = idx if idx in saldo_colors else 15
+                                cell.fill = PatternFill(start_color=saldo_colors[color_key], end_color=saldo_colors[color_key], fill_type="solid")
                             else:
                                 cell.fill = data_fill
                             
@@ -371,7 +396,7 @@ if file_banco_horas:
                         cell.fill = header_ofensores_fill
                         cell.font = header_ofensores_font
                         cell.alignment = center_alignment
-                        cell.border = border_thick
+                        cell.border = border_normal
                     
                     ws2.row_dimensions[row_idx].height = 20
                     row_idx += 1
@@ -386,12 +411,15 @@ if file_banco_horas:
                         
                         for col in range(1, 6):
                             cell = ws2.cell(row=row_idx, column=col)
-                            cell.border = border_thick
+                            cell.border = border_normal
                             cell.font = data_font
                             
                             if col == 4:  # STATUS
                                 cell.fill = status_neg_fill
                                 cell.font = status_neg_font
+                            elif col == 3:  # SALDO ATUAL com cor por posição
+                                color_key = idx if idx in saldo_colors else 15
+                                cell.fill = PatternFill(start_color=saldo_colors[color_key], end_color=saldo_colors[color_key], fill_type="solid")
                             else:
                                 cell.fill = data_fill
                             
@@ -402,11 +430,70 @@ if file_banco_horas:
                         
                         row_idx += 1
                     
-                    ws2.column_dimensions['A'].width = 35
-                    ws2.column_dimensions['B'].width = 28
-                    ws2.column_dimensions['C'].width = 18
-                    ws2.column_dimensions['D'].width = 15
-                    ws2.column_dimensions['E'].width = 25
+                    # Remove grid lines da sheet OFENSORES
+                    ws2.sheet_view.showGridLines = False
+                    
+                    # Adiciona linha de Total Geral
+                    row_idx += 1
+                    total_row = row_idx
+                    
+                    # Calcula totais
+                    total_pos = df_top15_pos['POSITIVO_num'].sum()
+                    total_neg = df_top15_neg['NEGATIVO_num'].sum()
+                    total_geral = total_pos + abs(total_neg)
+                    
+                    # Estilo para total
+                    total_fill = PatternFill(start_color="FF265216", end_color="FF265216", fill_type="solid")
+                    total_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
+                    
+                    # Linha de NEGATIVO
+                    ws2.cell(row=total_row, column=1, value="NEGATIVO")
+                    ws2.cell(row=total_row, column=1).fill = total_fill
+                    ws2.cell(row=total_row, column=1).font = total_font
+                    ws2.cell(row=total_row, column=1).border = border_normal
+                    ws2.cell(row=total_row, column=1).alignment = left_alignment
+                    
+                    ws2.cell(row=total_row, column=3, value=horas_para_tempo(total_neg))
+                    ws2.cell(row=total_row, column=3).fill = total_fill
+                    ws2.cell(row=total_row, column=3).font = total_font
+                    ws2.cell(row=total_row, column=3).border = border_normal
+                    ws2.cell(row=total_row, column=3).alignment = center_alignment
+                    
+                    total_row += 1
+                    
+                    # Linha de POSITIVO
+                    ws2.cell(row=total_row, column=1, value="POSITIVO")
+                    ws2.cell(row=total_row, column=1).fill = total_fill
+                    ws2.cell(row=total_row, column=1).font = total_font
+                    ws2.cell(row=total_row, column=1).border = border_normal
+                    ws2.cell(row=total_row, column=1).alignment = left_alignment
+                    
+                    ws2.cell(row=total_row, column=3, value=horas_para_tempo(total_pos))
+                    ws2.cell(row=total_row, column=3).fill = total_fill
+                    ws2.cell(row=total_row, column=3).font = total_font
+                    ws2.cell(row=total_row, column=3).border = border_normal
+                    ws2.cell(row=total_row, column=3).alignment = center_alignment
+                    
+                    total_row += 1
+                    
+                    # Linha de Total Geral
+                    ws2.cell(row=total_row, column=1, value="Total Geral")
+                    ws2.cell(row=total_row, column=1).fill = total_fill
+                    ws2.cell(row=total_row, column=1).font = total_font
+                    ws2.cell(row=total_row, column=1).border = border_normal
+                    ws2.cell(row=total_row, column=1).alignment = left_alignment
+                    
+                    ws2.cell(row=total_row, column=3, value=horas_para_tempo(total_geral))
+                    ws2.cell(row=total_row, column=3).fill = total_fill
+                    ws2.cell(row=total_row, column=3).font = total_font
+                    ws2.cell(row=total_row, column=3).border = border_normal
+                    ws2.cell(row=total_row, column=3).alignment = center_alignment
+                    
+                    ws2.column_dimensions['A'].width = 42
+                    ws2.column_dimensions['B'].width = 45
+                    ws2.column_dimensions['C'].width = 13
+                    ws2.column_dimensions['D'].width = 13
+                    ws2.column_dimensions['E'].width = 45
                     
                     # Salva em memória
                     output = io.BytesIO()
