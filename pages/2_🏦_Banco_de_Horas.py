@@ -375,11 +375,16 @@ if file_banco_horas and file_csv_colaboradores:
                     # Carrega dados do CSV para lookup de gestores (tenta múltiplos encodings)
                     df_gestores = None
                     try:
-                        # Tenta diferentes encodings
-                        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                        # Tenta diferentes encodings com delimiter correto (;)
+                        encodings = ['latin-1', 'iso-8859-1', 'cp1252', 'utf-8']
                         for encoding in encodings:
                             try:
-                                df_gestores = pd.read_csv(file_csv_colaboradores, encoding=encoding)
+                                df_gestores = pd.read_csv(
+                                    file_csv_colaboradores, 
+                                    encoding=encoding,
+                                    sep=';',  # Delimiter correto
+                                    skiprows=1  # Pula a primeira linha "Colaboradores"
+                                )
                                 st.success(f"✅ CSV de colaboradores carregado! (Encoding: {encoding})")
                                 break
                             except Exception:
