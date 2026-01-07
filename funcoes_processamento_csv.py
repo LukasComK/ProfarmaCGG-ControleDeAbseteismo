@@ -22,37 +22,42 @@ def determinar_turno(jornada: str) -> str:
     Returns:
         String com o turno (TURNO 1, TURNO 2, TURNO 3 ou "Indeterminado")
     """
+    # Debug: verifica o que está chegando
     if pd.isna(jornada) or jornada == "":
         return "Indeterminado"
     
-    jornada_str = str(jornada).strip()
-    
-    # Extrai TODOS os horários no formato HH:MM usando regex
-    # Procura por padrão: 2 dígitos : 2 dígitos
-    horarios_encontrados = re.findall(r'\b\d{2}:\d{2}\b', jornada_str)
-    
-    if not horarios_encontrados:
+    try:
+        jornada_str = str(jornada).strip()
+        
+        # Extrai TODOS os horários no formato HH:MM usando regex
+        # Procura por padrão: 2 dígitos : 2 dígitos
+        horarios_encontrados = re.findall(r'\b\d{2}:\d{2}\b', jornada_str)
+        
+        if not horarios_encontrados:
+            return "Indeterminado"
+        
+        # Pega o PRIMEIRO horário encontrado
+        primeiro_horario = horarios_encontrados[0]
+        
+        # Horários TURNO 1
+        turno_1_horarios = ["06:00", "07:00", "08:00", "09:00"]
+        if primeiro_horario in turno_1_horarios:
+            return "TURNO 1"
+        
+        # Horários TURNO 2
+        turno_2_horarios = ["10:00", "11:00", "12:00", "13:00", "13:40", "14:00"]
+        if primeiro_horario in turno_2_horarios:
+            return "TURNO 2"
+        
+        # Horários TURNO 3
+        turno_3_horarios = ["20:00", "21:00", "22:00"]
+        if primeiro_horario in turno_3_horarios:
+            return "TURNO 3"
+        
         return "Indeterminado"
     
-    # Pega o PRIMEIRO horário encontrado
-    primeiro_horario = horarios_encontrados[0]
-    
-    # Horários TURNO 1
-    turno_1_horarios = ["06:00", "07:00", "08:00", "09:00"]
-    if primeiro_horario in turno_1_horarios:
-        return "TURNO 1"
-    
-    # Horários TURNO 2
-    turno_2_horarios = ["10:00", "11:00", "12:00", "13:00", "13:40", "14:00"]
-    if primeiro_horario in turno_2_horarios:
-        return "TURNO 2"
-    
-    # Horários TURNO 3
-    turno_3_horarios = ["20:00", "21:00", "22:00"]
-    if primeiro_horario in turno_3_horarios:
-        return "TURNO 3"
-    
-    return "Indeterminado"
+    except Exception as e:
+        return f"Erro: {str(e)}"
 
 
 def extrair_tabela_supervisores(df: pd.DataFrame, mapa_colunas: Dict) -> Dict[str, str]:
@@ -199,7 +204,13 @@ def processar_csv_colaboradores(
         df_resultado["Descrição da Unidade Organizacional"] = df_filtrado[col_unidade].values
         
         # TURNO - Calcula para cada jornada
-        df_resultado["Turno"] = df_filtrado[col_jornada].apply(determinar_turno)
+        # Aplica com verificação de erros
+        try:
+            turno_result = df_filtrado[col_jornada].apply(determinar_turno)
+            df_resultado["Turno"] = turno_result
+        except Exception as e:
+            # Se houver erro, preenche com "Erro" para debug
+            df_resultado["Turno"] = "Erro: " + str(e)
         
         df_resultado["Jornada"] = df_filtrado[col_jornada].values
         
