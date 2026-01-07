@@ -177,11 +177,15 @@ def processar_csv_colaboradores(
         mask = df[col_cargo].astype(str).str.upper().str.strip().isin(cargos_filtro_upper)
         df_filtrado = df[mask].copy()
         
+        # IMPORTANTE: Reset dos índices para evitar desalinhamento
+        df_filtrado = df_filtrado.reset_index(drop=True)
+        
         info_processamento["linhas_filtradas"] = len(df) - len(df_filtrado)
         info_processamento["cargos_nao_encontrados"] = info_processamento["linhas_filtradas"]
         
         # Cria novo DataFrame com apenas as 9 colunas solicitadas
-        df_resultado = pd.DataFrame()
+        # Usando explicitamente os índices para garantir alinhamento
+        df_resultado = pd.DataFrame(index=range(len(df_filtrado)))
         
         # PRIMEIRO: Extrai tabela de supervisores (antes de filtrar)
         tabela_supervisores = extrair_tabela_supervisores(df, mapa_colunas)
