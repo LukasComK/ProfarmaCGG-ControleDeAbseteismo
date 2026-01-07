@@ -2327,8 +2327,8 @@ with col_btn_processar:
                             eh_domingo = data_obj.weekday() == 6
                             eh_feriado = data_obj in feriados_temp
                             
-                            if 'Porcentagem' not in setor_nome:
-                                # Linhas de contagem FI+FA
+                            if '%' not in setor_nome:
+                                # Linhas de contagem FI+FA (M&A e CRDK / D&E)
                                 if eh_feriado:
                                     cell.value = "FERIADO"
                                 elif eh_domingo:
@@ -2367,7 +2367,7 @@ with col_btn_processar:
                                 else:
                                     cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
                             else:
-                                # Linhas de porcentagem: (contagem / HC) * 100
+                                # Linhas de porcentagem: (contagem / HC) * 100 (M&A - % e CRDK / D&E - %)
                                 if eh_feriado:
                                     cell.value = "FERIADO"
                                     cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
@@ -2385,7 +2385,7 @@ with col_btn_processar:
                                         hc_cell = 'B5'  # HC está em B5
                                     
                                     col_letter = get_column_letter(col_idx)
-                                    formula_pct = f'=ROUND(IFERROR(({col_letter}{contagem_row}/{hc_cell})*100,0),2)'
+                                    formula_pct = f'=ROUND(IFERROR(({col_letter}{contagem_row}/{hc_cell})*100, 0), 2)'
                                     cell.value = formula_pct
                                     cell.number_format = '0.00"%"'
                                     cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
