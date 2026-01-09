@@ -1,7 +1,7 @@
 """
 Página: Banco de Horas
 Descrição: Visualização e geração de relatório de banco de horas com consolidação e TOP 15
-Recebe: Arquivo XLSX com banco de horas (coluna E: CentroDeCustos, coluna G: Nomes, coluna O: SaldoInicial)
+Recebe: Arquivo XLSX com banco de horas (coluna E: CentroDeCustos, coluna G: Nomes, coluna R: SaldoFinal)
 """
 
 import streamlit as st
@@ -48,6 +48,16 @@ if file_banco_horas and file_csv_colaboradores:
         
         st.divider()
         
+        # Checkbox para Dia de Fechamento
+        eh_dia_fechamento = st.checkbox("📅 Dia de Fechamento (usar Pagamentos e Descontos)", value=False)
+        
+        if eh_dia_fechamento:
+            st.info("ℹ️ Usando colunas **Pagamentos** (horas positivas) e **Descontos** (horas negativas)")
+        else:
+            st.info("ℹ️ Usando coluna **SaldoFinal** para análise de banco de horas")
+        
+        st.divider()
+        
         # Botão para gerar relatório
         if st.button("📊 Gerar Relatório", use_container_width=True):
             try:
@@ -55,61 +65,91 @@ if file_banco_horas and file_csv_colaboradores:
                 if 'CentroDeCustos' not in df.columns:
                     st.error("❌ Coluna 'CentroDeCustos' não encontrada!")
                     st.write(f"Colunas disponíveis: {list(df.columns)}")
-                elif 'SaldoInicial' not in df.columns:
-                    st.error("❌ Coluna 'SaldoInicial' não encontrada!")
+                elif eh_dia_fechamento and 'Pagamentos' not in df.columns:
+                    st.error("❌ Coluna 'Pagamentos' não encontrada!")
+                    st.write(f"Colunas disponíveis: {list(df.columns)}")
+                elif eh_dia_fechamento and 'Descontos' not in df.columns:
+                    st.error("❌ Coluna 'Descontos' não encontrada!")
+                    st.write(f"Colunas disponíveis: {list(df.columns)}")
+                elif not eh_dia_fechamento and 'SaldoFinal' not in df.columns:
+                    st.error("❌ Coluna 'SaldoFinal' não encontrada!")
                     st.write(f"Colunas disponíveis: {list(df.columns)}")
                 else:
-                    # Processa os dados
-                    colunas_necessarias = ['CentroDeCustos', 'SaldoInicial']
-                    if df.columns[6].lower() == 'colaborador' or df.columns[6] == 'G':
-                        # Coluna G tem os nomes dos colaboradores
-                        colunas_necessarias.append(df.columns[6])
-                    
-                    df_processado = df[['CentroDeCustos', 'SaldoInicial', df.columns[6]]].copy()
-                    df_processado.columns = ['CentroDeCustos', 'SaldoInicial', 'Colaborador']
+                    # ===== CARREGAMENTO E PROCESSAMENTO DOS DADOS =====
+                    df_processado = df[['CentroDeCustos', df.columns[6]]].copy()
+                    df_processado.columns = ['CentroDeCustos', 'Colaborador']
                     
                     # Remove linhas onde centro de custo está vazio
                     df_processado = df_processado[df_processado['CentroDeCustos'].notna()]
                     df_processado = df_processado[df_processado['CentroDeCustos'].astype(str).str.strip() != '']
                     df_processado = df_processado[df_processado['CentroDeCustos'] != 'P']
-                    
-                    # Remove centro de custo "RECURSOS HUMANOS"
                     df_processado = df_processado[df_processado['CentroDeCustos'].str.strip().str.upper() != 'RECURSOS HUMANOS']
                     
                     # Cria barra de progresso
                     progress_bar = st.progress(0, text="⏳ Processando dados...")
                     status_text = st.empty()
                     
-                    # Função para converter tempo (HH:MM:SS) para horas decimais, detectando sinal
+                    # Define a coluna de origem
+                    if eh_dia_fechamento:
+                        # Modo Dia de Fechamento
+                        # Copia dados do DataFrame original ANTES de qualquer filtro
+                        original_indices = df_processado.index.copy()
+                        df_processado['Pagamentos'] = df.loc[original_indices, 'Pagamentos'].values
+                        df_processado['Descontos'] = df.loc[original_indices, 'Descontos'].values
+                        
+                        # Função auxiliar para verificar se valor é considerado "vazio"
+                        def is_empty_value(x):
+                            if pd.isna(x):
+                                return True
+                            if x == '' or x == 0:
+                                return True
+                            # Para valores datetime.time, nunca são vazios se não forem NaN
+                            if hasattr(x, 'hour'):
+                                return False
+                            # Para strings, verifica se é "00:00:00" ou similar
+                            str_val = str(x).strip()
+                            if str_val in ['0', 'nan', '0:00:00', '00:00:00']:
+                                return True
+                            return False
+                        
+                        # Marca quais valores são vazios (será usado para filtro)
+                        df_processado['Pagamentos_tem_valor'] = df_processado['Pagamentos'].apply(lambda x: not is_empty_value(x))
+                        df_processado['Descontos_tem_valor'] = df_processado['Descontos'].apply(lambda x: not is_empty_value(x))
+                        
+                        # Filtra registros que têm pelo menos Pagamentos OU Descontos com valor
+                        df_processado = df_processado[(df_processado['Pagamentos_tem_valor']) | (df_processado['Descontos_tem_valor'])].reset_index(drop=True)
+                        
+                        # Agora sim, cria as versões "limpas" para conversão
+                        df_processado['Pagamentos_limpo'] = df_processado['Pagamentos'].apply(lambda x: x if not is_empty_value(x) else 0)
+                        df_processado['Descontos_limpo'] = df_processado['Descontos'].apply(lambda x: x if not is_empty_value(x) else 0)
+                        
+                        coluna_processamento = None
+                        tipo_mode = "Fechamento"
+                    else:
+                        # Modo SaldoFinal
+                        original_indices = df_processado.index.copy()
+                        df_processado['SaldoFinal'] = df.loc[original_indices, 'SaldoFinal'].values
+                        coluna_processamento = 'SaldoFinal'
+                        tipo_mode = "SaldoFinal"
+                    
+                    # Função para converter tempo para horas decimais
                     def tempo_para_horas(valor):
-                        """
-                        Converte tempo em formato HH:MM:SS para horas decimais
-                        Retorna tupla (positivo, negativo)
-                        Valores negativos são detectados pelo sinal (-) no início
-                        """
+                        """Converte tempo em formato HH:MM:SS para horas decimais, detectando sinal"""
                         if pd.isna(valor) or valor == '' or valor == 0:
                             return 0.0, 0.0
                         
                         try:
-                            # Se for datetime.time, converte para string
                             if hasattr(valor, 'hour'):
                                 horas_dec = valor.hour + valor.minute/60 + valor.second/3600
                                 return horas_dec, 0.0
                             
-                            # Converte para string
                             valor_str = str(valor).strip()
-                            
-                            # Se estiver vazio depois do strip
                             if not valor_str or valor_str == 'nan' or valor_str == '0':
                                 return 0.0, 0.0
                             
-                            # Detecta sinal negativo
                             eh_negativo = valor_str.startswith('-')
-                            
-                            # Remove o sinal para processar
                             valor_limpo = valor_str.lstrip('-').strip()
                             
-                            # Processa o valor
                             if ':' in valor_limpo:
                                 partes = valor_limpo.split(':')
                                 if len(partes) >= 2:
@@ -117,24 +157,14 @@ if file_banco_horas and file_csv_colaboradores:
                                         horas = float(partes[0])
                                         minutos = float(partes[1])
                                         segundos = float(partes[2]) if len(partes) > 2 else 0.0
-                                        
                                         total = horas + minutos/60 + segundos/3600
-                                        
-                                        if eh_negativo:
-                                            return 0.0, total
-                                        else:
-                                            return total, 0.0
+                                        return (0.0, total) if eh_negativo else (total, 0.0)
                                     except ValueError:
                                         return 0.0, 0.0
-                                else:
-                                    return 0.0, 0.0
                             else:
                                 try:
                                     num = float(valor_limpo)
-                                    if eh_negativo:
-                                        return 0.0, num
-                                    else:
-                                        return num, 0.0
+                                    return (0.0, num) if eh_negativo else (num, 0.0)
                                 except ValueError:
                                     return 0.0, 0.0
                         except Exception as e:
@@ -143,10 +173,59 @@ if file_banco_horas and file_csv_colaboradores:
                         
                         return 0.0, 0.0
                     
-                    # Processa SaldoInicial
-                    df_processado[['POSITIVO_num', 'NEGATIVO_num']] = df_processado['SaldoInicial'].apply(
-                        lambda x: pd.Series(tempo_para_horas(x))
-                    )
+                    # Função para converter tempo para horas decimais (apenas positivo)
+                    def tempo_para_horas_simples(valor):
+                        """Converte tempo em formato HH:MM:SS para horas decimais (valores positivos - remove sinal negativo)"""
+                        if pd.isna(valor) or valor == '' or valor == 0:
+                            return 0.0
+                        
+                        try:
+                            if hasattr(valor, 'hour'):
+                                result = valor.hour + valor.minute/60 + valor.second/3600
+                                return abs(result)  # Retorna valor absoluto
+                            
+                            valor_str = str(valor).strip()
+                            if not valor_str or valor_str == 'nan' or valor_str == '0':
+                                return 0.0
+                            
+                            # Remove sinal negativo se existir
+                            valor_str = valor_str.lstrip('-').strip()
+                            
+                            if ':' in valor_str:
+                                partes = valor_str.split(':')
+                                if len(partes) >= 2:
+                                    try:
+                                        horas = float(partes[0])
+                                        minutos = float(partes[1])
+                                        segundos = float(partes[2]) if len(partes) > 2 else 0.0
+                                        result = horas + minutos/60 + segundos/3600
+                                        return result  # Já é positivo após lstrip
+                                    except ValueError:
+                                        return 0.0
+                            else:
+                                try:
+                                    return abs(float(valor_str))  # Valor absoluto para números
+                                except ValueError:
+                                    return 0.0
+                        except Exception as e:
+                            st.warning(f"Erro em tempo_para_horas_simples: {valor} - {e}")
+                            return 0.0
+                        
+                        return 0.0
+                    
+                    # Processa os dados baseado no modo
+                    if eh_dia_fechamento:
+                        df_processado[['POSITIVO_num', 'NEGATIVO_num']] = df_processado.apply(
+                            lambda row: pd.Series([
+                                tempo_para_horas_simples(row['Pagamentos_limpo']),
+                                tempo_para_horas_simples(row['Descontos_limpo'])
+                            ]),
+                            axis=1
+                        )
+                    else:
+                        df_processado[['POSITIVO_num', 'NEGATIVO_num']] = df_processado['SaldoFinal'].apply(
+                            lambda x: pd.Series(tempo_para_horas(x))
+                        )
                     
                     progress_bar.progress(25, text="⏳ Processando dados... (25%)")
                     status_text.text("Convertendo horas...")
@@ -154,28 +233,25 @@ if file_banco_horas and file_csv_colaboradores:
                     # Função para converter horas decimais de volta para HH:MM:SS
                     def horas_para_tempo(horas):
                         if pd.isna(horas) or horas == 0:
-                            return "0:00:00"
+                            return "00:00:00"
                         
                         total_segundos = int(abs(horas) * 3600)
                         h = total_segundos // 3600
                         m = (total_segundos % 3600) // 60
                         s = total_segundos % 60
-                        return f"{h}:{m:02d}:{s:02d}"
+                        return f"{h:02d}:{m:02d}:{s:02d}"
                     
-                    # ===== SHEET 1: CONSOLIDAÇÃO POR CENTRO DE CUSTO =====
+                    # ===== PREPARAÇÃO DOS DATAFRAMES =====
                     df_resumo = df_processado.groupby('CentroDeCustos')[['POSITIVO_num', 'NEGATIVO_num']].sum().reset_index()
                     df_resumo.columns = ['Centro de Custo', 'POSITIVO_num', 'NEGATIVO_num']
-                    
                     df_resumo['POSITIVO'] = df_resumo['POSITIVO_num'].apply(horas_para_tempo)
                     df_resumo['NEGATIVO'] = df_resumo['NEGATIVO_num'].apply(horas_para_tempo)
                     
-                    # ===== TOP 15: POSITIVOS =====
                     df_top15_pos = df_processado.nlargest(15, 'POSITIVO_num')[['Colaborador', 'CentroDeCustos', 'POSITIVO_num']].copy()
                     df_top15_pos['POSITIVO'] = df_top15_pos['POSITIVO_num'].apply(horas_para_tempo)
                     df_top15_pos = df_top15_pos.reset_index(drop=True)
                     df_top15_pos.index = df_top15_pos.index + 1
                     
-                    # ===== TOP 15: NEGATIVOS =====
                     df_top15_neg = df_processado.nlargest(15, 'NEGATIVO_num')[['Colaborador', 'CentroDeCustos', 'NEGATIVO_num']].copy()
                     df_top15_neg['NEGATIVO'] = df_top15_neg['NEGATIVO_num'].apply(horas_para_tempo)
                     df_top15_neg = df_top15_neg.reset_index(drop=True)
@@ -184,7 +260,7 @@ if file_banco_horas and file_csv_colaboradores:
                     progress_bar.progress(75, text="⏳ Gerando arquivo Excel... (75%)")
                     status_text.text("Criando sheets...")
                     
-                    # Cria arquivo Excel para download com 2 SHEETS
+                    # Cria arquivo Excel para download
                     wb = Workbook()
                     
                     # ===== SHEET 1: CONSOLIDAÇÃO =====
@@ -526,6 +602,32 @@ if file_banco_horas and file_csv_colaboradores:
                     ws2.column_dimensions['D'].width = 13
                     ws2.column_dimensions['E'].width = 45
                     
+                    # ===== SHEET 3 E 4: DETALHES MOVIMENTACAO E ARMAZENAGEM (POSITIVOS E NEGATIVOS) =====
+                    # Filtra apenas MOVIMENTACAO E ARMAZENAGEM
+                    df_mov_arm = df_processado[
+                        df_processado['CentroDeCustos'].str.strip().str.upper() == 'MOVIMENTACAO E ARMAZENAGEM'
+                    ].copy()
+                    
+                    if len(df_mov_arm) > 0:
+                        # Define estilos para detalhes
+                        header_detail_fill = PatternFill(start_color="FF1F4E78", end_color="FF1F4E78", fill_type="solid")
+                        header_detail_font = Font(bold=True, color="FFFFFFFF", size=11, name="Calibri")
+                        
+                        detail_data_fill = PatternFill(start_color="FFE7E6E6", end_color="FFE7E6E6", fill_type="solid")
+                        detail_data_font = Font(color="FF000000", name="Calibri", size=10)
+                        
+                        detail_total_fill = PatternFill(start_color="FF1F4E78", end_color="FF1F4E78", fill_type="solid")
+                        detail_total_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
+                        
+                        border_detail = Border(
+                            left=Side(style="thin", color="000000"),
+                            right=Side(style="thin", color="000000"),
+                            top=Side(style="thin", color="000000"),
+                            bottom=Side(style="thin", color="000000")
+                        )
+                        
+
+                        
                     # ===== SHEETS DE OFENSORES POR TURNO =====
                     # Função auxiliar para buscar turno de um colaborador
                     def buscar_turno_colaborador(nome_colaborador, df_csv):
@@ -676,6 +778,68 @@ if file_banco_horas and file_csv_colaboradores:
                             ws_turno.column_dimensions['D'].width = 13
                             ws_turno.column_dimensions['E'].width = 45
                     
+                    # ===== SHEET BASE =====
+                    # Cria uma view consolidada de todos os colaboradores com status
+                    df_base = df_processado.copy()
+                    
+                    # Determina o status (POSITIVO ou NEGATIVO) e o saldo
+                    # Status sempre será POSITIVO (para Pagamentos), NEGATIVO (para Descontos) ou ZERO
+                    df_base['STATUS'] = df_base.apply(
+                        lambda row: 'POSITIVO' if row['POSITIVO_num'] > 0 else ('NEGATIVO' if row['NEGATIVO_num'] > 0 else 'ZERO'),
+                        axis=1
+                    )
+                    
+                    df_base['SALDO'] = df_base.apply(
+                        lambda row: horas_para_tempo(row['POSITIVO_num']) if row['POSITIVO_num'] > 0 else horas_para_tempo(row['NEGATIVO_num']),
+                        axis=1
+                    )
+                    
+                    ws_base = wb.create_sheet("BASE")
+                    
+                    # Headers
+                    headers_base = ['COLABORADOR', 'SALDO', 'STATUS', 'CENTRO DE CUSTOS']
+                    for col_idx, header in enumerate(headers_base, 1):
+                        cell = ws_base.cell(row=1, column=col_idx, value=header)
+                        cell.fill = header_detail_fill
+                        cell.font = header_detail_font
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                        cell.border = border_detail
+                    
+                    ws_base.row_dimensions[1].height = 20
+                    
+                    # Ordena por colaborador
+                    df_base_sorted = df_base.sort_values('Colaborador').reset_index(drop=True)
+                    
+                    # Dados
+                    row_idx = 2
+                    for _, row in df_base_sorted.iterrows():
+                        ws_base.cell(row=row_idx, column=1, value=row['Colaborador'])
+                        ws_base.cell(row=row_idx, column=2, value=row['SALDO'])
+                        ws_base.cell(row=row_idx, column=3, value=row['STATUS'])
+                        ws_base.cell(row=row_idx, column=4, value=row['CentroDeCustos'])
+                        
+                        for col in range(1, 5):
+                            cell = ws_base.cell(row=row_idx, column=col)
+                            cell.fill = detail_data_fill
+                            cell.font = detail_data_font
+                            cell.border = border_detail
+                            
+                            if col == 1 or col == 4:
+                                cell.alignment = Alignment(horizontal="left", vertical="center")
+                            else:
+                                cell.alignment = Alignment(horizontal="center", vertical="center")
+                        
+                        row_idx += 1
+                    
+                    # Formata colunas
+                    ws_base.column_dimensions['A'].width = 50
+                    ws_base.column_dimensions['B'].width = 20
+                    ws_base.column_dimensions['C'].width = 15
+                    ws_base.column_dimensions['D'].width = 45
+                    
+                    # Remove grid lines
+                    ws_base.sheet_view.showGridLines = False
+                    
                     # Salva em memória
                     output = io.BytesIO()
                     wb.save(output)
@@ -711,7 +875,7 @@ else:
     1. **Upload**: Carregue o arquivo XLSX com banco de horas
     2. **Estrutura esperada**:
        - Coluna E: `CentroDeCustos` (identificação do centro de custo)
-       - Coluna O: `SaldoInicial` (horas com sinal + positivo ou - negativo)
+       - Coluna R: `SaldoFinal` (horas com sinal + positivo ou - negativo)
     3. **Gerar**: Clique em "Gerar Relatório"
     4. **Download**: Baixe o arquivo XLSX com o resumo consolidado
     
