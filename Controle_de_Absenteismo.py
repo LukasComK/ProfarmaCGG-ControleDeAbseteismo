@@ -2331,7 +2331,7 @@ with col_btn_processar:
                     
                     cell_hc_crdk = ws_porcentagens.cell(row=5, column=2)
                     hc_crdk_formula = (
-                        f'=SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E | LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                        f'=SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
                         f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*1)'
                         f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK FOB LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
                         f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
@@ -2385,8 +2385,8 @@ with col_btn_processar:
                     setores_info_pct = [
                         ('M&A', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
                         ('M&A - %', ['MOVIMENTACAO E ARMAZENAGEM', 'PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM', 'BLOQ', 'CD-RJ | FOB']),
-                        ('CRDK / D&E', ['CRDK D&E | LCFA | CD-RJ', 'CRDK D&E|CD-RJ HB', 'CRDK FOB LCFA | CD-RJ', 'CRDK LCFA | CD-RJ']),
-                        ('CRDK / D&E - %', ['CRDK D&E | LCFA | CD-RJ', 'CRDK D&E|CD-RJ HB', 'CRDK FOB LCFA | CD-RJ', 'CRDK LCFA | CD-RJ'])
+                        ('CRDK / D&E', ['CRDK D&E LCFA | CD-RJ', 'CRDK D&E|CD-RJ HB', 'CRDK FOB LCFA | CD-RJ', 'CRDK LCFA | CD-RJ']),
+                        ('CRDK / D&E - %', ['CRDK D&E LCFA | CD-RJ', 'CRDK D&E|CD-RJ HB', 'CRDK FOB LCFA | CD-RJ', 'CRDK LCFA | CD-RJ'])
                     ]
                     
                     row_pct = 9
@@ -2433,7 +2433,7 @@ with col_btn_processar:
                                     else:  # CRDK / D&E
                                         formula = (
                                             f'=SUMPRODUCT('
-                                            f'(ISNUMBER(SEARCH("CRDK D&E | LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))'
+                                            f'(ISNUMBER(SEARCH("CRDK D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))'
                                             f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
                                             f'+ISNUMBER(SEARCH("CRDK FOB LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))'
                                             f'+ISNUMBER(SEARCH("CRDK LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter})))*'
