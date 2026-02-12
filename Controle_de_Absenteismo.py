@@ -1768,6 +1768,22 @@ if files_encarregado:
     tem_dica_linha = linha_detectada is not None and idx_linha != linha_detectada
     tem_dica_coluna = col_detectada_auto is not None and idx_col_detectada_auto != idx_col
     
+    # Se está em modo automático E tem dicas, aderir automaticamente
+    if st.session_state.get('necessita_aderir_auto', False) and (tem_dica_linha or tem_dica_coluna):
+        st.session_state.necessita_aderir_auto = False
+        
+        # Aderir as dicas
+        if tem_dica_linha:
+            st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
+        if tem_dica_coluna:
+            st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
+        
+        # Avançar para próximo arquivo em modo automático
+        if st.session_state.get('modo_automatico', False):
+            st.session_state.idx_arquivo_automatico += 1
+        
+        st.rerun()
+    
     if tem_dica_linha:
         st.info(f"💡 **Dica:** Detectei que a linha {linha_detectada + 1} tem os DIAS em sequência. Você selecionou a linha {idx_linha + 1}.")  # +1 para mostrar como Excel
     
@@ -1778,34 +1794,35 @@ if files_encarregado:
     # Botão "Aderir Dica" logo após as dicas - só mostra se há dicas
     if tem_dica_linha or tem_dica_coluna:
         col_dica_btn, col_auto_btn, col_dica_space = st.columns([1, 1.2, 3])
-        with col_dica_btn:
-            def aderir_dica():
-                if tem_dica_linha:
-                    st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
-                if tem_dica_coluna:
-                    st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
-                
-                # Se está em modo automático, avança para próximo
-                if st.session_state.get('modo_automatico', False):
-                    st.session_state.idx_arquivo_automatico += 1
-                    st.session_state.necessita_aderir_auto = False
+        
+        # Callback para aderir dica
+        def aderir_dica():
+            if tem_dica_linha:
+                st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
+            if tem_dica_coluna:
+                st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
             
+            # Se está em modo automático, avança para próximo
+            if st.session_state.get('modo_automatico', False):
+                st.session_state.idx_arquivo_automatico += 1
+                st.session_state.necessita_aderir_auto = False
+        
+        # Renderiza botão invisível se em modo automático
+        if st.session_state.get('necessita_aderir_auto', False):
+            with col_auto_btn:
+                st.button("🤖 PROCESSANDO...", key=f"btn_auto_click_{idx_arquivo_atual}", on_click=aderir_dica, disabled=True)        
+        with col_dica_btn:
             st.button("✅ Aderir Dica", key=f"btn_aderir_{idx_arquivo_atual}", on_click=aderir_dica)
         
-        with col_auto_btn:
-            def iniciar_automatico():
-                st.session_state.modo_automatico = True
-                st.session_state.idx_arquivo_automatico = st.session_state.idx_arquivo_nav
-                st.session_state.necessita_aderir_auto = True
-            
-            if len(files_encarregado) > 1:
-                st.button("🤖 AUTOMÁTICO", key=f"btn_auto_{idx_arquivo_atual}", on_click=iniciar_automatico)
-        
-        # Se precisa aderir automático, clica o botão invisível
-        if st.session_state.get('necessita_aderir_auto', False):
-            # Cria botão invisível que clica automaticamente
-            with st.columns([0.0001])[0]:
-                st.button("auto", key=f"btn_auto_click_{idx_arquivo_atual}", on_click=aderir_dica, label_visibility="collapsed")
+        if not st.session_state.get('necessita_aderir_auto', False):
+            with col_auto_btn:
+                def iniciar_automatico():
+                    st.session_state.modo_automatico = True
+                    st.session_state.idx_arquivo_automatico = st.session_state.idx_arquivo_nav
+                    st.session_state.necessita_aderir_auto = True
+                
+                if len(files_encarregado) > 1:
+                    st.button("🤖 AUTOMÁTICO", key=f"btn_auto_{idx_arquivo_atual}", on_click=iniciar_automatico)
     
     # Caixa de texto para o nome do encarregado
     st.write("**👤 Informações do Encarregado:**")
