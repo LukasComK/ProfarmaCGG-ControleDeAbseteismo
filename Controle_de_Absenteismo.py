@@ -1701,6 +1701,13 @@ if files_encarregado:
             # Mostra se está configurado
             status = "✅" if nomes_arquivos[idx_arq] in st.session_state.config_arquivos else "⚠️"
             st.info(f"{status} {nomes_arquivos[idx_arq]} ({idx_arq + 1}/{len(files_encarregado)})")
+            
+            # Navegação direta por número
+            def ir_para_arquivo():
+                st.session_state.idx_arquivo_nav = st.session_state.num_arquivo_goto - 1
+
+            st.number_input("Ir para planilha nº:", min_value=1, max_value=len(files_encarregado), 
+                           value=idx_arq + 1, key="num_arquivo_goto", on_change=ir_para_arquivo)
         
         with col_next:
             if st.button("Próximo ➡️", key="btn_next_arquivo"):
@@ -2066,7 +2073,7 @@ with col_btn_processar:
                         guia_usar = config['guia']
                         nome_encarregado = config['nome_encarregado']
                         
-                        st.write(f"📄 Processando: **{file_enc.name}**")
+                        st.write(f"📄 [{idx_arquivo + 1}] Processando: **{file_enc.name}**")
                         
                         df_enc = None
                         try:
