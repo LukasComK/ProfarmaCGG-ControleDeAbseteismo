@@ -1583,59 +1583,116 @@ if files_encarregado:
         st.error("❌ Nenhum arquivo válido encontrado! Por favor, envie arquivos Excel válidos.")
         st.stop()
     
-    # Inicializa modo automático se não existir
-    if 'modo_automatico' not in st.session_state:
-        st.session_state.modo_automatico = False
-    if 'idx_arquivo_automatico' not in st.session_state:
-        st.session_state.idx_arquivo_automatico = 0
-    if 'necessita_aderir_auto' not in st.session_state:
-        st.session_state.necessita_aderir_auto = False
+    files_encarregado = arquivos_validos
     
-    # Se está em modo automático, navega para arquivo correto e seta flag
-    if st.session_state.get('modo_automatico', False):
-        idx_auto = st.session_state.idx_arquivo_automatico
+    if not files_encarregado:
+        st.error("❌ Nenhum arquivo válido encontrado! Por favor, envie arquivos Excel válidos.")
+        st.stop()
+    
+    # Função auxiliar para detecção automática (reutilizada no modo individual e em lote)
+    def detectar_config_arquivo(df_raw):
+        letras_disponiveis = []
+        for i in range(len(df_raw.columns)):
+            if i < 26:
+                letras_disponiveis.append(chr(65 + i))
+            else:
+                letras_disponiveis.append(f"{chr(65 + i//26 - 1)}{chr(65 + i%26)}")
         
-        if idx_auto < len(files_encarregado):
-            st.session_state.idx_arquivo_nav = idx_auto
-            st.session_state.necessita_aderir_auto = True
-        else:
-            # Terminou todos
-            st.session_state.modo_automatico = False
-            st.session_state.idx_arquivo_nav = 0
-            st.balloons()
-            st.success("✅ AUTOMÁTICO CONCLUÍDO!")
-            st.rerun()
-    
+        # 1. Detecta COLUNA (Nomes)
+        keywords_nomes = ['NOME', 'NOMES', 'COLABORADOR', 'COLABORADORES', 'FUNCIONARIO', 'FUNCIONARIOS', 'EMPLOYEE', 'EMPLOYEES', 'PESSOAL', 'PERSON', 'STAFF']
+        col_detectada = None
+        idx_col_detectada = None
+        
+        # Pela keyword
+        for linha_teste in range(min(10, len(df_raw))):
+            for i in range(len(df_raw.columns) - 1, -1, -1):
+                header = str(df_raw.iloc[linha_teste, i]).upper().strip()
+                for keyword in keywords_nomes:
+                    if keyword in header:
+                        col_detectada = letras_disponiveis[i]
+                        idx_col_detectada = i
+                        break
+                if col_detectada: break
+            if col_detectada: break
+            
+        # Pelo conteúdo
+        if col_detectada is None:
+            for i in range(len(df_raw.columns) - 1, -1, -1):
+                valores = df_raw.iloc[:, i].astype(str).str.strip()
+                tem_letras = valores.apply(lambda x: any(c.isalpha() for c in x)).sum() > len(valores) * 0.7
+                if tem_letras:
+                    col_detectada = letras_disponiveis[i]
+                    idx_col_detectada = i
+                    break
+        
+        # 2. Detecta LINHA (Dias)
+        linha_detectada = None
+        for tentativa_linha in range(min(20, len(df_raw))):
+            valores_linha = [str(df_raw.iloc[tentativa_linha, i]).strip() for i in range(len(df_raw.columns))]
+            numeros_encontrados = [v for v in valores_linha if v.isdigit() or v in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31']]
+            if len(numeros_encontrados) >= 15:
+                linha_detectada = tentativa_linha
+                break
+        
+        return col_detectada, idx_col_detectada, linha_detectada
+
     st.header("Pré-Visualização")
     
+    # Se há múltiplos arquivos, mostra opção de processamento automático em lote
+    if len(files_encarregado) > 1:
+        col_auto_all, col_space = st.columns([1, 2])
+        with col_auto_all:
+            if st.button("🤖 CONFIGURAR TUDO AUTOMATICAMENTE", type="primary"):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for i, file_obj in enumerate(files_encarregado):
+                    status_text.text(f"Processando {file_obj.name}...")
+                    
+                    try:
+                        # Carrega arquivo
+                        wb_temp = load_workbook(io.BytesIO(file_obj.getvalue()), data_only=True)
+                        guia = wb_temp.active.title
+                        
+                        # Carrega dataframe
+                        df_temp = pd.read_excel(io.BytesIO(file_obj.getvalue()), sheet_name=guia, header=None, dtype=str)
+                        
+                        # Detecta configurações
+                        col_letra, col_idx, linha_idx = detectar_config_arquivo(df_temp)
+                        
+                        # Aplica configurações se detectou tudo
+                        if col_letra and linha_idx is not None:
+                            st.session_state[f'l_{i}'] = f"Linha {linha_idx + 1}"
+                            st.session_state[f'c_{i}'] = col_letra
+                            st.session_state[f'encarregado_{i}'] = "" # Opcional: tentar detectar nome
+                            
+                            st.session_state.config_arquivos[file_obj.name] = {
+                                'linha_idx': linha_idx,
+                                'col_idx': col_idx,
+                                'guia': guia,
+                                'nome_encarregado': ""
+                            }
+                    except Exception as e:
+                        st.error(f"Erro ao processar {file_obj.name}: {e}")
+                    
+                    # Atualiza progresso
+                    progress_bar.progress((i + 1) / len(files_encarregado))
+                
+                status_text.text("✅ Configuração automática concluída!")
+                st.balloons()
+                st.rerun()
+
     # Se há apenas 1 arquivo, processa normalmente
     # Se há múltiplos, mostra navegação
     if len(files_encarregado) == 1:
         file_encarregado = files_encarregado[0]
         idx_arquivo_atual = 0
     else:
-        # Se está em modo automático, atualiza navegação
-        if st.session_state.get('modo_automatico', False):
-            idx_auto = st.session_state.idx_arquivo_automatico
-            
-            # Verificar se terminou todos os arquivos
-            if idx_auto >= len(files_encarregado):
-                # Terminou de processar todos os arquivos
-                st.session_state.modo_automatico = False
-                st.session_state.idx_arquivo_nav = 0
-                st.balloons()
-                st.success("✅ AUTOMÁTICO CONCLUÍDO! Todos os arquivos foram processados com sucesso!")
-                st.rerun()
-            else:
-                # Navega para o arquivo seguinte
-                st.session_state.idx_arquivo_nav = idx_auto
-        
         col_prev, col_info, col_next = st.columns([1, 3, 1])
         
         with col_prev:
             if st.button("⬅️ Anterior", key="btn_prev_arquivo"):
                 st.session_state.idx_arquivo_nav = max(0, st.session_state.idx_arquivo_nav - 1)
-                st.session_state.modo_automatico = False  # Cancel automático se navega manualmente
                 st.rerun()
         
         with col_info:
@@ -1643,17 +1700,11 @@ if files_encarregado:
             idx_arq = st.session_state.idx_arquivo_nav
             # Mostra se está configurado
             status = "✅" if nomes_arquivos[idx_arq] in st.session_state.config_arquivos else "⚠️"
-            
-            # Se está em modo automático, mostra progresso
-            if st.session_state.get('modo_automatico', False):
-                st.warning(f"🤖 AUTOMÁTICO EM EXECUÇÃO... {idx_arq + 1}/{len(files_encarregado)}")
-            else:
-                st.info(f"{status} {nomes_arquivos[idx_arq]} ({idx_arq + 1}/{len(files_encarregado)})")
+            st.info(f"{status} {nomes_arquivos[idx_arq]} ({idx_arq + 1}/{len(files_encarregado)})")
         
         with col_next:
             if st.button("Próximo ➡️", key="btn_next_arquivo"):
                 st.session_state.idx_arquivo_nav = min(len(files_encarregado) - 1, st.session_state.idx_arquivo_nav + 1)
-                st.session_state.modo_automatico = False  # Cancel automático se navega manualmente
                 st.rerun()
         
         idx_arquivo_atual = st.session_state.idx_arquivo_nav
