@@ -1688,14 +1688,15 @@ if files_encarregado:
         file_encarregado = files_encarregado[0]
         idx_arquivo_atual = 0
     else:
-        # Layout mais compacto: [Anterior] [Input] [Info] [Próximo]
-        col_prev, col_input, col_info, col_next = st.columns([0.8, 0.8, 4, 0.8])
+        col_prev, col_input, col_info, col_next = st.columns([1, 1, 3, 1])
         
         nomes_arquivos = [f.name for f in files_encarregado]
         idx_arq = st.session_state.idx_arquivo_nav
 
         with col_prev:
-            if st.button("⬅️", key="btn_prev_arquivo", help="Arquivo Anterior"):
+            st.write("") # Espaçamento para alinhar com o input que tem label
+            st.write("") 
+            if st.button("⬅️ Anterior", key="btn_prev_arquivo"):
                 st.session_state.idx_arquivo_nav = max(0, st.session_state.idx_arquivo_nav - 1)
                 st.rerun()
         
@@ -1703,10 +1704,8 @@ if files_encarregado:
             def ir_para_arquivo():
                 st.session_state.idx_arquivo_nav = st.session_state.num_arquivo_goto - 1
 
-            # Label visivelmente oculto para alinhar com o botão, mas mantendo a funcionalidade
-            st.number_input("Ir para", min_value=1, max_value=len(files_encarregado), 
-                           value=idx_arq + 1, key="num_arquivo_goto", on_change=ir_para_arquivo, 
-                           label_visibility="collapsed")
+            st.number_input("Ir para:", min_value=1, max_value=len(files_encarregado), 
+                           value=idx_arq + 1, key="num_arquivo_goto", on_change=ir_para_arquivo)
 
         with col_info:
             # Mostra se está configurado
@@ -1714,7 +1713,9 @@ if files_encarregado:
             st.info(f"{status} {nomes_arquivos[idx_arq]} ({idx_arq + 1}/{len(files_encarregado)})")
             
         with col_next:
-            if st.button("➡️", key="btn_next_arquivo", help="Próximo Arquivo"):
+            st.write("") # Espaçamento para alinhar com o input que tem label
+            st.write("") 
+            if st.button("Próximo ➡️", key="btn_next_arquivo"):
                 st.session_state.idx_arquivo_nav = min(len(files_encarregado) - 1, st.session_state.idx_arquivo_nav + 1)
                 st.rerun()
         
