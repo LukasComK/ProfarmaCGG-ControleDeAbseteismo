@@ -1768,20 +1768,27 @@ if files_encarregado:
     tem_dica_linha = linha_detectada is not None and idx_linha != linha_detectada
     tem_dica_coluna = col_detectada_auto is not None and idx_col_detectada_auto != idx_col
     
-    # Se está em modo automático E tem dicas, aderir automaticamente
+    # Se está em modo automático E tem dicas, aderir automaticamente via update seguro
     if st.session_state.get('necessita_aderir_auto', False) and (tem_dica_linha or tem_dica_coluna):
-        st.session_state.necessita_aderir_auto = False
+        updates = {}
         
         # Aderir as dicas
         if tem_dica_linha:
-            st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
+            updates[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
         if tem_dica_coluna:
-            st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
+            updates[f'c_{idx_arquivo_atual}'] = col_detectada_auto
+        
+        # Marcar como não precisando mais aderir
+        updates['necessita_aderir_auto'] = False
         
         # Avançar para próximo arquivo em modo automático
         if st.session_state.get('modo_automatico', False):
-            st.session_state.idx_arquivo_automatico += 1
+            updates['idx_arquivo_automatico'] = st.session_state.get('idx_arquivo_automatico', 0) + 1
         
+        # Atualizar todos de uma vez (seguro)
+        st.session_state.update(updates)
+        
+        # Rerun para próxima renderização
         st.rerun()
     
     if tem_dica_linha:
