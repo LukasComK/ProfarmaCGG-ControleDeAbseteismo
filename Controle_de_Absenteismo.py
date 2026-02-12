@@ -1785,21 +1785,6 @@ if files_encarregado:
             
             if len(files_encarregado) > 1:
                 st.button("🤖 AUTOMÁTICO", key=f"btn_auto_{idx_arquivo_atual}", on_click=iniciar_automatico)
-        
-        # Executa aderir dica automaticamente se flag estiver ativa
-        if st.session_state.get('aderir_automatico_agora', False):
-            st.session_state.aderir_automatico_agora = False
-            
-            if tem_dica_linha:
-                st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
-            if tem_dica_coluna:
-                st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
-            
-            # Se está em modo automático, avança para próximo
-            if st.session_state.get('modo_automatico', False):
-                st.session_state.idx_arquivo_automatico += 1
-            
-            st.rerun()
     
     # Caixa de texto para o nome do encarregado
     st.write("**👤 Informações do Encarregado:**")
@@ -1808,6 +1793,22 @@ if files_encarregado:
 
     # Salva configuração deste arquivo
     nome_arquivo = file_encarregado.name
+    
+    # Executa aderir dica automaticamente se flag estiver ativa
+    if st.session_state.get('aderir_automatico_agora', False):
+        st.session_state.aderir_automatico_agora = False
+        
+        if tem_dica_linha:
+            st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
+        if tem_dica_coluna:
+            st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
+        
+        # Se está em modo automático, avança para próximo
+        if st.session_state.get('modo_automatico', False):
+            st.session_state.idx_arquivo_automatico += 1
+        
+        st.rerun()
+    
     st.session_state.config_arquivos[nome_arquivo] = {
         'linha_idx': idx_linha,
         'col_idx': idx_col,
