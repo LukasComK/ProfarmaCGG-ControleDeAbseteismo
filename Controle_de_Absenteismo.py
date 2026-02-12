@@ -1588,24 +1588,8 @@ if files_encarregado:
         st.session_state.modo_automatico = False
     if 'idx_arquivo_automatico' not in st.session_state:
         st.session_state.idx_arquivo_automatico = 0
-    
-    # Processa modo automático - aderir dica para todos os arquivos
-    if st.session_state.modo_automatico:
-        idx_auto = st.session_state.idx_arquivo_automatico
-        
-        if idx_auto < len(files_encarregado):
-            # Define para este arquivo
-            st.session_state.idx_arquivo_nav = idx_auto
-            
-            # Garante que vamos aderir a dica neste arquivo quando ele for processado
-            st.session_state.aderir_dica_automatico = True
-            st.rerun()
-        else:
-            # Terminou de processar todos os arquivos
-            st.session_state.modo_automatico = False
-            st.session_state.idx_arquivo_nav = 0
-            st.success("✅ AUTOMÁTICO concluído! Todos os arquivos foram processados.")
-            st.rerun()
+    if 'aderir_automatico_agora' not in st.session_state:
+        st.session_state.aderir_automatico_agora = False
     
     st.header("Pré-Visualização")
     
@@ -1615,11 +1599,28 @@ if files_encarregado:
         file_encarregado = files_encarregado[0]
         idx_arquivo_atual = 0
     else:
+        # Se está em modo automático, atualiza navegação
+        if st.session_state.get('modo_automatico', False):
+            idx_auto = st.session_state.idx_arquivo_automatico
+            
+            # Verificar se terminou todos os arquivos
+            if idx_auto >= len(files_encarregado):
+                # Terminou de processar todos os arquivos
+                st.session_state.modo_automatico = False
+                st.session_state.idx_arquivo_nav = 0
+                st.balloons()
+                st.success("✅ AUTOMÁTICO CONCLUÍDO! Todos os arquivos foram processados com sucesso!")
+                st.rerun()
+            else:
+                # Navega para o arquivo seguinte
+                st.session_state.idx_arquivo_nav = idx_auto
+        
         col_prev, col_info, col_next = st.columns([1, 3, 1])
         
         with col_prev:
             if st.button("⬅️ Anterior", key="btn_prev_arquivo"):
                 st.session_state.idx_arquivo_nav = max(0, st.session_state.idx_arquivo_nav - 1)
+                st.session_state.modo_automatico = False  # Cancel automático se navega manualmente
                 st.rerun()
         
         with col_info:
@@ -1637,6 +1638,7 @@ if files_encarregado:
         with col_next:
             if st.button("Próximo ➡️", key="btn_next_arquivo"):
                 st.session_state.idx_arquivo_nav = min(len(files_encarregado) - 1, st.session_state.idx_arquivo_nav + 1)
+                st.session_state.modo_automatico = False  # Cancel automático se navega manualmente
                 st.rerun()
         
         idx_arquivo_atual = st.session_state.idx_arquivo_nav
@@ -1768,9 +1770,10 @@ if files_encarregado:
                 if tem_dica_coluna:
                     st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
                 
-                # Se está em modo automático, avança para próximo arquivo
+                # Se está em modo automático, prepara para avançar
                 if st.session_state.get('modo_automatico', False):
                     st.session_state.idx_arquivo_automatico += 1
+                    st.session_state.aderir_automatico_agora = True
             
             st.button("✅ Aderir Dica", key=f"btn_aderir_{idx_arquivo_atual}", on_click=aderir_dica)
         
@@ -1778,23 +1781,25 @@ if files_encarregado:
             def iniciar_automatico():
                 st.session_state.modo_automatico = True
                 st.session_state.idx_arquivo_automatico = st.session_state.idx_arquivo_nav
-                st.session_state.aderir_dica_automatico = True
+                st.session_state.aderir_automatico_agora = True
             
             if len(files_encarregado) > 1:
                 st.button("🤖 AUTOMÁTICO", key=f"btn_auto_{idx_arquivo_atual}", on_click=iniciar_automatico)
         
         # Executa aderir dica automaticamente se flag estiver ativa
-        if st.session_state.get('aderir_dica_automatico', False):
-            st.session_state.aderir_dica_automatico = False
+        if st.session_state.get('aderir_automatico_agora', False):
+            st.session_state.aderir_automatico_agora = False
+            
             if tem_dica_linha:
                 st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
             if tem_dica_coluna:
                 st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
             
-            # Se está em modo automático, avança para próximo arquivo
+            # Se está em modo automático, avança para próximo
             if st.session_state.get('modo_automatico', False):
                 st.session_state.idx_arquivo_automatico += 1
-                st.rerun()
+            
+            st.rerun()
     
     # Caixa de texto para o nome do encarregado
     st.write("**👤 Informações do Encarregado:**")
