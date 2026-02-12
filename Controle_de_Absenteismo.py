@@ -1588,8 +1588,23 @@ if files_encarregado:
         st.session_state.modo_automatico = False
     if 'idx_arquivo_automatico' not in st.session_state:
         st.session_state.idx_arquivo_automatico = 0
-    if 'aderir_automatico_agora' not in st.session_state:
-        st.session_state.aderir_automatico_agora = False
+    if 'necessita_aderir_auto' not in st.session_state:
+        st.session_state.necessita_aderir_auto = False
+    
+    # Se está em modo automático, navega para arquivo correto e seta flag
+    if st.session_state.get('modo_automatico', False):
+        idx_auto = st.session_state.idx_arquivo_automatico
+        
+        if idx_auto < len(files_encarregado):
+            st.session_state.idx_arquivo_nav = idx_auto
+            st.session_state.necessita_aderir_auto = True
+        else:
+            # Terminou todos
+            st.session_state.modo_automatico = False
+            st.session_state.idx_arquivo_nav = 0
+            st.balloons()
+            st.success("✅ AUTOMÁTICO CONCLUÍDO!")
+            st.rerun()
     
     st.header("Pré-Visualização")
     
@@ -1770,10 +1785,10 @@ if files_encarregado:
                 if tem_dica_coluna:
                     st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
                 
-                # Se está em modo automático, prepara para avançar
+                # Se está em modo automático, avança para próximo
                 if st.session_state.get('modo_automatico', False):
                     st.session_state.idx_arquivo_automatico += 1
-                    st.session_state.aderir_automatico_agora = True
+                    st.session_state.necessita_aderir_auto = False
             
             st.button("✅ Aderir Dica", key=f"btn_aderir_{idx_arquivo_atual}", on_click=aderir_dica)
         
@@ -1781,10 +1796,16 @@ if files_encarregado:
             def iniciar_automatico():
                 st.session_state.modo_automatico = True
                 st.session_state.idx_arquivo_automatico = st.session_state.idx_arquivo_nav
-                st.session_state.aderir_automatico_agora = True
+                st.session_state.necessita_aderir_auto = True
             
             if len(files_encarregado) > 1:
                 st.button("🤖 AUTOMÁTICO", key=f"btn_auto_{idx_arquivo_atual}", on_click=iniciar_automatico)
+        
+        # Se precisa aderir automático, clica o botão invisível
+        if st.session_state.get('necessita_aderir_auto', False):
+            # Cria botão invisível que clica automaticamente
+            with st.columns([0.0001])[0]:
+                st.button("auto", key=f"btn_auto_click_{idx_arquivo_atual}", on_click=aderir_dica, label_visibility="collapsed")
     
     # Caixa de texto para o nome do encarregado
     st.write("**👤 Informações do Encarregado:**")
@@ -1793,21 +1814,6 @@ if files_encarregado:
 
     # Salva configuração deste arquivo
     nome_arquivo = file_encarregado.name
-    
-    # Executa aderir dica automaticamente se flag estiver ativa
-    if st.session_state.get('aderir_automatico_agora', False):
-        st.session_state.aderir_automatico_agora = False
-        
-        if tem_dica_linha:
-            st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
-        if tem_dica_coluna:
-            st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
-        
-        # Se está em modo automático, avança para próximo
-        if st.session_state.get('modo_automatico', False):
-            st.session_state.idx_arquivo_automatico += 1
-        
-        st.rerun()
     
     st.session_state.config_arquivos[nome_arquivo] = {
         'linha_idx': idx_linha,
