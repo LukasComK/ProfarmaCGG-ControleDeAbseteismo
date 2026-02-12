@@ -1583,6 +1583,30 @@ if files_encarregado:
         st.error("❌ Nenhum arquivo válido encontrado! Por favor, envie arquivos Excel válidos.")
         st.stop()
     
+    # Inicializa modo automático se não existir
+    if 'modo_automatico' not in st.session_state:
+        st.session_state.modo_automatico = False
+    if 'idx_arquivo_automatico' not in st.session_state:
+        st.session_state.idx_arquivo_automatico = 0
+    
+    # Processa modo automático - aderir dica para todos os arquivos
+    if st.session_state.modo_automatico:
+        idx_auto = st.session_state.idx_arquivo_automatico
+        
+        if idx_auto < len(files_encarregado):
+            # Define para este arquivo
+            st.session_state.idx_arquivo_nav = idx_auto
+            
+            # Garante que vamos aderir a dica neste arquivo quando ele for processado
+            st.session_state.aderir_dica_automatico = True
+            st.rerun()
+        else:
+            # Terminou de processar todos os arquivos
+            st.session_state.modo_automatico = False
+            st.session_state.idx_arquivo_nav = 0
+            st.success("✅ AUTOMÁTICO concluído! Todos os arquivos foram processados.")
+            st.rerun()
+    
     st.header("Pré-Visualização")
     
     # Se há apenas 1 arquivo, processa normalmente
@@ -1603,7 +1627,12 @@ if files_encarregado:
             idx_arq = st.session_state.idx_arquivo_nav
             # Mostra se está configurado
             status = "✅" if nomes_arquivos[idx_arq] in st.session_state.config_arquivos else "⚠️"
-            st.info(f"{status} {nomes_arquivos[idx_arq]} ({idx_arq + 1}/{len(files_encarregado)})")
+            
+            # Se está em modo automático, mostra progresso
+            if st.session_state.get('modo_automatico', False):
+                st.warning(f"🤖 AUTOMÁTICO EM EXECUÇÃO... {idx_arq + 1}/{len(files_encarregado)}")
+            else:
+                st.info(f"{status} {nomes_arquivos[idx_arq]} ({idx_arq + 1}/{len(files_encarregado)})")
         
         with col_next:
             if st.button("Próximo ➡️", key="btn_next_arquivo"):
@@ -1731,15 +1760,41 @@ if files_encarregado:
     
     # Botão "Aderir Dica" logo após as dicas - só mostra se há dicas
     if tem_dica_linha or tem_dica_coluna:
-        col_dica_btn, col_dica_space = st.columns([1, 4])
+        col_dica_btn, col_auto_btn, col_dica_space = st.columns([1, 1.2, 3])
         with col_dica_btn:
             def aderir_dica():
                 if tem_dica_linha:
                     st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
                 if tem_dica_coluna:
                     st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
+                
+                # Se está em modo automático, avança para próximo arquivo
+                if st.session_state.get('modo_automatico', False):
+                    st.session_state.idx_arquivo_automatico += 1
             
             st.button("✅ Aderir Dica", key=f"btn_aderir_{idx_arquivo_atual}", on_click=aderir_dica)
+        
+        with col_auto_btn:
+            def iniciar_automatico():
+                st.session_state.modo_automatico = True
+                st.session_state.idx_arquivo_automatico = st.session_state.idx_arquivo_nav
+                st.session_state.aderir_dica_automatico = True
+            
+            if len(files_encarregado) > 1:
+                st.button("🤖 AUTOMÁTICO", key=f"btn_auto_{idx_arquivo_atual}", on_click=iniciar_automatico)
+        
+        # Executa aderir dica automaticamente se flag estiver ativa
+        if st.session_state.get('aderir_dica_automatico', False):
+            st.session_state.aderir_dica_automatico = False
+            if tem_dica_linha:
+                st.session_state[f'l_{idx_arquivo_atual}'] = f"Linha {linha_detectada + 1}"
+            if tem_dica_coluna:
+                st.session_state[f'c_{idx_arquivo_atual}'] = col_detectada_auto
+            
+            # Se está em modo automático, avança para próximo arquivo
+            if st.session_state.get('modo_automatico', False):
+                st.session_state.idx_arquivo_automatico += 1
+                st.rerun()
     
     # Caixa de texto para o nome do encarregado
     st.write("**👤 Informações do Encarregado:**")
