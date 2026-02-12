@@ -1798,6 +1798,20 @@ if files_encarregado:
             # Se está em modo automático com necessita_aderir, mostra botão processando
             if st.session_state.get('necessita_aderir_auto', False):
                 st.button("🤖 ADERIR AUTOMATICAMENTE", key=f"btn_auto_click_{idx_arquivo_atual}", on_click=aderir_dica)
+                # Auto-click via JavaScript quando está em modo automático
+                st.markdown("""
+                <script>
+                setTimeout(function() {
+                    const buttons = document.querySelectorAll('button');
+                    for (let btn of buttons) {
+                        if (btn.textContent.includes('ADERIR AUTOMATICAMENTE')) {
+                            btn.click();
+                            break;
+                        }
+                    }
+                }, 300);
+                </script>
+                """, unsafe_allow_html=True)
             else:
                 # Callback para iniciar automático
                 def iniciar_automatico():
