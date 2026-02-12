@@ -1797,7 +1797,7 @@ if files_encarregado:
         with col_auto_btn:
             # Se está em modo automático com necessita_aderir, mostra botão processando
             if st.session_state.get('necessita_aderir_auto', False):
-                st.button("🤖 PROCESSANDO...", key=f"btn_auto_click_{idx_arquivo_atual}", on_click=aderir_dica)
+                st.button("🤖 ADERIR AUTOMATICAMENTE", key=f"btn_auto_click_{idx_arquivo_atual}", on_click=aderir_dica)
             else:
                 # Callback para iniciar automático
                 def iniciar_automatico():
