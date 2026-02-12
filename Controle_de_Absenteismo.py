@@ -1640,9 +1640,9 @@ if files_encarregado:
     
     # Se há múltiplos arquivos, mostra opção de processamento automático em lote
     if len(files_encarregado) > 1:
-        col_auto_all, col_space = st.columns([1, 2])
-        with col_auto_all:
-            if st.button("🤖 CONFIGURAR TUDO AUTOMATICAMENTE", type="primary"):
+        c_esq, c_meio, c_dir = st.columns([1, 2, 1])
+        with c_meio:
+            if st.button("🤖 CONFIGURAR TUDO AUTOMATICAMENTE", type="primary", use_container_width=True):
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
