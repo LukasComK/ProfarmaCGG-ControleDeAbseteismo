@@ -1028,10 +1028,48 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
         # Último caso: Coluna D
         if col_setor_csv is None and len(df_colab_csv.columns) > 3:
             col_setor_csv = df_colab_csv.columns[3]
-            
+           
         if col_nome_csv is None or col_setor_csv is None:
             # st.warning("Não foi possível identificar colunas Nome e Setor no CSV para o relatório 'Ofensores por setor'.")
             return
+
+        # ================== DEBUG / PREVIEW NO STREAMLIT (SEMPRE MOSTRAR) ==================
+        st.divider() 
+        st.info("📊 **Diagnóstico de Identificação de Setores (Ofensores Por Setor)**")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Coluna Nome detectada:** `{col_nome_csv}`")
+            st.write(f"**Coluna Setor detectada:** `{col_setor_csv}`")
+            
+            # Mostra índices das colunas
+            try:
+                idx_nome = df_colab_csv.columns.get_loc(col_nome_csv)
+                idx_setor = df_colab_csv.columns.get_loc(col_setor_csv)
+                st.caption(f"Indices: Nome={idx_nome}, Setor={idx_setor}")
+            except:
+                pass
+
+        with col2:
+            st.write("**Amostra de Setores encontrados no CSV:**")
+            try:
+                amostra = df_colab_csv[col_setor_csv].dropna().unique()[:5]
+                st.write(amostra)
+            except:
+                st.write("Erro ao ler amostra.")
+        
+        # Mostra se o merge está funcionando.
+        # Normaliza nomes de exemplo (3 primeiros do df_mest).
+        try:
+            nomes_mest_exemplo = df_mest['NOME'].head(3).astype(str).tolist()
+            nomes_csv_exemplo = df_colab_csv[col_nome_csv].head(3).astype(str).tolist()
+            
+            st.write("**Exemplo de nomes (Antes da normalização):**")
+            st.write(f"Absenteísmo: {nomes_mest_exemplo}")
+            st.write(f"CSV: {nomes_csv_exemplo}")
+            st.divider()
+        except:
+            pass
+        # ==================================================================
 
         # 2. Preparar dados de Absenteísmo (df_mest)
         # Calcula total de faltas (FI + FA) por colaborador
