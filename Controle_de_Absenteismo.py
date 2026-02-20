@@ -989,6 +989,140 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         st.write(traceback.format_exc())
         return False
 
+def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
+    """
+    Cria sheet 'Ofensores por setor'
+    Soma faltas (FI + FA) por setor (Descrição da Unidade Organizacional)
+    """
+    if df_colab_csv is None:
+        return
+
+    try:
+        from openpyxl.styles import Border, Side, PatternFill, Font, Alignment
+        
+        # 1. Identificar colunas no CSV
+        col_nome_csv = None
+        col_setor_csv = None
+        
+        # Procura coluna de Nome
+        if 'NOME' in [str(c).upper() for c in df_colab_csv.columns]:
+            # Pega o nome exato
+            for c in df_colab_csv.columns:
+                if str(c).upper() == 'NOME':
+                    col_nome_csv = c
+                    break
+        else:
+            # Assume primeira coluna se não achar NOME
+            col_nome_csv = df_colab_csv.columns[0]
+        
+        # Procura coluna de Setor (Descrição da Unidade Organizacional) ou Coluna D (index 3)
+        for col in df_colab_csv.columns:
+            if 'Unidade Organizacional' in str(col) or 'Descrição da Unidade' in str(col):
+                col_setor_csv = col
+                break
+        
+        # Se não achou pelo nome, tenta pelo índice 3 (D)
+        if col_setor_csv is None and len(df_colab_csv.columns) > 3:
+            col_setor_csv = df_colab_csv.columns[3]
+            
+        if col_nome_csv is None or col_setor_csv is None:
+            # st.warning("Não foi possível identificar colunas Nome e Setor no CSV para o relatório 'Ofensores por setor'.")
+            return
+
+        # 2. Preparar dados de Absenteísmo (df_mest)
+        # Calcula total de faltas (FI + FA) por colaborador
+        colunas_datas = [c for c in df_mest.columns if c not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
+        
+        # Cria DataFrame temporário apenas com dados necessários
+        df_abs = pd.DataFrame()
+        df_abs['NOME'] = df_mest['NOME']
+        
+        # Função para contar FI e FA
+        def contar_faltas(row):
+            total = 0
+            for col in colunas_datas:
+                val = str(row[col]).strip().upper()
+                if val in ['FI', 'FA']:
+                    total += 1
+            return total
+            
+        df_abs['TOTAL_FALTAS'] = df_mest[colunas_datas].apply(contar_faltas, axis=1)
+        
+        # Normaliza nome para merge
+        df_abs['NOME_NORM'] = df_abs['NOME'].astype(str).apply(lambda x: unidecode(x).strip().upper())
+        
+        # 3. Preparar dados de Setor (df_colab_csv)
+        df_setor = df_colab_csv.copy()
+        # Garante que a coluna de nome é string
+        df_setor['NOME_NORM'] = df_setor[col_nome_csv].astype(str).apply(lambda x: unidecode(x).strip().upper())
+        
+        # Remove duplicatas de nome no CSV (mantém o primeiro setor encontrado)
+        df_setor = df_setor.drop_duplicates(subset=['NOME_NORM'])
+        
+        # 4. Merge
+        # Left join para manter todos do absenteísmo
+        df_merged = pd.merge(df_abs, df_setor[['NOME_NORM', col_setor_csv]], on='NOME_NORM', how='left')
+        
+        # Preenche setor vazio
+        df_merged[col_setor_csv] = df_merged[col_setor_csv].fillna('Setor Desconhecido')
+        
+        # 5. Agrupar por Setor
+        resumo_setor = df_merged.groupby(col_setor_csv)['TOTAL_FALTAS'].sum().reset_index()
+        resumo_setor = resumo_setor.sort_values(by='TOTAL_FALTAS', ascending=False)
+        
+        # Remove linhas com 0 faltas (opcional, mas geralmente ofensores tem > 0)
+        resumo_setor = resumo_setor[resumo_setor['TOTAL_FALTAS'] > 0]
+        
+        if resumo_setor.empty:
+            return
+
+        # 6. Criar Sheet no Excel
+        ws = w.book.create_sheet('Ofensores por setor')
+        
+        # Header
+        headers = ['Setor', 'Total de Faltas']
+        ws.append(headers)
+        
+        # Estilos Header
+        header_fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid') # Preto
+        header_font = Font(color='FFFFFFFF', bold=True, size=12)
+        base_border = Side(style='thin', color='000000')
+        thin_border = Border(left=base_border, right=base_border, top=base_border, bottom=base_border)
+        
+        for col_idx, header_text in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+        # Write data
+        for _, row in resumo_setor.iterrows():
+            ws.append([row[col_setor_csv], row['TOTAL_FALTAS']])
+            
+        # Estilizar dados
+        data_fill1 = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid') # Cinza claro
+        data_fill2 = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid') # Branco
+        
+        for row_idx in range(2, ws.max_row + 1):
+            fill = data_fill1 if row_idx % 2 == 0 else data_fill2
+            for col_idx in range(1, 3):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.border = thin_border
+                cell.fill = fill
+                if col_idx == 2: # Total
+                    cell.alignment = Alignment(horizontal='center')
+                    cell.font = Font(bold=True)
+                else:
+                    cell.alignment = Alignment(horizontal='left')
+
+        # Ajustar larguras
+        ws.column_dimensions['A'].width = 60
+        ws.column_dimensions['B'].width = 20
+        
+    except Exception as e:
+        print(f"Erro ao criar sheet ofensores por setor: {e}")
+
 
 def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas, df_colaboradores=None):
     """
@@ -2851,6 +2985,12 @@ with col_btn_processar:
                     
                     criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
                     
+                    # ===== CRIAR SHEET DE OFENSORES POR SETOR =====
+                    if df_colab_para_ranking is not None:
+                        status_text.info("🏢 Gerando ofensores por setor...")
+                        progress_bar.progress(72)
+                        criar_sheet_ofensores_por_setor(df_mest_marcado, w, df_colab_para_ranking)
+
                     # ===== CRIAR SHEET DE OFENSORES SEMANAIS =====
                     status_text.info("📅 Gerando ofensores semanais...")
                     progress_bar.progress(73)
