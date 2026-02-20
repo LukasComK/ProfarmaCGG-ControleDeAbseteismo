@@ -1021,11 +1021,11 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
                 col_setor_csv = col
                 break
         
-        # Se não achou pelo nome, tenta pelo índice 21 (Coluna V) conforme solicitado
+        # Se não achou pelo nome, tenta estritamente pelo índice 21 (Coluna V)
         if col_setor_csv is None and len(df_colab_csv.columns) >= 22:
             col_setor_csv = df_colab_csv.columns[21]
-
-        # Se ainda não achou, tenta pelo índice 3 (Coluna D) - fallback anterior
+        
+        # Último caso: Coluna D
         if col_setor_csv is None and len(df_colab_csv.columns) > 3:
             col_setor_csv = df_colab_csv.columns[3]
             
