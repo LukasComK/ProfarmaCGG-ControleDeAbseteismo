@@ -1004,57 +1004,29 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
         col_nome_csv = None
         col_setor_csv = None
         
-        # Lista de possíveis nomes para a coluna de Nome
-        possiveis_nomes = ['NOME', 'NOMES', 'COLABORADOR', 'FUNCIONARIO', 'EMPLOYEE', 'NAME', 'PROFISSIONAL']
-        
-        # Procura coluna de Nome (contendo as keywords)
-        for col in df_colab_csv.columns:
-            col_upper = str(col).upper()
-            # Verifica se alguma keyword está contida no nome da coluna
-            if any(keyword in col_upper for keyword in possiveis_nomes) and 'GESTOR' not in col_upper and 'SUPERVISOR' not in col_upper:
-                col_nome_csv = col
-                break
-        
-        # Se não achou por keyword, tenta a segunda coluna (index 1) se houver mais de 1, assumindo que a primeira é matricula
-        if col_nome_csv is None:
-            if len(df_colab_csv.columns) >= 2:
-                # Heurística: se a coluna 1 tem textos longos ou não numéricos, pode ser nome
-                col_nome_csv = df_colab_csv.columns[1]
-            else:
-                col_nome_csv = df_colab_csv.columns[0]
+        # Procura coluna de Nome
+        if 'NOME' in [str(c).upper() for c in df_colab_csv.columns]:
+            # Pega o nome exato
+            for c in df_colab_csv.columns:
+                if str(c).upper() == 'NOME':
+                    col_nome_csv = c
+                    break
+        else:
+            # Assume primeira coluna se não achar NOME
+            col_nome_csv = df_colab_csv.columns[0]
         
         # Procura coluna de Setor (Descrição da Unidade Organizacional) ou Coluna D (index 3)
-        # Keywords mais amplas para setor
-        possiveis_setor = ['UNIDADE', 'ORGANIZACIONAL', 'SETOR', 'DEPARTAMENTO', 'AREA', 'LOTAÇÃO', 'COST CENTER', 'CENTRO DE CUSTO']
-        
         for col in df_colab_csv.columns:
-            col_upper = str(col).upper()
-            if any(keyword in col_upper for keyword in possiveis_setor):
+            if 'Unidade Organizacional' in str(col) or 'Descrição da Unidade' in str(col):
                 col_setor_csv = col
-                # Prioriza se tiver "Descrição" e "Unidade"
-                if 'DESCRIÇÃO' in col_upper and 'UNIDADE' in col_upper:
-                    break
+                break
         
         # Se não achou pelo nome, tenta pelo índice 3 (D)
-        # IMPORTANTE: Colunas são 0-indexed. D = 3. 
-        if col_setor_csv is None:
-            if len(df_colab_csv.columns) >= 4:
-                col_setor_csv = df_colab_csv.columns[3] # Coluna D
-            elif len(df_colab_csv.columns) == 3: # Caso tenha apenas 3
-                col_setor_csv = df_colab_csv.columns[2] # Coluna C
+        if col_setor_csv is None and len(df_colab_csv.columns) > 3:
+            col_setor_csv = df_colab_csv.columns[3]
             
-        if col_nome_csv is None:
-            # st.warning("Não foi possível identificar coluna de Nome no CSV para o relatório 'Ofensores por setor'.")
-            print("AVISO: Coluna NOME não encontrada no CSV.")
-            return
-
-        # Debug para entender o que está acontecendo
-        print(f"DEBUG: Coluna Nome detectada: {col_nome_csv}")
-        print(f"DEBUG: Coluna Setor detectada: {col_setor_csv}")
-
-        if col_setor_csv is None:
-            # st.warning("Não foi possível identificar coluna de Setor no CSV para o relatório 'Ofensores por setor'.")
-            print("AVISO: Coluna SETOR não encontrada no CSV.")
+        if col_nome_csv is None or col_setor_csv is None:
+            # st.warning("Não foi possível identificar colunas Nome e Setor no CSV para o relatório 'Ofensores por setor'.")
             return
 
         # 2. Preparar dados de Absenteísmo (df_mest)
@@ -2990,28 +2962,11 @@ with col_btn_processar:
                                 
                                 for enc in encodings:
                                     for sep in separadores:
-                                        # Tenta ler considerando cabeçalho na linha 0
                                         try:
                                             file_colaboradores.seek(0)
-                                            df_temp = pd.read_csv(file_colaboradores, encoding=enc, sep=sep)
-                                            
-                                            # Verifica se tem colunas com nomes esperados
-                                            col_names = [str(c).upper() for c in df_temp.columns]
-                                            keywords_esperadas = ['NOME', 'NOMES', 'COLABORADOR', 'FUNCIONARIO', 'MATRICULA', 'ID', 'SETOR']
-                                            
-                                            if any(k in name for name in col_names for k in keywords_esperadas):
-                                                df_colab_para_ranking = df_temp
-                                                break
-                                            
-                                            # Se não achou, tenta pular a primeira linha (caso tenha título)
-                                            file_colaboradores.seek(0)
-                                            df_temp = pd.read_csv(file_colaboradores, encoding=enc, sep=sep, skiprows=1)
-                                            col_names = [str(c).upper() for c in df_temp.columns]
-                                            
-                                            if any(k in name for name in col_names for k in keywords_esperadas):
-                                                df_colab_para_ranking = df_temp
-                                                break
-                                                
+                                            # Skip primeira linha se for só "Colaboradores"
+                                            df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=sep, skiprows=1)
+                                            break
                                         except Exception as e:
                                             continue
                                     if df_colab_para_ranking is not None:
