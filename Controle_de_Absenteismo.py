@@ -1027,6 +1027,18 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
         # Se falhou, pode ser que o pandas carregou com índice diferente
         # Vamos tentar forçar:
         
+        # DEBUG AVANÇADO
+        st.divider()
+        st.warning(f"DEBUG: Colunas encontradas no CSV ({len(df_colab_csv.columns)}):")
+        
+        # Mostra colunas com seus índices
+        try:
+            col_list = list(df_colab_csv.columns)
+            indices = [f"{i}: {col}" for i, col in enumerate(col_list)]
+            st.json(indices) # Mostra JSON bonitinho
+        except:
+            st.write(df_colab_csv.columns.tolist())
+
         # Tenta estritamente pelo nome exato ou muito próximo
         col_setor_csv = None
         for col in df_colab_csv.columns:
