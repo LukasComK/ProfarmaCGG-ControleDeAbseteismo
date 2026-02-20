@@ -1042,7 +1042,9 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
         # Tenta estritamente pelo nome exato: "Descrição da Unidade Organizacional"
         col_setor_csv = None
         for col in df_colab_csv.columns:
-            if 'DESCRICAO DA UNIDADE ORGANIZACIONAL' == str(col).strip().upper() or 'DESCRIÇÃO DA UNIDADE ORGANIZACIONAL' == str(col).strip().upper():
+            # Verifica pelo nome exato ou contenção forte da frase completa
+            col_u = str(col).strip().upper()
+            if 'DESCRICAO DA UNIDADE ORGANIZACIONAL' in col_u or 'DESCRIÇÃO DA UNIDADE ORGANIZACIONAL' in col_u:
                 col_setor_csv = col
                 break
         
