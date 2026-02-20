@@ -1027,14 +1027,24 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
         # Se falhou, pode ser que o pandas carregou com índice diferente
         # Vamos tentar forçar:
         
-        # PROCURA EXPLÍCITA POR "DESCRIÇÃO DA UNIDADE ORGANIZACIONAL" PRIMEIRO
+        # Tenta estritamente pelo nome exato ou muito próximo
+        col_setor_csv = None
         for col in df_colab_csv.columns:
-            if 'UNIDADE' in str(col).upper() and 'ORGANIZACIONAL' in str(col).upper():
+            # Verifica pelo nome exato: Descrição da Unidade Organizacional
+            if 'Descrição da Unidade Organizacional' == str(col).strip():
                 col_setor_csv = col
                 break
-
-        if col_setor_csv is None and len(df_colab_csv.columns) > 21:
-             # Tenta pegar coluna 21 (V) se for string
+        
+        # Se não achou exato, tenta conter as palavras chaves
+        if col_setor_csv is None:
+            for col in df_colab_csv.columns:
+                col_u = str(col).upper()
+                if 'DESCRIÇÃO' in col_u and 'UNIDADE' in col_u and 'ORGANIZACIONAL' in col_u:
+                    col_setor_csv = col
+                    break
+        
+        # Tenta pelo índice 21 (V) se não achou pelo nome
+        if col_setor_csv is None and len(df_colab_csv.columns) >= 22:
              col_setor_csv = df_colab_csv.columns[21]
         
         # Último caso: Coluna D (Indice 3)
