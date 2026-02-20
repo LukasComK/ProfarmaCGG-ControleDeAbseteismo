@@ -1843,7 +1843,7 @@ if 'config_arquivos' not in st.session_state:
     st.session_state.config_arquivos = {}
 
 st.title("🤖 Lançamento de Absenteísmo")
-st.write("Com busca LIKE (aproximada) para nomes")
+st.write("VERSÃO 1.0")
 
 MAPA_CODIGOS = {1: 'P', 2: 'FI', 4: 'FA', 3: 'FÉRIAS-BH', 5: 'DESLIGADO'}
 
