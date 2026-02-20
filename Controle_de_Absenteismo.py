@@ -1039,23 +1039,39 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
         except:
             st.write(df_colab_csv.columns.tolist())
 
-        # Tenta estritamente pelo nome exato ou muito próximo
+        # Tenta estritamente pelo nome exato: "Descrição da Unidade Organizacional"
         col_setor_csv = None
         for col in df_colab_csv.columns:
-            # Verifica pelo nome exato: Descrição da Unidade Organizacional
-            if 'Descrição da Unidade Organizacional' == str(col).strip():
+            if 'DESCRICAO DA UNIDADE ORGANIZACIONAL' == str(col).strip().upper() or 'DESCRIÇÃO DA UNIDADE ORGANIZACIONAL' == str(col).strip().upper():
                 col_setor_csv = col
                 break
         
-        # Se não achou exato, tenta conter as palavras chaves
+        # Se não achou exato, tenta conter "DESCRIÇÃO" e "ORGANIZACIONAL"
         if col_setor_csv is None:
             for col in df_colab_csv.columns:
                 col_u = str(col).upper()
-                if 'DESCRIÇÃO' in col_u and 'UNIDADE' in col_u and 'ORGANIZACIONAL' in col_u:
+                if 'DESCRI' in col_u and 'ORGANIZACIONAL' in col_u and 'CODIGO' not in col_u:
                     col_setor_csv = col
                     break
         
-        # Tenta pelo índice 21 (V) se não achou pelo nome
+        # Override para NOME: Busca "Colaborador" ou "Nome"
+        col_nome_csv = None
+        possiveis_nomes = ['COLABORADOR', 'NOME DO FUNCIONARIO', 'NOME', 'FUNCIONARIO']
+        
+        for col in df_colab_csv.columns:
+            col_u = str(col).upper()
+            if any(p == col_u for p in possiveis_nomes): # Tenta exato primeiro
+                col_nome_csv = col
+                break
+        
+        if col_nome_csv is None:
+             for col in df_colab_csv.columns:
+                col_u = str(col).upper()
+                if any(p in col_u for p in possiveis_nomes) and 'CODIGO' not in col_u and 'ID' not in col_u:
+                    col_nome_csv = col
+                    break
+
+        # Tenta pelo índice 21 (V) se não achou pelo nome (Setor)
         if col_setor_csv is None and len(df_colab_csv.columns) >= 22:
              col_setor_csv = df_colab_csv.columns[21]
         
