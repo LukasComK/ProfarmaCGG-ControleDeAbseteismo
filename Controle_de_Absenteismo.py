@@ -1036,11 +1036,25 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
                     break
         
         # Se não achou pelo nome, tenta pelo índice 3 (D)
-        if col_setor_csv is None and len(df_colab_csv.columns) > 3:
-            col_setor_csv = df_colab_csv.columns[3]
+        # IMPORTANTE: Colunas são 0-indexed. D = 3. 
+        if col_setor_csv is None:
+            if len(df_colab_csv.columns) >= 4:
+                col_setor_csv = df_colab_csv.columns[3] # Coluna D
+            elif len(df_colab_csv.columns) == 3: # Caso tenha apenas 3
+                col_setor_csv = df_colab_csv.columns[2] # Coluna C
             
-        if col_nome_csv is None or col_setor_csv is None:
-            # st.warning("Não foi possível identificar colunas Nome e Setor no CSV para o relatório 'Ofensores por setor'.")
+        if col_nome_csv is None:
+            # st.warning("Não foi possível identificar coluna de Nome no CSV para o relatório 'Ofensores por setor'.")
+            print("AVISO: Coluna NOME não encontrada no CSV.")
+            return
+
+        # Debug para entender o que está acontecendo
+        print(f"DEBUG: Coluna Nome detectada: {col_nome_csv}")
+        print(f"DEBUG: Coluna Setor detectada: {col_setor_csv}")
+
+        if col_setor_csv is None:
+            # st.warning("Não foi possível identificar coluna de Setor no CSV para o relatório 'Ofensores por setor'.")
+            print("AVISO: Coluna SETOR não encontrada no CSV.")
             return
 
         # 2. Preparar dados de Absenteísmo (df_mest)
