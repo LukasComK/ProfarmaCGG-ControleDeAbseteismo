@@ -16,6 +16,7 @@ from openpyxl import load_workbook, Workbook
 
 # Nota: A página "👥 Colaboradores" foi criada em pages/1_👥_Colaboradores.py
 # Ela será exibida automaticamente pelo Streamlit como uma página multipage
+st.sidebar.caption("Versão v2.5 - Ordenação Impacto (Atualizado)")
 
 def obter_feriados_brasil(ano):
     """
