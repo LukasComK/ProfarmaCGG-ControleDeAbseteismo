@@ -1015,13 +1015,17 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
             # Assume primeira coluna se não achar NOME
             col_nome_csv = df_colab_csv.columns[0]
         
-        # Procura coluna de Setor (Descrição da Unidade Organizacional) ou Coluna D (index 3)
+        # Procura coluna de Setor (Descrição da Unidade Organizacional)
         for col in df_colab_csv.columns:
             if 'Unidade Organizacional' in str(col) or 'Descrição da Unidade' in str(col):
                 col_setor_csv = col
                 break
         
-        # Se não achou pelo nome, tenta pelo índice 3 (D)
+        # Se não achou pelo nome, tenta pelo índice 21 (Coluna V) conforme solicitado
+        if col_setor_csv is None and len(df_colab_csv.columns) >= 22:
+            col_setor_csv = df_colab_csv.columns[21]
+
+        # Se ainda não achou, tenta pelo índice 3 (Coluna D) - fallback anterior
         if col_setor_csv is None and len(df_colab_csv.columns) > 3:
             col_setor_csv = df_colab_csv.columns[3]
             
