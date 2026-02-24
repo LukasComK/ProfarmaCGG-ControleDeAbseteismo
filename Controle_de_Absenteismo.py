@@ -993,331 +993,285 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
 def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None):
     """
     Cria sheet 'Ofensores por setor'
-    Soma faltas (FI + FA) por setor (Descrição da Unidade Organizacional)
+    Passo 1: Identificação de colunas e limpeza dos nomes de setor (Unificando T1, T2, T3)
     """
     if df_colab_csv is None:
         return
 
     try:
-        from openpyxl.styles import Border, Side, PatternFill, Font, Alignment
-        
-        # 1. Identificar colunas no CSV
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        import re
+        from unidecode import unidecode
+        import pandas as pd
+
+        # --- 1. IDENTIFICAÇÃO DE COLUNAS (NOME e SETOR) ---
         col_nome_csv = None
         col_setor_csv = None
         
         # Procura coluna de Nome
-        if 'NOME' in [str(c).upper() for c in df_colab_csv.columns]:
-            # Pega o nome exato
-            for c in df_colab_csv.columns:
-                if str(c).upper() == 'NOME':
-                    col_nome_csv = c
-                    break
-        else:
-            # Assume primeira coluna se não achar NOME
-            col_nome_csv = df_colab_csv.columns[0]
-        
-        # Procura coluna de Setor (Descrição da Unidade Organizacional)
+        possiveis_nomes = ['NOME', 'COLABORADOR', 'FUNCIONARIO', 'NOME DO FUNCIONARIO']
         for col in df_colab_csv.columns:
-            if 'Unidade Organizacional' in str(col) or 'Descrição da Unidade' in str(col):
-                col_setor_csv = col
-                break
-        
-        # Se não achou pelo nome, tenta estritamente pelo índice 22 (Coluna V)
-        # Índice pandas (0-based): U=20, V=21, W=22
-        # TENTATIVA CORRIGIDA: Vamos tentar o índice 21 (V) primeiro
-        # Se falhou, pode ser que o pandas carregou com índice diferente
-        # Vamos tentar forçar:
-        
-        # Tenta estritamente pelo nome exato: "Descrição da Unidade Organizacional"
-        col_setor_csv = None
-        for col in df_colab_csv.columns:
-            # Verifica pelo nome exato ou contenção forte da frase completa
-            col_u = str(col).strip().upper()
-            if 'DESCRICAO DA UNIDADE ORGANIZACIONAL' in col_u or 'DESCRIÇÃO DA UNIDADE ORGANIZACIONAL' in col_u:
-                col_setor_csv = col
-                break
-        
-        # Se não achou exato, tenta conter "DESCRIÇÃO" e "ORGANIZACIONAL"
-        if col_setor_csv is None:
-            for col in df_colab_csv.columns:
-                col_u = str(col).upper()
-                if 'DESCRI' in col_u and 'ORGANIZACIONAL' in col_u and 'CODIGO' not in col_u:
-                    col_setor_csv = col
-                    break
-        
-        # Override para NOME: Busca "Colaborador" ou "Nome"
-        col_nome_csv = None
-        possiveis_nomes = ['COLABORADOR', 'NOME DO FUNCIONARIO', 'NOME', 'FUNCIONARIO']
-        
-        for col in df_colab_csv.columns:
-            col_u = str(col).upper()
-            if any(p == col_u for p in possiveis_nomes): # Tenta exato primeiro
+            if str(col).strip().upper() in possiveis_nomes:
                 col_nome_csv = col
                 break
-        
         if col_nome_csv is None:
-             for col in df_colab_csv.columns:
-                col_u = str(col).upper()
-                if any(p in col_u for p in possiveis_nomes) and 'CODIGO' not in col_u and 'ID' not in col_u:
-                    col_nome_csv = col
-                    break
-
-        # Tenta pelo índice 21 (V) se não achou pelo nome (Setor)
-        if col_setor_csv is None and len(df_colab_csv.columns) >= 22:
-             col_setor_csv = df_colab_csv.columns[21]
+             col_nome_csv = df_colab_csv.columns[0] # Fallback
         
-        # Último caso: Coluna D (Indice 3)
-        if col_setor_csv is None and len(df_colab_csv.columns) > 3:
-            col_setor_csv = df_colab_csv.columns[3]
-           
+        # Procura coluna de Setor
+        possiveis_setores = ['DESCRIÇÃO DA UNIDADE ORGANIZACIONAL', 'UNIDADE ORGANIZACIONAL']
+        
+        # 1. Tenta pelo índice fixo 21 (Coluna V) primeiro
+        if len(df_colab_csv.columns) >= 22:
+             col_setor_csv = df_colab_csv.columns[21] # Coluna V (0-based index 21)
+        else:
+             col_setor_csv = None
+
+        # 2. Se não confiar no índice, tenta pelo nome exato
+        for col in df_colab_csv.columns:
+            c_upper = str(col).strip().upper()
+            if 'DESCRIÇÃO DA UNIDADE ORGANIZACIONAL' in c_upper or 'DESCRICAO DA UNIDADE ORGANIZACIONAL' in c_upper:
+                col_setor_csv = col
+                break
+        
+        if col_setor_csv is None:
+             # Fallback para coluna D ou índice 3
+             col_setor_csv = df_colab_csv.columns[3] if len(df_colab_csv.columns) > 3 else df_colab_csv.columns[0]
+
         if col_nome_csv is None or col_setor_csv is None:
-            # st.warning("Não foi possível identificar colunas Nome e Setor no CSV para o relatório 'Ofensores por setor'.")
             return
 
-        # 2. Preparar dados de Absenteísmo (df_mest)
-        # Calcula total de faltas (FI + FA) por colaborador
-        colunas_datas = [c for c in df_mest.columns if c not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
-        
-        # Cria DataFrame temporário apenas com dados necessários
-        df_abs = pd.DataFrame()
-        df_abs['NOME'] = df_mest['NOME']
-        
-        # Função para contar FI
-        def contar_fi(row):
-            total = 0
-            for col in colunas_datas:
-                val = str(row[col]).strip().upper()
-                if val == 'FI':
-                    total += 1
-            return total
-            
-        # Função para contar FA
-        def contar_fa(row):
-            total = 0
-            for col in colunas_datas:
-                val = str(row[col]).strip().upper()
-                if val == 'FA':
-                    total += 1
-            return total
-            
-        df_abs['FI'] = df_mest[colunas_datas].apply(contar_fi, axis=1)
-        df_abs['FA'] = df_mest[colunas_datas].apply(contar_fa, axis=1)
-        
-        # Normaliza nome para merge
-        df_abs['NOME_NORM'] = df_abs['NOME'].astype(str).apply(lambda x: unidecode(x).strip().upper())
-        
-        # 3. Preparar dados de Setor (df_colab_csv)
+        # --- 2. PREPARAÇÃO DOS DADOS ---
+        # Normaliza nomes para cruzar dados
         df_setor = df_colab_csv.copy()
-        # Garante que a coluna de nome é string
         df_setor['NOME_NORM'] = df_setor[col_nome_csv].astype(str).apply(lambda x: unidecode(x).strip().upper())
-        
-        # Remove duplicatas de nome no CSV (mantém o primeiro setor encontrado)
-        df_setor = df_setor.drop_duplicates(subset=['NOME_NORM'])
-        
-        # 4. Merge
-        # Left join para manter todos do absenteísmo
-        df_merged = pd.merge(df_abs, df_setor[['NOME_NORM', col_setor_csv]], on='NOME_NORM', how='left')
-        
-        # Preenche setor vazio
-        df_merged[col_setor_csv] = df_merged[col_setor_csv].fillna('Setor Desconhecido')
+        df_setor = df_setor.drop_duplicates(subset=['NOME_NORM']) # Garante 1 setor por pessoa
 
-        # --- FILTRO: Remover Setor Desconhecido ---
-        # User requested to ignore unknown sectors
-        df_merged = df_merged[df_merged[col_setor_csv] != 'Setor Desconhecido']
-        
-        if df_merged.empty:
-            return
-        # ------------------------------------------
+        # Prepara dados de Absenteísmo
+        df_merged = df_mest.copy()
+        df_merged['NOME_NORM'] = df_merged['NOME'].astype(str).apply(lambda x: unidecode(x).strip().upper())
 
-        # --- Extração de Turno e Limpeza de Setor ---
-        def extrair_turno_setor(nome_setor):
-            nome_setor = str(nome_setor).strip()
-            # Procura por padrões como "- T1", "- T2", " - T3" no final da string
-            # Regex simples: traço, espaço opcional, T, digito
-            match = re.search(r'-\s*(T\d+)', nome_setor, re.IGNORECASE)
-            if match:
-                turno = match.group(1).upper()
-                # Remove o turno do nome do setor
-                novo_setor = nome_setor[:match.start()].strip()
-                # Remove traço final se sobrou (ex: "Setor -")
-                if novo_setor.endswith('-'):
-                     novo_setor = novo_setor[:-1].strip()
-                return novo_setor, turno
-            else:
-                return nome_setor, 'Geral' # Turno padrão se não encontrar
+        # Merge para trazer o Setor para o dataframe principal
+        df_merged = pd.merge(df_merged, df_setor[['NOME_NORM', col_setor_csv]], on='NOME_NORM', how='left')
+        df_merged[col_setor_csv] = df_merged[col_setor_csv].fillna('Indefinido')
+        
+        # Remove setores desconhecidos/indefinidos
+        df_merged = df_merged[df_merged[col_setor_csv] != 'Indefinido']
 
-        # Aplica a função para criar colunas temporárias
-        df_merged[['SETOR_LIMPO', 'TURNO']] = df_merged[col_setor_csv].apply(
-            lambda x: pd.Series(extrair_turno_setor(x))
-        )
-        # ---------------------------------------------
-        
-        # Cria coluna auxiliar de Total de Faltas para filtro geral
-        df_merged['TOTAL_TEMP'] = df_merged['FI'] + df_merged['FA']
-        
-        # Cria coluna auxiliar para contar ofensores (quem tem > 0 faltas)
-        df_merged['E_OFENSOR'] = (df_merged['TOTAL_TEMP'] > 0).astype(int)
-        
-        # Filtra apenas quem tem faltas para não processar dados inúteis
-        # Mas cuidado: se filtrar aqui, pode perder setores que só tem faltas em um turno específico se eu fizesse filtro antes?
-        # Melhor filtrar depois do groupby.
+        # --- 3. LÓGICA DE LIMPEZA E AGRUPAMENTO (REMOVE T1, T2, T3) ---
+        def limpar_nome_setor(nome_bruto):
+            nome = str(nome_bruto).strip()
+            
+            # Remove sufixos como (2), (3) que indicam duplicidade, SE estiverem no final da string
+            # Ex: "Setor XYZ (2)" -> "Setor XYZ"
+            nome = re.sub(r'\s*\(\d+\)$', '', nome).strip()
+            
+            # Remove sufixos como " - T1", " - T2", " T3" (case insensitive)
+            # Regex procura por hífen opcional, espaço opcional, T seguido de dígito, no fim da string
+            nome_limpo = re.sub(r'[-\s]*T\d+\s*$', '', nome, flags=re.IGNORECASE).strip()
+            return nome_limpo
 
+        df_merged['SETOR_UNIFICADO'] = df_merged[col_setor_csv].apply(limpar_nome_setor)
+
+        # Agrupa pelo nome unificado
+        grupos = df_merged.groupby('SETOR_UNIFICADO')
+
+        # --- 4. CRIAÇÃO DA PLANILHA ---
         ws = w.book.create_sheet('Ofensores por setor')
-
-        # Estilos (reaproveitados)
-        header_fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-        header_font = Font(color='FFFFFFFF', bold=True, size=12)
-        title_font = Font(color='FF000000', bold=True, size=14)
-        base_border = Side(style='thin', color='000000')
-        thin_border = Border(left=base_border, right=base_border, top=base_border, bottom=base_border)
         
-        data_fill1 = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-        data_fill2 = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
-        fi_fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
-        fa_fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
-        total_fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-        perc_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid') # Cinza médio para %
+        # Cabeçalho Setor (A1)
+        header_fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid') # Verde Escuro
+        header_font = Font(color='FFFFFFFF', bold=True)
+        center_align = Alignment(horizontal='center', vertical='center')
 
-        current_row = 1
+        c_setor = ws.cell(row=1, column=1, value='SETOR')
+        c_setor.fill = header_fill
+        c_setor.font = header_font
+        c_setor.alignment = center_align
         
-        # Função auxiliar para desenhar tabela
-        def desenhar_tabela(titulo, df_dados, is_geral=False):
-            nonlocal current_row
+        # Cabeçalho Datas (B1 em diante)
+        # Filtra colunas que NÃO são de identificação ou metadados
+        colunas_ignoradas = ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO', 'TURNO', 'HORARIO', 'SETOR', 'NOME_NORM', 'SETOR_UNIFICADO', col_setor_csv]
+        colunas_datas = [c for c in df_mest.columns if c not in colunas_ignoradas and c in df_merged.columns]
+        
+        # Tenta ordenar como data para garantir ordem cronológica
+        colunas_datas_ordenadas = sorted(colunas_datas, key=lambda x: pd.to_datetime(x, dayfirst=True, errors='coerce'))
+
+        # Ajuste de largura da Coluna A (30 a pedido)
+        ws.column_dimensions['A'].width = 30
+
+        # --- 5. ESCREVER CADA SETOR E SUB-LINHAS (HC, FI, FA, TOTAL, %) ---
+        linha_atual = 1 # Começa na linha 1 agora (antes era 2, mas não temos mais a linha de header permanente)
+        
+        # Estilos baseados na imagem
+        # FI: Fundo Verde Escuro (007864), Texto Branco
+        fill_fi = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
+        # FA: Fundo Verde Médio (008C4B), Texto Branco
+        fill_fa = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+        # TOTAL: Fundo Cinza Claro (F2F2F2), Texto Preto
+        fill_total = PatternFill(start_color='FFF2F2F2', end_color='FFF2F2F2', fill_type='solid')
+        # HC: Sem cor específica ou cinza muito claro
+        fill_hc = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
+        # % Acumulado: Label Verde Escuro
+        fill_label_pct = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+        
+        # Cores para Meta (3%)
+        # Vermelho (Acima da Meta):
+        fill_meta_bad = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+        # Verde Vibrante (Dentro da Meta) - Cor aproximada da foto (#00B050)
+        fill_meta_ok = PatternFill(start_color='FF00B050', end_color='FF00B050', fill_type='solid')
+
+        font_white_bold = Font(color='FFFFFFFF', bold=True)
+        font_black_bold = Font(color='FF000000', bold=True)
+        
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        
+        META_ABSENTEISMO = 0.03 # 3%
+
+        # Iterar sobre os grupos (Setores Unificados)
+        for nome_setor, df_grupo in sorted(grupos):
             
-            if df_dados.empty:
-                return
-
-            # Título da Seção
-            ws.cell(row=current_row, column=1, value=titulo).font = title_font
-            current_row += 1
+            hc_total = len(df_grupo)
+            if hc_total == 0: continue
             
-            # Headers e Colunas
-            if is_geral:
-                headers = ['Setor', 'FI (Injustificadas)', 'FA (Abonadas)', 'Total', '% (Impacto)', 'Total Colab.']
-            else:
-                headers = ['Setor', 'FI (Injustificadas)', 'FA (Abonadas)', 'Total']
-
-            for col_idx, header_text in enumerate(headers, 1):
-                cell = ws.cell(row=current_row, column=col_idx)
-                cell.value = header_text
-                cell.fill = header_fill
-                cell.font = header_font
-                cell.border = thin_border
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-            current_row += 1
+            # --- CÁLCULO DAS CONTAGENS DIÁRIAS ---
+            soma_fi = {d: 0 for d in colunas_datas_ordenadas}
+            soma_fa = {d: 0 for d in colunas_datas_ordenadas}
+            total_geral = {d: 0 for d in colunas_datas_ordenadas}
             
-            # Dados
-            for idx, row in df_dados.iterrows():
-                # Coluna 1: Setor
-                cell_setor = ws.cell(row=current_row, column=1)
-                cell_setor.value = row['SETOR_LIMPO']
-                cell_setor.border = thin_border
-                cell_setor.fill = data_fill1 if current_row % 2 == 0 else data_fill2
-                cell_setor.alignment = Alignment(horizontal='left')
-                
-                # Coluna 2: FI
-                cell_fi = ws.cell(row=current_row, column=2)
-                cell_fi.value = row['FI']
-                cell_fi.border = thin_border
-                cell_fi.fill = fi_fill
-                cell_fi.font = Font(bold=True, color='FFFFFFFF')
-                cell_fi.alignment = Alignment(horizontal='center')
-                
-                # Coluna 3: FA
-                cell_fa = ws.cell(row=current_row, column=3)
-                cell_fa.value = row['FA']
-                cell_fa.border = thin_border
-                cell_fa.fill = fa_fill
-                cell_fa.font = Font(bold=True, color='FFFFFFFF')
-                cell_fa.alignment = Alignment(horizontal='center')
-                
-                # Coluna 4: Total
-                cell_total = ws.cell(row=current_row, column=4)
-                cell_total.value = row['TOTAL']
-                cell_total.border = thin_border
-                cell_total.fill = total_fill
-                cell_total.font = Font(bold=True, color='FFFFFFFF')
-                cell_total.alignment = Alignment(horizontal='center')
+            for _, row in df_grupo.iterrows():
+                for d in colunas_datas_ordenadas:
+                     if d in row:
+                        val = str(row[d]).strip().upper()
+                        if val == 'FI':
+                            soma_fi[d] += 1
+                        elif val == 'FA':
+                            soma_fa[d] += 1
 
-                if is_geral:
-                    # Coluna 5: % Impacto (Calculada antes)
-                    cell_perc = ws.cell(row=current_row, column=5)
-                    cell_perc.value = row['PCT_IMPACTO']
-                    cell_perc.number_format = '0.0%'
-                    cell_perc.border = thin_border
-                    cell_perc.fill = perc_fill
-                    cell_perc.alignment = Alignment(horizontal='center')
-                    
-                    # Coluna 6: Total Colaboradores (para conferência)
-                    cell_qtd = ws.cell(row=current_row, column=6)
-                    cell_qtd.value = row['TOTAL_COLAB']
-                    cell_qtd.border = thin_border
-                    cell_qtd.alignment = Alignment(horizontal='center')
-                
-                current_row += 1
+            for d in colunas_datas_ordenadas:
+                total_geral[d] = soma_fi[d] + soma_fa[d]
+
+            # 0. HEADER DE DATAS REPETIDO (Linha de Cabeçalho Local)
+            # Coluna A: "SETOR" (Mudado de "Área" a pedido)
+            c_area = ws.cell(row=linha_atual, column=1, value="SETOR")
+            c_area.fill = fill_label_pct # Verde Escuro
+            c_area.font = font_white_bold
+            c_area.alignment = Alignment(horizontal='center', vertical='center')
+            c_area.border = thin_border
             
-            # Espaço entre tabelas
-            current_row += 2
+            # Colunas B em diante: Datas
+            for i, data_str in enumerate(colunas_datas_ordenadas):
+                 c_dt = ws.cell(row=linha_atual, column=2+i, value=data_str)
+                 c_dt.fill = fill_label_pct # Verde Escuro
+                 c_dt.font = font_white_bold
+                 c_dt.alignment = Alignment(horizontal='center', vertical='center')
+                 c_dt.border = thin_border
+            linha_atual += 1
 
-        # --- 1. Tabela GERAL (Todos os Turnos somados) ---
-        # Agrupa para obter somas e contagens
-        resumo_geral = df_merged.groupby('SETOR_LIMPO').agg({
-            'FI': 'sum',
-            'FA': 'sum', 
-            'E_OFENSOR': 'sum',
-            'NOME': 'count' # Usamos 'NOME' pois ele existe no df_merged, col_nome_csv não foi trazido no merge
-        }).reset_index()
-        
-        # Renomeia colunas agregadas
-        resumo_geral = resumo_geral.rename(columns={'NOME': 'TOTAL_COLAB'})
-        
-        resumo_geral['TOTAL'] = resumo_geral['FI'] + resumo_geral['FA']
-        
-        # Calcula % Impacto = (Ofensores / Total Colaboradores)
-        resumo_geral['PCT_IMPACTO'] = resumo_geral['E_OFENSOR'] / resumo_geral['TOTAL_COLAB']
-        
-        # Ordena por PCT_IMPACTO decrescente, depois por TOTAL
-        resumo_geral = resumo_geral.sort_values(by=['PCT_IMPACTO', 'TOTAL'], ascending=[False, False])
-        
-        # Filtra apenas quem tem faltas PARA EXIBIÇÃO, mas o cálculo de % considerou todo mundo
-        resumo_geral = resumo_geral[resumo_geral['TOTAL'] > 0]
-        
-        desenhar_tabela("VISÃO GERAL (Todos os Turnos)", resumo_geral, is_geral=True)
-        
-        # --- 2. Tabelas por Turno (T1, T2, T3) ---
-        turnos_interesse = ['T1', 'T2', 'T3']
-        
-        for turno in turnos_interesse:
-            df_turno = df_merged[df_merged['TURNO'] == turno]
-            if not df_turno.empty:
-                resumo_turno = df_turno.groupby('SETOR_LIMPO')[['FI', 'FA']].sum().reset_index()
-                resumo_turno['TOTAL'] = resumo_turno['FI'] + resumo_turno['FA']
-                resumo_turno = resumo_turno.sort_values(by=['TOTAL', 'FI'], ascending=[False, False])
-                resumo_turno = resumo_turno[resumo_turno['TOTAL'] > 0]
+            # 1. NOME DO SETOR e CONTAGEM HC NA MESMA LINHA
+            # Coluna A: Nome do Setor (fill_hc Branco)
+            cell_setor = ws.cell(row=linha_atual, column=1, value=nome_setor)
+            cell_setor.font = font_black_bold 
+            cell_setor.fill = fill_hc # Branco
+            cell_setor.alignment = Alignment(horizontal='left', vertical='center')
+            cell_setor.border = thin_border
+            
+            # Colunas B em diante: HC Count (MOVIDO DA LINHA TOTAL HC)
+            for i, d in enumerate(colunas_datas_ordenadas):
+                # Antes esta celula era VAZIA
+                # Agora ela recebe o hc_total
+                cc = ws.cell(row=linha_atual, column=2+i, value=hc_total)
+                cc.fill = fill_hc # Branco
+                cc.font = font_black_bold
+                cc.alignment = Alignment(horizontal='center')
+                cc.border = thin_border
+            linha_atual += 1
+
+            # 2. TOTAL HC - REMOVIDO (Dados movidos para cima)
+            # (O bloco abaixo foi removido/comentado)
+            # c_hc_label = ws.cell(row=linha_atual, column=1, value="TOTAL HC")
+            # c_hc_label.fill = fill_hc
+            
+            # 3. FI - Faltas Injustificadas
+            c_fi = ws.cell(row=linha_atual, column=1, value="FI - Faltas Injustificadas")
+            c_fi.fill = fill_hc # Branco nas Labels
+            c_fi.font = font_black_bold
+            c_fi.border = thin_border
+            
+            for i, d in enumerate(colunas_datas_ordenadas):
+                val = soma_fi[d]
+                cc = ws.cell(row=linha_atual, column=2+i, value=val)
+                cc.fill = fill_fi # Mantém cor nos dados
+                cc.font = font_white_bold
+                cc.alignment = Alignment(horizontal='center')
+                cc.border = thin_border
+            linha_atual += 1
+            
+            # 4. FA - Faltas por Atestado
+            c_fa = ws.cell(row=linha_atual, column=1, value="FA - Faltas por Atestado")
+            c_fa.fill = fill_hc # Branco nas Labels
+            c_fa.font = font_black_bold
+            c_fa.border = thin_border
+
+            for i, d in enumerate(colunas_datas_ordenadas):
+                val = soma_fa[d]
+                cc = ws.cell(row=linha_atual, column=2+i, value=val)
+                cc.fill = fill_fa # Mantém cor nos dados
+                cc.font = font_white_bold
+                cc.alignment = Alignment(horizontal='center')
+                cc.border = thin_border
+            linha_atual += 1
+            
+            # 5. TOTAL
+            c_tot = ws.cell(row=linha_atual, column=1, value="TOTAL")
+            c_tot.fill = fill_hc # Branco nas Labels
+            c_tot.font = font_black_bold
+            c_tot.border = thin_border
+
+            for i, d in enumerate(colunas_datas_ordenadas):
+                val = total_geral[d]
+                cc = ws.cell(row=linha_atual, column=2+i, value=val)
+                cc.fill = fill_total # Mantém cinza nos dados
+                cc.font = font_black_bold
+                cc.alignment = Alignment(horizontal='center')
+                cc.border = thin_border
+            linha_atual += 1
+            
+            # 6. %Acumulado
+            c_pct = ws.cell(row=linha_atual, column=1, value="%Acumulado")
+            c_pct.fill = fill_label_pct # Verde Escuro na Label
+            c_pct.font = font_white_bold
+            c_pct.border = thin_border
+
+            for i, d in enumerate(colunas_datas_ordenadas):
+                val = total_geral[d]
+                pct = (val / hc_total) if hc_total > 0 else 0
                 
-                if not resumo_turno.empty:
-                    desenhar_tabela(f"TURNO {turno}", resumo_turno)
-
-        
-        for turno in turnos_interesse:
-            df_turno = df_merged[df_merged['TURNO'] == turno]
-            if not df_turno.empty:
-                resumo_turno = df_turno.groupby('SETOR_LIMPO')[['FI', 'FA']].sum().reset_index()
-                resumo_turno['TOTAL'] = resumo_turno['FI'] + resumo_turno['FA']
-                resumo_turno = resumo_turno.sort_values(by=['TOTAL', 'FI'], ascending=[False, False])
-                resumo_turno = resumo_turno[resumo_turno['TOTAL'] > 0]
+                cc = ws.cell(row=linha_atual, column=2+i, value=pct)
+                cc.number_format = '0.00%'
                 
-                if not resumo_turno.empty:
-                    desenhar_tabela(f"TURNO {turno}", resumo_turno)
+                # Regra de Cores baseada na Meta (3%)
+                if pct > META_ABSENTEISMO:
+                    cc.fill = fill_meta_bad # Vermelho
+                    # Texto Branco no Vermelho
+                    cc.font = font_white_bold
+                else:
+                    cc.fill = fill_meta_ok # Verde Vibrante
+                    # Texto Branco no Verde (conforme a imagem)
+                    cc.font = font_white_bold
+                
+                cc.alignment = Alignment(horizontal='center')
+                cc.border = thin_border
+            linha_atual += 1
+            
+            # Espaço entre setores
+            linha_atual += 1
 
-        # Ajustar larguras
-        ws.column_dimensions['A'].width = 50
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 20
-        ws.column_dimensions['D'].width = 20
-        
+
+            
     except Exception as e:
-        print(f"Erro ao criar sheet ofensores por setor: {e}")
+        import traceback
+        st.error(f"Erro em Ofensores por Setor: {e}")
+        st.error(traceback.format_exc())
 
 
 def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas, df_colaboradores=None):
@@ -2650,57 +2604,64 @@ with col_btn_processar:
                         feriados_temp = {}
                     
                     # ===== CRIAR GUIA PORCENTAGENS ABS =====
-                    ws_porcentagens = w.book.create_sheet('Porcentagens ABS')
-                    
-                    # Linha 1: Título
-                    ws_porcentagens.merge_cells('A1:Z1')
-                    titulo_cell = ws_porcentagens.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO')
-                    titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
-                    titulo_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                    
-                    # Linha 3: Headers - Área, HC (agregado)
-                    ws_porcentagens.cell(row=3, column=1, value='Área')
-                    ws_porcentagens.cell(row=3, column=2, value='HC')
-                    
-                    # Formata header
-                    for col_num in [1, 2]:
-                        cell_header = ws_porcentagens.cell(row=3, column=col_num)
-                        cell_header.font = Font(bold=True, color='FFFFFF', size=10)
-                        cell_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
-                        cell_header.alignment = Alignment(horizontal='center', vertical='center')
-                    
-                    area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
-                    
-                    # Linha 4: M&A com HC
-                    cell_ma = ws_porcentagens.cell(row=4, column=1, value='M&A')
-                    cell_ma.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                    cell_ma.font = Font(bold=True)
-                    
-                    cell_hc_ma = ws_porcentagens.cell(row=4, column=2)
-                    hc_ma_formula = (
-                        f'=SUMPRODUCT(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                        f'+SUMPRODUCT(ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
-                        f'+SUMPRODUCT(ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                    )
-                    cell_hc_ma.value = hc_ma_formula
-                    cell_hc_ma.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                    cell_hc_ma.alignment = Alignment(horizontal='center', vertical='center')
-                    
-                    # Linha 5: CRDK / D&E com HC
-                    cell_crdk = ws_porcentagens.cell(row=5, column=1, value='CRDK / D&E')
-                    cell_crdk.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                    cell_crdk.font = Font(bold=True)
-                    
-                    cell_hc_crdk = ws_porcentagens.cell(row=5, column=2)
-                    hc_crdk_formula = (
-                        f'=SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK FOB LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                        f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
-                    )
-                    cell_hc_crdk.value = hc_crdk_formula
-                    cell_hc_crdk.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    try:
+                        if 'AREA' not in df_mest_final.columns:
+                             st.error("Coluna 'AREA' não encontrada para gerar Porcentagens ABS. Pulando esta aba.")
+                        else:
+                            ws_porcentagens = w.book.create_sheet('Porcentagens ABS')
+                            
+                            # Linha 1: Título
+                            ws_porcentagens.merge_cells('A1:Z1')
+                            titulo_cell = ws_porcentagens.cell(row=1, column=1, value='📊 PORCENTAGENS DE ABSENTEÍSMO')
+                            titulo_cell.font = Font(bold=True, size=14, color='FFFFFF')
+                            titulo_cell.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+                            
+                            # Linha 3: Headers - Área, HC (agregado)
+                            ws_porcentagens.cell(row=3, column=1, value='Área')
+                            ws_porcentagens.cell(row=3, column=2, value='HC')
+                            
+                            # Formata header
+                            for col_num in [1, 2]:
+                                cell_header = ws_porcentagens.cell(row=3, column=col_num)
+                                cell_header.font = Font(bold=True, color='FFFFFF', size=10)
+                                cell_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+                                cell_header.alignment = Alignment(horizontal='center', vertical='center')
+                            
+                            area_col_letter = get_column_letter(list(df_mest_final.columns).index('AREA') + 1)
+                            
+                            # Linha 4: M&A com HC
+                            cell_ma = ws_porcentagens.cell(row=4, column=1, value='M&A')
+                            cell_ma.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                            cell_ma.font = Font(bold=True)
+                            
+                            cell_hc_ma = ws_porcentagens.cell(row=4, column=2)
+                            hc_ma_formula = (
+                                f'=SUMPRODUCT(ISNUMBER(SEARCH("PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("MOVIMENTACAO E ARMAZENAGEM",Dados!{area_col_letter}:${area_col_letter}))*NOT(ISNUMBER(SEARCH("PROJETO INTERPRISE",Dados!{area_col_letter}:${area_col_letter})))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("BLOQ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("CD-RJ | FOB",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                            )
+                            cell_hc_ma.value = hc_ma_formula
+                            cell_hc_ma.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                            cell_hc_ma.alignment = Alignment(horizontal='center', vertical='center')
+                            
+                            # Linha 5: CRDK / D&E com HC
+                            cell_crdk = ws_porcentagens.cell(row=5, column=1, value='CRDK / D&E')
+                            cell_crdk.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                            cell_crdk.font = Font(bold=True)
+                            
+                            cell_hc_crdk = ws_porcentagens.cell(row=5, column=2)
+                            hc_crdk_formula = (
+                                f'=SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK FOB LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                            )
+                            cell_hc_crdk.value = hc_crdk_formula
+                            cell_hc_crdk.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    except Exception as e:
+                        st.error(f"Erro ao gerar Porcentagens ABS: {str(e)}")
+
                     cell_hc_crdk.alignment = Alignment(horizontal='center', vertical='center')
                     
                     # Linha 6: TOTAL HC
@@ -3183,9 +3144,9 @@ with col_btn_processar:
                     
                     # ===== CRIAR SHEET DE OFENSORES POR SETOR =====
                     if df_colab_para_ranking is not None:
-                        status_text.info("🏢 Gerando ofensores por setor...")
-                        progress_bar.progress(72)
-                        criar_sheet_ofensores_por_setor(df_mest_marcado, w, df_colab_para_ranking)
+                         status_text.info("🏢 Gerando ofensores por setor...")
+                         progress_bar.progress(72)
+                         criar_sheet_ofensores_por_setor(df_mest_marcado, w, df_colab_para_ranking)
 
                     # ===== CRIAR SHEET DE OFENSORES SEMANAIS =====
                     status_text.info("📅 Gerando ofensores semanais...")
