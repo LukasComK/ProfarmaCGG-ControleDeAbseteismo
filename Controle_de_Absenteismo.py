@@ -3363,6 +3363,9 @@ with col_btn_processar:
                                     elif val_str == 'P':
                                         cell.fill = PatternFill(start_color='FF90EE90', end_color='FF90EE90', fill_type='solid') # Verde Claro (Padronizado)
                                         cell.font = Font(color='FF000000', bold=True)
+                                    elif val_str in ['FÉRIAS-BH', 'FERIAS-BH']:
+                                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid') # Preto
+                                        cell.font = Font(color='FFFFFFFF', bold=True)
                                     else:
                                         # Tenta copiar o estilo da coluna correspondente da linha 2 de Dados?
                                         # Ou melhor, deixar sem estilo específico (branco)
