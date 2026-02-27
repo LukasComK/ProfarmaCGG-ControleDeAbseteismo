@@ -1578,7 +1578,412 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas, df_colaboradores=None
         st.error(f"Erro ao criar sheet de ofensores semanais: {str(e)}")
         import traceback
         st.write(traceback.format_exc())
-        return False
+
+def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
+    """
+    Cria sheet 'Ofensores por Turno' de forma ESTÁTICA (sem fórmulas).
+    Calcula os valores no Python e escreve direto na célula.
+    """
+    if df_mest is None or not mapa_datas:
+        return
+
+    try:
+        from openpyxl.utils import get_column_letter
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        import datetime
+        import pandas as pd
+        import calendar
+        
+        # --- Prepara Dados ---
+        # Garante coluna TURNO e AREA em maiúsculo e string
+        cols_map = {str(c).upper().strip(): c for c in df_mest.columns} # Mapa UPPER -> Original
+        
+        col_turno_orig = cols_map.get('TURNO')
+        # Fallback: coluna 8 (index 7) se não achar pelo nome
+        if not col_turno_orig and len(df_mest.columns) >= 8:
+             col_turno_orig = df_mest.columns[7]
+             
+        if not col_turno_orig:
+            st.warning("Coluna TURNO não identificada.")
+            return
+
+        col_area_orig = cols_map.get('AREA')
+        if not col_area_orig and len(df_mest.columns) >= 2:
+             # Fallback
+             col_area_orig = df_mest.columns[1]
+
+        # Cria cópia para trabalhar
+        df_work = df_mest.copy()
+        df_work['TURNO_NORM'] = df_work[col_turno_orig].astype(str).str.strip().str.upper()
+        df_work['AREA_NORM'] = df_work[col_area_orig].astype(str).str.strip().str.upper() if col_area_orig else ''
+
+        # Identifica Turnos presentes + Força 1, 2, 3 se não estiverem
+        turnos_presentes = list(df_work['TURNO_NORM'].unique())
+        turnos_presentes = [t for t in turnos_presentes if t and t != 'NAN' and t != 'NONE']
+        
+        # Normalização dos nomes para garantir 1, 2, 3
+        # Se contiver '1', assume que é turno 1
+        mapa_turnos = {}
+        for t in turnos_presentes:
+            if '1' in t: mapa_turnos['1'] = t
+            elif '2' in t: mapa_turnos['2'] = t
+            elif '3' in t: mapa_turnos['3'] = t
+            
+        turnos_finais = sorted(list(set(turnos_presentes)))
+        
+        # Garante que Turnos 1, 2, 3 existam na lista. Se nao existirem no dado, cria dummy.
+        # Preferencia: Usa o nome que esta no dado. Se nao, usa NOME PADRAO.
+        lista_final_processamento = []
+        for i in ['1', '2', '3']:
+            nome_turno = None
+            # Tenta achar um turno que corresponda a i
+            for t in turnos_finais:
+                if i in t:
+                    nome_turno = t
+                    break
+            
+            if nome_turno:
+                if nome_turno not in lista_final_processamento:
+                    lista_final_processamento.append(nome_turno)
+            else:
+                # Cria dummy
+                lista_final_processamento.append(f"{i}º TURNO (Sem Dados)")
+
+        # Adiciona turnos extras que nao sejam 1, 2, 3
+        for t in turnos_finais:
+            if t not in lista_final_processamento:
+                 # Evita duplicar se ja foi capturado pela logica acima
+                 # Mas a logica acima pegou o primeiro match.
+                 # Se tiver "1A" e "1B", pegou 1A. O "1B" sobra?
+                 # Minha logica de 'if i in t' eh muito gulosa.
+                 pass
+        
+        # Vamos simplificar: Processa TODOS os turnos encontrados + Adiciona dummies se faltar 1, 2 ou 3
+        # Mas mantendo a ordem.
+        
+        # Melhor abordagem:
+        # 1. Lista todos turnos reais.
+        # 2. Verifica se falta algum dos 3 principais. Se falta, adiciona string padrao.
+        # 3. Ordena.
+        
+        turnos_processar = set(turnos_presentes)
+        
+        tem_1 = any('1' in t for t in turnos_processar)
+        tem_2 = any('2' in t for t in turnos_processar)
+        tem_3 = any('3' in t for t in turnos_processar)
+        
+        if not tem_1: turnos_processar.add('1º TURNO')
+        if not tem_2: turnos_processar.add('2º TURNO')
+        if not tem_3: turnos_processar.add('3º TURNO')
+        
+        turnos_ordenados = sorted(list(turnos_processar))
+
+        # Define quais colunas são as datas
+        mapa_datas_str = {d: str(c) for d, c in mapa_datas.items()} # data -> nome_coluna
+        
+        # Prepara feriados
+        anos = set(d.year for d in mapa_datas.keys())
+        feriados_temp = {}
+        for ano in anos:
+            feriados_temp.update(obter_feriados_brasil(ano))
+        
+        # Ordena datas
+        datas_ordenadas = sorted(mapa_datas.keys())
+        if not datas_ordenadas: return
+        
+        mes_dados = datas_ordenadas[0].month
+        ano_dados = datas_ordenadas[0].year
+        dias_no_mes = calendar.monthrange(ano_dados, mes_dados)[1]
+
+        # Deleta a sheet se já existir para recriar
+        if 'Ofensores por Turno' in w.book.sheetnames:
+            del w.book['Ofensores por Turno']
+        ws = w.book.create_sheet("Ofensores por Turno")
+
+        row_atual = 1
+        
+        # --- FUNÇÃO AUXILIAR PARA CALCULAR HC ---
+        def calcular_hc_filtrado(df_sub):
+            # Filtros M&A
+            filtros_ma = [
+                "PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",
+                "MOVIMENTACAO E ARMAZENAGEM",
+                "BLOQ",
+                "CD-RJ | FOB"
+            ]
+            # Filtros CRDK
+            filtros_crdk = [
+                "CRDK D&E LCFA | CD-RJ",
+                "CRDK D&E|CD-RJ HB",
+                "CRDK FOB LCFA | CD-RJ",
+                "CRDK LCFA | CD-RJ"
+            ]
+            
+            hc_ma = 0
+            hc_crdk = 0
+            
+            for area in df_sub['AREA_NORM']:
+                # Verifica M&A
+                # Logica simplificada: se contem qualquer substring chave
+                eh_ma = False
+                if "PROJETO INTERPRISE" in area and "MOVIMENTACAO E ARMAZENAGEM" in area: eh_ma = True
+                elif "MOVIMENTACAO E ARMAZENAGEM" in area and "PROJETO INTERPRISE" not in area: eh_ma = True
+                elif "BLOQ" in area: eh_ma = True
+                elif "CD-RJ | FOB" in area: eh_ma = True
+                
+                if eh_ma:
+                    hc_ma += 1
+                else: 
+                     # Verifica CRDK
+                     eh_crdk = any(f in area for f in ["CRDK", "LCFA", "HB"]) # Simplificando keywords CRDK
+                     if eh_crdk:
+                         hc_crdk += 1
+            
+            return hc_ma, hc_crdk
+
+        # --- PROCESSAMENTO POR TURNO ---
+        for turno in turnos_ordenados:
+            # Filtra DF pelo turno (String exata)
+            df_turno = df_work[df_work['TURNO_NORM'] == turno]
+            
+            # Calcula HC Base deste turno
+            hc_ma_base, hc_crdk_base = calcular_hc_filtrado(df_turno)
+            hc_total_base = hc_ma_base + hc_crdk_base
+            
+            # --- 1. TÍTULO TURNO ---
+            cell_titulo = ws.cell(row=row_atual, column=1, value=f"TURNO: {turno}")
+            cell_titulo.font = Font(bold=True, size=14, color='FFFFFF')
+            cell_titulo.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+            ws.merge_cells(start_row=row_atual, start_column=1, end_row=row_atual, end_column=dias_no_mes+1)
+            row_atual += 1
+            
+            # --- 2. RESUMO HC ---
+            ws.cell(row=row_atual, column=1, value='Área (Neste Turno)').font = Font(bold=True, color='FFFFFF')
+            ws.cell(row=row_atual, column=1).fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+            
+            ws.cell(row=row_atual, column=2, value='HC').font = Font(bold=True, color='FFFFFF')
+            ws.cell(row=row_atual, column=2).fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+            row_atual += 1
+            
+            # M&A
+            ws.cell(row=row_atual, column=1, value='M&A').fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+            ws.cell(row=row_atual, column=1).font = Font(bold=True)
+            ws.cell(row=row_atual, column=2, value=hc_ma_base).alignment = Alignment(horizontal='center')
+            row_atual += 1
+            
+            # CRDK
+            ws.cell(row=row_atual, column=1, value='CRDK / D&E').fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+            ws.cell(row=row_atual, column=1).font = Font(bold=True)
+            ws.cell(row=row_atual, column=2, value=hc_crdk_base).alignment = Alignment(horizontal='center')
+            row_atual += 1
+            
+            # Total
+            ws.cell(row=row_atual, column=1, value='TOTAL HC').fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+            ws.cell(row=row_atual, column=1).font = Font(bold=True)
+            ws.cell(row=row_atual, column=2, value=hc_total_base).alignment = Alignment(horizontal='center')
+            ws.cell(row=row_atual, column=2).font = Font(bold=True)
+            
+            row_atual += 2 # Espaço
+            
+            # --- 3. TABELA DE DADOS ---
+            # Header Datas
+            ws.cell(row=row_atual, column=1, value='Área').font = Font(bold=True, color='FFFFFF')
+            ws.cell(row=row_atual, column=1).fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+            
+            for dia in range(1, dias_no_mes + 1):
+                col_idx = dia + 1
+                c = ws.cell(row=row_atual, column=col_idx, value=f"{dia:02d}/{mes_dados:02d}")
+                c.font = Font(bold=True, color='FFFFFF')
+                c.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+                c.alignment = Alignment(horizontal='center')
+            row_atual += 1
+            
+            # -- Linhas M&A e CRDK (Dados e %) --
+            # Pre-calcula dados por dia para otimizar
+            dados_dias = {} # {dia: {'ma_cnt': 0, 'crdk_cnt': 0, 'desligados': 0, 'fi': 0, 'fa': 0}}
+
+            # Inicializa estrutura
+            for dia in range(1, dias_no_mes + 1):
+                dados_dias[dia] = {'ma_cnt': 0, 'crdk_cnt': 0, 'desligados': 0, 'fi': 0, 'fa': 0}
+
+            # Popula Counts
+            # Itera sobre DF filtrado deste turno APENAS UMA VEZ
+            for idx, row in df_turno.iterrows():
+                area = str(row['AREA_NORM'])
+                eh_ma = False
+                if "PROJETO INTERPRISE" in area and "MOVIMENTACAO E ARMAZENAGEM" in area: eh_ma = True
+                elif "MOVIMENTACAO E ARMAZENAGEM" in area and "PROJETO INTERPRISE" not in area: eh_ma = True
+                elif "BLOQ" in area: eh_ma = True
+                elif "CD-RJ | FOB" in area: eh_ma = True
+                
+                eh_crdk = False
+                if not eh_ma:
+                    eh_crdk = any(f in area for f in ["CRDK", "LCFA", "HB"])
+
+                # Para cada dia, checa valor na coluna
+                for dia in range(1, dias_no_mes + 1):
+                     data_obj = datetime.date(ano_dados, mes_dados, dia)
+                     col_name = mapa_datas.get(data_obj)
+                     if col_name:
+                         val = str(row.get(col_name, '')).strip().upper()
+                         
+                         if val in ['FI', 'FA']:
+                             if eh_ma: dados_dias[dia]['ma_cnt'] += 1
+                             if eh_crdk: dados_dias[dia]['crdk_cnt'] += 1
+                             
+                             if val == 'FI': dados_dias[dia]['fi'] += 1
+                             if val == 'FA': dados_dias[dia]['fa'] += 1
+                         
+                         if val == 'DESLIGADO':
+                             dados_dias[dia]['desligados'] += 1
+
+            # ESCREVE LINHAS
+            labels = ['M&A', 'M&A - %', 'CRDK / D&E', 'CRDK / D&E - %']
+            
+            for linha_label in labels:
+                c_lbl = ws.cell(row=row_atual, column=1, value=linha_label)
+                c_lbl.font = Font(bold=True)
+                c_lbl.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                
+                for dia in range(1, dias_no_mes + 1):
+                    info = dados_dias[dia]
+                    col_idx = dia + 1
+                    cell = ws.cell(row=row_atual, column=col_idx)
+                    
+                    data_obj = datetime.date(ano_dados, mes_dados, dia)
+                    eh_domingo = data_obj.weekday() == 6
+                    eh_feriado = data_obj in feriados_temp
+                    
+                    if eh_feriado or eh_domingo:
+                        cell.value = "FERIADO" if eh_feriado else "DOMINGO"
+                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
+                        cell.font = Font(bold=True, color='FFFFFFFF')
+                    else:
+                        val = 0
+                        is_pct = '%' in linha_label
+                        
+                        if linha_label == 'M&A':
+                            val = info['ma_cnt']
+                        elif linha_label == 'M&A - %':
+                            val = (info['ma_cnt'] / hc_ma_base) if hc_ma_base > 0 else 0
+                        elif linha_label == 'CRDK / D&E':
+                            val = info['crdk_cnt']
+                        elif linha_label == 'CRDK / D&E - %':
+                            val = (info['crdk_cnt'] / hc_crdk_base) if hc_crdk_base > 0 else 0
+                        
+                        cell.value = val
+                        if is_pct:
+                            cell.number_format = '0.00%'
+                        
+                        cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
+                        
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                row_atual += 1
+            
+            # --- 4. TOTAIS ---
+            
+            # Row index references
+            r_tot_hc = row_atual
+            r_fi = row_atual + 1
+            r_fa = row_atual + 2
+            r_tot_f = row_atual + 3
+            r_pct_acc = row_atual + 4
+
+            # TOTAL HC (ajustado por desligados)
+            ws.cell(row=r_tot_hc, column=1, value='TOTAL HC').font = Font(bold=True)
+            ws.cell(row=r_tot_hc, column=2, value=hc_total_base).font = Font(bold=True)
+            
+            # Labels
+            ws.cell(row=r_fi, column=1, value='FI - Faltas Injustificadas').font = Font(bold=True)
+            ws.cell(row=r_fa, column=1, value='FA - Faltas por Atestado').font = Font(bold=True)
+            ws.cell(row=r_tot_f, column=1, value='TOTAL').font = Font(bold=True)
+            ws.cell(row=r_pct_acc, column=1, value='%Acumulado').font = Font(bold=True, color='FFFFFFFF')
+            ws.cell(row=r_pct_acc, column=1).fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+
+            # Loop Dias p/ Calcular e escreve Totais
+            acc_faltas = 0
+            acc_hc = 0
+            
+            for dia in range(1, dias_no_mes + 1):
+                col_idx = dia + 1
+                info = dados_dias[dia]
+                data_obj = datetime.date(ano_dados, mes_dados, dia)
+                eh_domingo = data_obj.weekday() == 6
+                eh_feriado = data_obj in feriados_temp
+                
+                # Valores do dia
+                hc_do_dia = hc_total_base - info['desligados']
+                fi_do_dia = info['fi']
+                fa_do_dia = info['fa']
+                tot_faltas_dia = fi_do_dia + fa_do_dia
+                
+                # Cells
+                c_hc = ws.cell(row=r_tot_hc, column=col_idx)
+                c_fi = ws.cell(row=r_fi, column=col_idx)
+                c_fa = ws.cell(row=r_fa, column=col_idx)
+                c_tot = ws.cell(row=r_tot_f, column=col_idx)
+                c_pct = ws.cell(row=r_pct_acc, column=col_idx)
+                
+                if eh_feriado or eh_domingo:
+                    lbl = "FERIADO" if eh_feriado else "DOMINGO"
+                    estilo_bk = {'fill': PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid'), 'font': Font(bold=True, color='FFFFFFFF')}
+                    
+                    for c in [c_hc, c_fi, c_fa, c_tot, c_pct]:
+                        c.value = lbl
+                        c.fill = estilo_bk['fill']
+                        c.font = estilo_bk['font']
+                        c.alignment = Alignment(horizontal='center')
+                else:
+                    # Incrementa acumuladores
+                    acc_hc += hc_do_dia
+                    acc_faltas += tot_faltas_dia
+                    
+                    # HC
+                    c_hc.value = hc_do_dia
+                    c_hc.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    
+                    # FI
+                    c_fi.value = fi_do_dia
+                    c_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
+                    c_fi.font = Font(bold=True, color='FFFFFFFF')
+                    
+                    # FA
+                    c_fa.value = fa_do_dia
+                    c_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid') # Amarelo
+                    c_fa.font = Font(bold=True, color='FF000000')
+                    
+                    # TOTAL
+                    c_tot.value = tot_faltas_dia
+                    c_tot.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    c_tot.font = Font(bold=True)
+                    
+                    # % Acumulado
+                    val_pct = (acc_faltas / acc_hc) if acc_hc > 0 else 0
+                    c_pct.value = val_pct
+                    c_pct.number_format = '0.00%'
+                    c_pct.font = Font(bold=True)
+                    
+                    # Cor condicional manual
+                    if val_pct >= 0.03:
+                         c_pct.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+                         c_pct.font = Font(bold=True, color='FFFFFFFF')
+                    else:
+                         c_pct.fill = PatternFill(start_color='FF00B050', end_color='FF00B050', fill_type='solid')
+                         c_pct.font = Font(bold=True, color='FFFFFFFF')
+
+                # Alinhamento Geral
+                for c in [c_hc, c_fi, c_fa, c_tot, c_pct]:
+                     if not c.alignment.horizontal: c.alignment = Alignment(horizontal='center', vertical='center')
+
+            row_atual += 8 # Pula para proximo turno
+
+        # Ajuste largura col A
+        ws.column_dimensions['A'].width = 25
+
+    except Exception as e:
+        import traceback
+        st.error(f"Erro ao criar Ofensores por Turno: {e}")
+        st.write(traceback.format_exc())
 
 
 def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
@@ -3377,6 +3782,11 @@ with col_btn_processar:
                         st.error(f"Erro ao criar sheet Faltantes: {e}")
                         # Não para a execução, apenas mostra erro
                     
+                    # ===== CRIAR SHEET OFENSORES POR TURNO =====
+                    status_text.info("🏭 Gerando ofensores por turno...")
+                    progress_bar.progress(74)
+                    criar_sheet_ofensores_por_turno(df_mest_marcado, w, mapa_datas)
+
                     # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
                     status_text.info("📊 Enriquecendo ranking com dados do CSV...")
                     progress_bar.progress(75)
