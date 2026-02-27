@@ -10,23 +10,68 @@ Esta página processa o arquivo Excel (XLSX) para gerar uma tabela de **Justific
 
 **Regras de Processamento:**
 1. **Filtro de Cargo** (Coluna I): Considera apenas `AUXILIAR DEPOSITO I`, `AUXILIAR DEPOSITO II`, `AUXILIAR DEPOSITO III`.
-2. **Matriz**:
-   - **Linhas**: Nomes (Coluna H)
-   - **Colunas**: Datas (Coluna J)
-   - **Célula**: Justificativa (Coluna P)
+   - **Colunas Extras**: Cargo (Coluna I) e Gestor (via cruzamento com CSV).
+   - **Matriz**:
+     - **Linhas**: Nomes, Cargos e Gestores
+     - **Colunas**: Datas (Coluna J)
+     - **Célula**: Justificativa (Coluna P)
 """)
 
-uploaded_file = st.file_uploader("Carregue o arquivo Excel de Absenteísmo", type=["xlsx"])
+uploaded_file = st.file_uploader("1. Carregue o arquivo Excel de Absenteísmo", type=["xlsx"])
+uploaded_csv_gestores = st.file_uploader("2. Carregue o arquivo CSV de Gestores (Base Ativos)", type=["csv"])
 
-if uploaded_file is not None:
-    # 1. Leitura do Arquivo
+if uploaded_file is not None and uploaded_csv_gestores is not None:
+    # 1. Leitura do Arquivo Excel (Absenteísmo)
     try:
         df = pd.read_excel(uploaded_file)
     except Exception as e:
         st.error(f"Erro ao ler o arquivo Excel: {e}")
         st.stop()
 
-    st.success(f"Arquivo carregado! {len(df)} linhas encontradas.")
+    # 2. Leitura do Arquivo CSV (Gestores)
+    try:
+        # Tenta ; ISO-8859-1 que é comum
+        df_gestores = pd.read_csv(uploaded_csv_gestores, sep=';', encoding='latin-1', engine='python')
+    except:
+        uploaded_csv_gestores.seek(0)
+        try:
+            # Tenta , UTF-8
+            df_gestores = pd.read_csv(uploaded_csv_gestores, sep=',', encoding='utf-8', engine='python')
+        except:
+            uploaded_csv_gestores.seek(0)
+            # Tenta tab
+            df_gestores = pd.read_csv(uploaded_csv_gestores, sep='\t', encoding='utf-8', engine='python')
+
+    # Verifica se CSV tem colunas D (idx 3) e Z (idx 25)
+    # Mas como as letras podem não bater com indices se houver leitura errada, vamos tentar pegar pelo indice mesmo se tiver colunas suficientes.
+    # D -> 3 (0,1,2,3)
+    # Z -> 25
+    
+    col_nome_gestor_idx = 3 # Col D
+    col_gestor_idx = 25     # Col Z
+    
+    mapa_gestores = {}
+    
+    if len(df_gestores.columns) > 25:
+        # Cria dicionário Nome -> Gestor
+        # Normaliza nomes para cruzar
+        col_nome_csv = df_gestores.columns[col_nome_gestor_idx]
+        col_gestor_csv = df_gestores.columns[col_gestor_idx]
+        
+        # Limpa e cria dicionario
+        temp_df = df_gestores[[col_nome_csv, col_gestor_csv]].dropna().astype(str)
+        temp_df['Chave'] = temp_df[col_nome_csv].str.strip().str.upper()
+        temp_df['Valor'] = temp_df[col_gestor_csv].str.strip().str.upper()
+        
+        # Remove duplicados mantendo o ultimo ou primeiro? Vamos assumir que nome é unico
+        temp_df = temp_df.drop_duplicates(subset=['Chave'])
+        
+        mapa_gestores = dict(zip(temp_df['Chave'], temp_df['Valor']))
+        st.success(f"Arquivo de Gestores carregado! {len(mapa_gestores)} mapeamentos encontrados.")
+    else:
+        st.warning(f"Arquivo CSV de gestores parece não ter colunas suficientes (esperado > 25, encontrado {len(df_gestores.columns)}). Verifique separador.")
+
+    st.success(f"Arquivo Absenteísmo carregado! {len(df)} linhas encontradas.")
 
     if len(df.columns) < 16:
         st.error("O arquivo parece não ter as colunas H..P necessárias ou o cabeçalho não foi lido corretamente.")
@@ -59,9 +104,6 @@ if uploaded_file is not None:
         df['Cargo_Norm'] = df[col_cargo].astype(str).str.strip().str.upper()
         
         # Filtra
-        # Usamos regex para pegar variações ou lista exata? O pedido foi exato.
-        # "AUXILIAR DEPOSITO I"
-        
         # Vamos garantir que pegue variações com espaços extras
         mask = df['Cargo_Norm'].isin([c.strip().upper() for c in cargos_permitidos])
         
@@ -75,7 +117,15 @@ if uploaded_file is not None:
         st.info(f"Linhas após filtro de cargos: {len(df_filtered)}")
         
         if len(df_filtered) > 0:
-            # 3. Pivot Table (Crosstab)
+            # 3. Pivot Table (Crosstab) incluindo Cargo e Gestor
+            
+            # Adiciona Coluna Gestor no DataFrame Filtrado
+
+            def get_gestor(nome_val):
+                n = str(nome_val).strip().upper()
+                return mapa_gestores.get(n, "NÃO ENCONTRADO")
+            
+            df_filtered['GESTOR'] = df_filtered[col_nome].apply(get_gestor)
             
             # Formata Data para garantir ordem cronológica nas colunas
             # Tenta converter para datetime
@@ -92,27 +142,39 @@ if uploaded_file is not None:
                 df_filtered['Data_Str'] = df_filtered[col_data].astype(str)
             
             # Pivot
-            # Index: Nome (col H)
+            # Index: Nome (col H), Cargo (col I), Gestor (novo)
             # Columns: Data (col J formatada)
             # Values: Justificativa (col P)
             
             # Função de agregação: Se tiver 2 justificativas no mesmo dia, concatena.
             agg_func = lambda x: " | ".join([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])
             
+            # Renomeia colunas para ficar bonito no índice da Pivot
+            df_filtered = df_filtered.rename(columns={
+                col_nome: 'NOME',
+                col_cargo: 'CARGO'
+            })
+            
             pivot_df = df_filtered.pivot_table(
-                index=col_nome, 
+                index=['NOME', 'CARGO', 'GESTOR'], 
                 columns='Data_Str', 
                 values=col_justif, 
                 aggfunc=agg_func
             ).fillna('') # Preenche vazios com string vazia
             
+            # Reset index para NOME, CARGO, GESTOR virarem colunas normais e facilitar export
+            pivot_df = pivot_df.reset_index()
+            
             # Ordenar colunas de data (o pivot pode bagunçar se for string)
             # Se conseguimos converter para datetime, podemos reordenar as colunas
             if 'Data_Det' in df_filtered.columns:
                  datas_unicas = df_filtered[['Data_Det', 'Data_Str']].drop_duplicates().sort_values('Data_Det')
-                 cols_ordenadas = datas_unicas['Data_Str'].tolist()
-                 # Garante que só usa colunas que existem no pivot (caso algum filtro tenha removido)
-                 cols_finais = [c for c in cols_ordenadas if c in pivot_df.columns]
+                 cols_datas = datas_unicas['Data_Str'].tolist()
+                 # Garante que só usa colunas que existem no pivot
+                 cols_datas_finais = [c for c in cols_datas if c in pivot_df.columns]
+                 
+                 # Colunas fixas + colunas de datas
+                 cols_finais = ['NOME', 'CARGO', 'GESTOR'] + cols_datas_finais
                  pivot_df = pivot_df[cols_finais]
 
             st.write("### Resultado da Matriz de Justificativas")
@@ -121,7 +183,7 @@ if uploaded_file is not None:
             # 4. Exportação Excel
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                pivot_df.to_excel(writer, sheet_name='Justificativas')
+                pivot_df.to_excel(writer, sheet_name='Justificativas', index=False)
                 
                 # Ajustes visuais
                 workbook = writer.book
@@ -138,12 +200,13 @@ if uploaded_file is not None:
                 
                 # Escreve cabeçalho com formato
                 for col_num, value in enumerate(pivot_df.columns.values):
-                    worksheet.write(0, col_num + 1, value, header_fmt)
-                worksheet.write(0, 0, "NOME", header_fmt)
+                    worksheet.write(0, col_num, value, header_fmt) # sem +1 pois index=False
                 
                 # Ajusta largura
-                worksheet.set_column(0, 0, 40) # Nome largo
-                worksheet.set_column(1, len(pivot_df.columns), 15) # Datas
+                worksheet.set_column(0, 0, 40) # Nome
+                worksheet.set_column(1, 1, 25) # Cargo
+                worksheet.set_column(2, 2, 25) # Gestor
+                worksheet.set_column(3, len(pivot_df.columns), 15) # Datas
                 
             st.download_button(
                 label="📥 Baixar Planilha Excel",
