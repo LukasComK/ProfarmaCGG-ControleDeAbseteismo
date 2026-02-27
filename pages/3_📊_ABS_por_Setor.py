@@ -30,17 +30,26 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
 
     # 2. Leitura do Arquivo CSV (Gestores)
     try:
-        # Tenta ; ISO-8859-1 que é comum
-        df_gestores = pd.read_csv(uploaded_csv_gestores, sep=';', encoding='latin-1', engine='python')
+        # Tenta ler ignorando a primeira linha (que costuma ser título "Colaboradores")
+        df_gestores = pd.read_csv(uploaded_csv_gestores, sep=';', encoding='latin-1', skiprows=1, engine='python')
+        
+        # Se mesmo assim tiver poucas colunas, tenta ler normal (caso o arquivo não tenha o título)
+        if len(df_gestores.columns) < 5:
+             uploaded_csv_gestores.seek(0)
+             df_gestores = pd.read_csv(uploaded_csv_gestores, sep=';', encoding='latin-1', engine='python')
+
     except:
         uploaded_csv_gestores.seek(0)
         try:
-            # Tenta , UTF-8
-            df_gestores = pd.read_csv(uploaded_csv_gestores, sep=',', encoding='utf-8', engine='python')
+             # Tenta skiprows=1 com ; e utf-8
+             df_gestores = pd.read_csv(uploaded_csv_gestores, sep=';', encoding='utf-8', skiprows=1, engine='python')
         except:
-            uploaded_csv_gestores.seek(0)
-            # Tenta tab
-            df_gestores = pd.read_csv(uploaded_csv_gestores, sep='\t', encoding='utf-8', engine='python')
+             try:
+                # Tenta normal , utf-8
+                uploaded_csv_gestores.seek(0)
+                df_gestores = pd.read_csv(uploaded_csv_gestores, sep=',', encoding='utf-8', engine='python')
+             except:
+                 pass
 
     # Verifica se CSV tem colunas D (idx 3) e Z (idx 25)
     # Mas como as letras podem não bater com indices se houver leitura errada, vamos tentar pegar pelo indice mesmo se tiver colunas suficientes.
