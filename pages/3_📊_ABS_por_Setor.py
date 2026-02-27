@@ -6,7 +6,7 @@ st.set_page_config(page_title="ABS por Setor", layout="wide")
 
 st.title("📊 ABS por Setor")
 st.markdown("""
-Esta página processa o arquivo CSV para gerar uma tabela de **Justificativas** (ABS) por dia.
+Esta página processa o arquivo Excel (XLSX) para gerar uma tabela de **Justificativas** (ABS) por dia.
 
 **Regras de Processamento:**
 1. **Filtro de Cargo** (Coluna I): Considera apenas `AUXILIAR DEPOSITO I`, `AUXILIAR DEPOSITO II`, `AUXILIAR DEPOSITO III`.
@@ -16,23 +16,15 @@ Esta página processa o arquivo CSV para gerar uma tabela de **Justificativas** 
    - **Célula**: Justificativa (Coluna P)
 """)
 
-uploaded_file = st.file_uploader("Carregue o arquivo CSV de Absenteísmo", type=["csv"])
+uploaded_file = st.file_uploader("Carregue o arquivo Excel de Absenteísmo", type=["xlsx"])
 
 if uploaded_file is not None:
     # 1. Leitura do Arquivo
-    # Tenta detecção simples de encoding/separador
     try:
-        # Tenta ; ISO-8859-1 que é comum
-        df = pd.read_csv(uploaded_file, sep=';', encoding='latin-1', engine='python')
-    except:
-        uploaded_file.seek(0)
-        try:
-            # Tenta , UTF-8
-            df = pd.read_csv(uploaded_file, sep=',', encoding='utf-8', engine='python')
-        except:
-            uploaded_file.seek(0)
-            # Tenta tab
-            df = pd.read_csv(uploaded_file, sep='\t', encoding='utf-8', engine='python')
+        df = pd.read_excel(uploaded_file)
+    except Exception as e:
+        st.error(f"Erro ao ler o arquivo Excel: {e}")
+        st.stop()
 
     st.success(f"Arquivo carregado! {len(df)} linhas encontradas.")
 
