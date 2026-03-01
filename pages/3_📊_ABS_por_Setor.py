@@ -224,72 +224,57 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 worksheet.set_column(3, 3, 25) # Supervisor
                 worksheet.set_column(4, len(pivot_df.columns), 15) # Datas
                 
-                # Aba 2: Resumo Hierárquico (Tipo Tabela Dinâmica)
-                # Vamos preparar os dados para esse relatório
-                # Precisamos de NOME, CARGO, GESTOR, SUPERVISOR, DATA, JUSTIFICATIVA
-                # Vamos explodir a pivot ou usar o df_filtered original?
-                # O df_filtered original tem tudo o que precisamos.
+                # Aba 2: Dados Brutos (Oculta) para Tabela Dinâmica
+                # Precisamos exportar os dados brutos filtrados (sem pivot)
+                # Vamos limpar o df_filtered para ter apenas as colunas necessárias
+                df_dados = df_filtered[[col_nome, col_cargo, 'GESTOR', 'SUPERVISOR', 'Data_Str', col_justif]].copy()
+                # Renomear colunas para ficar bonito
+                df_dados.columns = ['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR', 'DATA', 'JUSTIFICATIVA']
                 
-                # Filtra apenas quem tem justificativa preenchida (falta/atraso/etc)
-                # A coluna P (Justificativa) não pode ser vazia/nula
-                df_resumo = df_filtered[df_filtered[col_justif].notna() & (df_filtered[col_justif].astype(str).str.strip() != '')].copy()
+                # Filtrar apenas quem tem justificativa (não vazio)
+                df_dados = df_dados[df_dados['JUSTIFICATIVA'].astype(str).str.strip() != '']
                 
-                if not df_resumo.empty:
-                    worksheet_resumo = workbook.add_worksheet('Resumo_Faltas')
+                if not df_dados.empty:
+                    df_dados.to_excel(writer, sheet_name='Dados_Brutos', index=False)
                     
-                    # Formatos para o Resumo
-                    fmt_supervisor = workbook.add_format({'bold': True, 'bg_color': '#C6EFCE', 'font_color': '#006100', 'border': 1})
-                    fmt_gestor = workbook.add_format({'bold': True, 'bg_color': '#FFEB9C', 'font_color': '#9C5700', 'border': 1, 'indent': 1})
-                    fmt_funcionario = workbook.add_format({'bold': True, 'indent': 2, 'border': 1})
-                    fmt_data = workbook.add_format({'indent': 4, 'font_color': '#555555'})
-                    fmt_total = workbook.add_format({'bold': True, 'align': 'center', 'border': 1})
+                    # Cria Tabela Dinâmica na aba "Resumo_Dinamico"
+                    workbook = writer.book
+                    worksheet_dados = writer.sheets['Dados_Brutos']
+                    worksheet_pivot = workbook.add_worksheet('Resumo_Dinamico')
                     
-                    # Cabeçalho
-                    worksheet_resumo.write(0, 0, "HIERARQUIA / DATA", header_fmt)
-                    worksheet_resumo.write(0, 1, "QTD FALTAS", header_fmt)
-                    worksheet_resumo.set_column(0, 0, 60)
-                    worksheet_resumo.set_column(1, 1, 15)
+                    # Define intervalo dos dados brutos
+                    num_rows = len(df_dados)
+                    num_cols = len(df_dados.columns)
+                    # Sintaxe do Excel R1C1 ou A1
+                    # A1..F(num_rows+1)
+                    rng_name = f"Dados_Brutos!A1:F{num_rows+1}"
                     
-                    row = 1
+                    # Cria a Tabela Dinâmica
+                    pivot_options = {
+                        'data': rng_name,
+                        'rows': ['SUPERVISOR', 'GESTOR', 'NOME', 'DATA'],
+                        'cols': [],
+                        'values': [{
+                            'name': 'Quantidade de Faltas',
+                            'data': 'JUSTIFICATIVA',
+                            'operation': 'count'
+                        }],
+                        'filters': ['CARGO'],
+                        'theme': 3, # Estilo visual
+                        'compact': True, # Modo compacto (hierarquia em uma coluna só)
+                    }
                     
-                    # Agrupa por Supervisor
-                    grupos_supervisor = df_resumo.groupby('SUPERVISOR')
+                    worksheet_pivot.add_pivot_table('A3', pivot_options)
                     
-                    for supervisor, df_sup in grupos_supervisor:
-                        qtd_sup = len(df_sup)
-                        worksheet_resumo.write(row, 0, f"📂 {supervisor}", fmt_supervisor)
-                        worksheet_resumo.write(row, 1, qtd_sup, fmt_supervisor)
-                        # Agrupamento Excel (Level 1)
-                        # worksheet_resumo.set_row(row, None, None, {'level': 1}) 
-                        row += 1
-                        
-                        # Agrupa por Gestor dentro do Supervisor
-                        grupos_gestor = df_sup.groupby('GESTOR')
-                        for gestor, df_ges in grupos_gestor:
-                            qtd_ges = len(df_ges)
-                            worksheet_resumo.write(row, 0, f"👤 {gestor}", fmt_gestor)
-                            worksheet_resumo.write(row, 1, qtd_ges, fmt_gestor)
-                            # worksheet_resumo.set_row(row, None, None, {'level': 2})
-                            row += 1
-                            
-                            # Agrupa por Funcionário dentro do Gestor
-                            grupos_func = df_ges.groupby('NOME')
-                            for func, df_func in grupos_func:
-                                qtd_func = len(df_func)
-                                worksheet_resumo.write(row, 0, f"🔹 {func}", fmt_funcionario)
-                                worksheet_resumo.write(row, 1, qtd_func, fmt_total)
-                                # worksheet_resumo.set_row(row, None, None, {'level': 3})
-                                row += 1
-                                
-                                # Lista as datas e justificativas
-                                for _, reg in df_func.iterrows():
-                                    data_txt = str(reg['Data_Str'])
-                                    just_txt = str(reg[col_justif])
-                                    texto = f"{data_txt} - {just_txt}"
-                                    worksheet_resumo.write(row, 0, texto, fmt_data)
-                                    worksheet_resumo.write(row, 1, 1, fmt_data) # Conta 1
-                                    # worksheet_resumo.set_row(row, None, None, {'level': 4})
-                                    row += 1
+                    # Adiciona fatiadores (Slicers)? XlsxWriter não suporta Slicers nativamente ainda de forma fácil.
+                    # Mas o layout compacto já dá as "setinhas" (outline).
+                    
+                    worksheet_pivot.write('A1', 'Tabela Dinâmica de Faltas por Hierarquia', header_fmt)
+                    worksheet_pivot.write('A2', 'Use os botões de +/- para expandir', header_fmt)
+                    worksheet_pivot.set_column(0, 0, 50) # Largura da coluna A
+                    
+                    # Ocultar a aba de dados brutos
+                    worksheet_dados.hide()
             
             st.download_button(
                 label="📥 Baixar Planilha Excel",
