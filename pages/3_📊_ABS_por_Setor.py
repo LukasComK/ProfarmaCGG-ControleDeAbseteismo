@@ -134,7 +134,12 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 n = str(nome_val).strip().upper()
                 return mapa_gestores.get(n, "NÃO ENCONTRADO")
             
+            # 1. Obtém o GESTOR direto
             df_filtered['GESTOR'] = df_filtered[col_nome].apply(get_gestor)
+            
+            # 2. Obtém o SUPERVISOR (Gestor do Gestor)
+            # Reaproveita a mesma lógica: procura quem é o gestor do nome que está na coluna 'GESTOR'
+            df_filtered['SUPERVISOR'] = df_filtered['GESTOR'].apply(lambda x: get_gestor(x) if x != "NÃO ENCONTRADO" else "NÃO ENCONTRADO")
             
             # Formata Data para garantir ordem cronológica nas colunas
             # Tenta converter para datetime
@@ -151,7 +156,7 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 df_filtered['Data_Str'] = df_filtered[col_data].astype(str)
             
             # Pivot
-            # Index: Nome (col H), Cargo (col I), Gestor (novo)
+            # Index: Nome (col H), Cargo (col I), Gestor (novo), Supervisor (novo)
             # Columns: Data (col J formatada)
             # Values: Justificativa (col P)
             
@@ -165,13 +170,13 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
             })
             
             pivot_df = df_filtered.pivot_table(
-                index=['NOME', 'CARGO', 'GESTOR'], 
+                index=['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR'], 
                 columns='Data_Str', 
                 values=col_justif, 
                 aggfunc=agg_func
             ).fillna('') # Preenche vazios com string vazia
             
-            # Reset index para NOME, CARGO, GESTOR virarem colunas normais e facilitar export
+            # Reset index para NOME, CARGO, GESTOR, SUPERVISOR virarem colunas normais e facilitar export
             pivot_df = pivot_df.reset_index()
             
             # Ordenar colunas de data (o pivot pode bagunçar se for string)
@@ -183,7 +188,7 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                  cols_datas_finais = [c for c in cols_datas if c in pivot_df.columns]
                  
                  # Colunas fixas + colunas de datas
-                 cols_finais = ['NOME', 'CARGO', 'GESTOR'] + cols_datas_finais
+                 cols_finais = ['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR'] + cols_datas_finais
                  pivot_df = pivot_df[cols_finais]
 
             st.write("### Resultado da Matriz de Justificativas")
@@ -192,13 +197,14 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
             # 4. Exportação Excel
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                # Aba 1: Matriz Detalhada
                 pivot_df.to_excel(writer, sheet_name='Justificativas', index=False)
                 
-                # Ajustes visuais
+                # Ajustes visuais Aba Justificativas
                 workbook = writer.book
                 worksheet = writer.sheets['Justificativas']
                 
-                # Formato Header
+                # Formatos
                 header_fmt = workbook.add_format({
                     'bold': True,
                     'text_wrap': True,
@@ -209,14 +215,82 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 
                 # Escreve cabeçalho com formato
                 for col_num, value in enumerate(pivot_df.columns.values):
-                    worksheet.write(0, col_num, value, header_fmt) # sem +1 pois index=False
+                    worksheet.write(0, col_num, value, header_fmt)
                 
                 # Ajusta largura
                 worksheet.set_column(0, 0, 40) # Nome
                 worksheet.set_column(1, 1, 25) # Cargo
                 worksheet.set_column(2, 2, 25) # Gestor
-                worksheet.set_column(3, len(pivot_df.columns), 15) # Datas
+                worksheet.set_column(3, 3, 25) # Supervisor
+                worksheet.set_column(4, len(pivot_df.columns), 15) # Datas
                 
+                # Aba 2: Resumo Hierárquico (Tipo Tabela Dinâmica)
+                # Vamos preparar os dados para esse relatório
+                # Precisamos de NOME, CARGO, GESTOR, SUPERVISOR, DATA, JUSTIFICATIVA
+                # Vamos explodir a pivot ou usar o df_filtered original?
+                # O df_filtered original tem tudo o que precisamos.
+                
+                # Filtra apenas quem tem justificativa preenchida (falta/atraso/etc)
+                # A coluna P (Justificativa) não pode ser vazia/nula
+                df_resumo = df_filtered[df_filtered[col_justif].notna() & (df_filtered[col_justif].astype(str).str.strip() != '')].copy()
+                
+                if not df_resumo.empty:
+                    worksheet_resumo = workbook.add_worksheet('Resumo_Faltas')
+                    
+                    # Formatos para o Resumo
+                    fmt_supervisor = workbook.add_format({'bold': True, 'bg_color': '#C6EFCE', 'font_color': '#006100', 'border': 1})
+                    fmt_gestor = workbook.add_format({'bold': True, 'bg_color': '#FFEB9C', 'font_color': '#9C5700', 'border': 1, 'indent': 1})
+                    fmt_funcionario = workbook.add_format({'bold': True, 'indent': 2, 'border': 1})
+                    fmt_data = workbook.add_format({'indent': 4, 'font_color': '#555555'})
+                    fmt_total = workbook.add_format({'bold': True, 'align': 'center', 'border': 1})
+                    
+                    # Cabeçalho
+                    worksheet_resumo.write(0, 0, "HIERARQUIA / DATA", header_fmt)
+                    worksheet_resumo.write(0, 1, "QTD FALTAS", header_fmt)
+                    worksheet_resumo.set_column(0, 0, 60)
+                    worksheet_resumo.set_column(1, 1, 15)
+                    
+                    row = 1
+                    
+                    # Agrupa por Supervisor
+                    grupos_supervisor = df_resumo.groupby('SUPERVISOR')
+                    
+                    for supervisor, df_sup in grupos_supervisor:
+                        qtd_sup = len(df_sup)
+                        worksheet_resumo.write(row, 0, f"📂 {supervisor}", fmt_supervisor)
+                        worksheet_resumo.write(row, 1, qtd_sup, fmt_supervisor)
+                        # Agrupamento Excel (Level 1)
+                        # worksheet_resumo.set_row(row, None, None, {'level': 1}) 
+                        row += 1
+                        
+                        # Agrupa por Gestor dentro do Supervisor
+                        grupos_gestor = df_sup.groupby('GESTOR')
+                        for gestor, df_ges in grupos_gestor:
+                            qtd_ges = len(df_ges)
+                            worksheet_resumo.write(row, 0, f"👤 {gestor}", fmt_gestor)
+                            worksheet_resumo.write(row, 1, qtd_ges, fmt_gestor)
+                            # worksheet_resumo.set_row(row, None, None, {'level': 2})
+                            row += 1
+                            
+                            # Agrupa por Funcionário dentro do Gestor
+                            grupos_func = df_ges.groupby('NOME')
+                            for func, df_func in grupos_func:
+                                qtd_func = len(df_func)
+                                worksheet_resumo.write(row, 0, f"🔹 {func}", fmt_funcionario)
+                                worksheet_resumo.write(row, 1, qtd_func, fmt_total)
+                                # worksheet_resumo.set_row(row, None, None, {'level': 3})
+                                row += 1
+                                
+                                # Lista as datas e justificativas
+                                for _, reg in df_func.iterrows():
+                                    data_txt = str(reg['Data_Str'])
+                                    just_txt = str(reg[col_justif])
+                                    texto = f"{data_txt} - {just_txt}"
+                                    worksheet_resumo.write(row, 0, texto, fmt_data)
+                                    worksheet_resumo.write(row, 1, 1, fmt_data) # Conta 1
+                                    # worksheet_resumo.set_row(row, None, None, {'level': 4})
+                                    row += 1
+            
             st.download_button(
                 label="📥 Baixar Planilha Excel",
                 data=buffer.getvalue(),
