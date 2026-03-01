@@ -226,9 +226,10 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 
                 # Aba 2: Dados Brutos (Oculta) para Tabela Dinâmica
                 # Precisamos exportar os dados brutos filtrados (sem pivot)
-                # Vamos limpar o df_filtered para ter apenas as colunas necessárias
-                df_dados = df_filtered[[col_nome, col_cargo, 'GESTOR', 'SUPERVISOR', 'Data_Str', col_justif]].copy()
-                # Renomear colunas para ficar bonito
+                # O df_filtered já teve lenomes renomeados para NOME e CARGO anteriormente
+                
+                df_dados = df_filtered[['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR', 'Data_Str', col_justif]].copy()
+                # Renomear colunas para ficar padrinizado
                 df_dados.columns = ['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR', 'DATA', 'JUSTIFICATIVA']
                 
                 # Filtrar apenas quem tem justificativa (não vazio)
