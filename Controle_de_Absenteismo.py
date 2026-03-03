@@ -1748,7 +1748,7 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
             
             # Calcula HC Base deste turno
             hc_ma_base, hc_crdk_base = calcular_hc_filtrado(df_turno)
-            hc_total_base = hc_ma_base + hc_crdk_base
+            hc_total_base = hc_ma_base  # REMOVIDO HC CRDK DO TOTAL (hc_total_base = hc_ma_base + hc_crdk_base)
             
             # --- 1. TÍTULO TURNO ---
             cell_titulo = ws.cell(row=row_atual, column=1, value=f"TURNO: {turno}")
@@ -1771,11 +1771,11 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
             ws.cell(row=row_atual, column=2, value=hc_ma_base).alignment = Alignment(horizontal='center')
             row_atual += 1
             
-            # CRDK
-            ws.cell(row=row_atual, column=1, value='CRDK / D&E').fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-            ws.cell(row=row_atual, column=1).font = Font(bold=True)
-            ws.cell(row=row_atual, column=2, value=hc_crdk_base).alignment = Alignment(horizontal='center')
-            row_atual += 1
+            # CRDK (REMOVIDO A PEDIDO)
+            # ws.cell(row=row_atual, column=1, value='CRDK / D&E').fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+            # ws.cell(row=row_atual, column=1).font = Font(bold=True)
+            # ws.cell(row=row_atual, column=2, value=hc_crdk_base).alignment = Alignment(horizontal='center')
+            # row_atual += 1
             
             # Total
             ws.cell(row=row_atual, column=1, value='TOTAL HC').fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
@@ -1787,6 +1787,9 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
             
             # --- 3. TABELA DE DADOS ---
             # Header Datas
+            # Coluna MEDIA
+            col_media_idx = dias_no_mes + 2
+            
             ws.cell(row=row_atual, column=1, value='Área').font = Font(bold=True, color='FFFFFF')
             ws.cell(row=row_atual, column=1).fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
             
@@ -1796,18 +1799,26 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                 c.font = Font(bold=True, color='FFFFFF')
                 c.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                 c.alignment = Alignment(horizontal='center')
+            
+            # Header MEDIA
+            c_med = ws.cell(row=row_atual, column=col_media_idx, value="MÉDIA")
+            c_med.font = Font(bold=True, color='FFFFFF')
+            c_med.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+            c_med.alignment = Alignment(horizontal='center')
+            
             row_atual += 1
             
             # -- Linhas M&A e CRDK (Dados e %) --
             # Pre-calcula dados por dia para otimizar
             dados_dias = {} # {dia: {'ma_cnt': 0, 'crdk_cnt': 0, 'desligados': 0, 'fi': 0, 'fa': 0}}
-
-            # Inicializa estrutura
+            
+            # ... (código existente de inicialização e contagem omitido aqui, não alterado) ...
+            
+            # Inicializa estrutura (Recopiado para contexto do replace)
             for dia in range(1, dias_no_mes + 1):
                 dados_dias[dia] = {'ma_cnt': 0, 'crdk_cnt': 0, 'desligados': 0, 'fi': 0, 'fa': 0}
 
             # Popula Counts
-            # Itera sobre DF filtrado deste turno APENAS UMA VEZ
             for idx, row in df_turno.iterrows():
                 area = str(row['AREA_NORM'])
                 eh_ma = False
@@ -1816,10 +1827,8 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                 elif "BLOQ" in area: eh_ma = True
                 elif "CD-RJ | FOB" in area: eh_ma = True
                 
-                eh_crdk = False
-                if not eh_ma:
-                    eh_crdk = any(f in area for f in ["CRDK", "LCFA", "HB"])
-
+                # eh_crdk removido logica interna pois nao usamos mais na saida
+                
                 # Para cada dia, checa valor na coluna
                 for dia in range(1, dias_no_mes + 1):
                      data_obj = datetime.date(ano_dados, mes_dados, dia)
@@ -1828,17 +1837,22 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                          val = str(row.get(col_name, '')).strip().upper()
                          
                          if val in ['FI', 'FA']:
-                             if eh_ma: dados_dias[dia]['ma_cnt'] += 1
-                             if eh_crdk: dados_dias[dia]['crdk_cnt'] += 1
-                             
-                             if val == 'FI': dados_dias[dia]['fi'] += 1
-                             if val == 'FA': dados_dias[dia]['fa'] += 1
-                         
+                             # LOGICA MODIFICADA: Conta M&A em ma_cnt E fi/fa. IGNORA CRDK.
+                             if eh_ma: 
+                                 dados_dias[dia]['ma_cnt'] += 1
+                                 if val == 'FI': dados_dias[dia]['fi'] += 1
+                                 if val == 'FA': dados_dias[dia]['fa'] += 1
+                                 
+                         # Desligados tambem deve ser filtrado?
                          if val == 'DESLIGADO':
-                             dados_dias[dia]['desligados'] += 1
+                             if eh_ma: dados_dias[dia]['desligados'] += 1
 
             # ESCREVE LINHAS
-            labels = ['M&A', 'M&A - %', 'CRDK / D&E', 'CRDK / D&E - %']
+            labels = ['M&A', 'M&A - %'] # CRDK REMOVIDO
+            
+            # Prepara letras colunas para formulas
+            col_start_let = get_column_letter(2)
+            col_end_let = get_column_letter(dias_no_mes + 1)
             
             for linha_label in labels:
                 c_lbl = ws.cell(row=row_atual, column=1, value=linha_label)
@@ -1866,10 +1880,6 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                             val = info['ma_cnt']
                         elif linha_label == 'M&A - %':
                             val = (info['ma_cnt'] / hc_ma_base) if hc_ma_base > 0 else 0
-                        elif linha_label == 'CRDK / D&E':
-                            val = info['crdk_cnt']
-                        elif linha_label == 'CRDK / D&E - %':
-                            val = (info['crdk_cnt'] / hc_crdk_base) if hc_crdk_base > 0 else 0
                         
                         cell.value = val
                         if is_pct:
@@ -1878,6 +1888,17 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                         cell.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
                         
                     cell.alignment = Alignment(horizontal='center', vertical='center')
+                
+                # COLUNA MEDIA (Formula Excel)
+                c_avg = ws.cell(row=row_atual, column=col_media_idx)
+                c_avg.value = f"=AVERAGE({col_start_let}{row_atual}:{col_end_let}{row_atual})"
+                c_avg.font = Font(bold=True)
+                c_avg.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                if '%' in linha_label:
+                    c_avg.number_format = '0.00%'
+                else:
+                    c_avg.number_format = '0.00'
+
                 row_atual += 1
             
             # --- 4. TOTAIS ---
@@ -1891,14 +1912,25 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
 
             # TOTAL HC (ajustado por desligados)
             ws.cell(row=r_tot_hc, column=1, value='TOTAL HC').font = Font(bold=True)
-            ws.cell(row=r_tot_hc, column=2, value=hc_total_base).font = Font(bold=True)
+            # MEDIA TOTAL HC
+            ws.cell(row=r_tot_hc, column=col_media_idx, value=f"=AVERAGE({col_start_let}{r_tot_hc}:{col_end_let}{r_tot_hc})").font = Font(bold=True)
             
-            # Labels
+            # Labels e Medias para Totais
             ws.cell(row=r_fi, column=1, value='FI - Faltas Injustificadas').font = Font(bold=True)
+            ws.cell(row=r_fi, column=col_media_idx, value=f"=AVERAGE({col_start_let}{r_fi}:{col_end_let}{r_fi})").font = Font(bold=True)
+            
             ws.cell(row=r_fa, column=1, value='FA - Faltas por Atestado').font = Font(bold=True)
+            ws.cell(row=r_fa, column=col_media_idx, value=f"=AVERAGE({col_start_let}{r_fa}:{col_end_let}{r_fa})").font = Font(bold=True)
+            
             ws.cell(row=r_tot_f, column=1, value='TOTAL').font = Font(bold=True)
+            ws.cell(row=r_tot_f, column=col_media_idx, value=f"=AVERAGE({col_start_let}{r_tot_f}:{col_end_let}{r_tot_f})").font = Font(bold=True)
+            
             ws.cell(row=r_pct_acc, column=1, value='%Acumulado').font = Font(bold=True, color='FFFFFFFF')
             ws.cell(row=r_pct_acc, column=1).fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+            # Media do Acumulado (Faz sentido matematicamente? O Excel calcula a media das porcentagens diarias)
+            c_avg_acc = ws.cell(row=r_pct_acc, column=col_media_idx, value=f"=AVERAGE({col_start_let}{r_pct_acc}:{col_end_let}{r_pct_acc})")
+            c_avg_acc.font = Font(bold=True)
+            c_avg_acc.number_format = '0.00%'
 
             # Loop Dias p/ Calcular e escreve Totais
             acc_faltas = 0
@@ -1912,7 +1944,7 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                 eh_feriado = data_obj in feriados_temp
                 
                 # Valores do dia
-                hc_do_dia = hc_total_base - info['desligados']
+                hc_do_dia = hc_total_base - info['desligados'] # Considerando apenas M&A agora pois crdk removido
                 fi_do_dia = info['fi']
                 fa_do_dia = info['fa']
                 tot_faltas_dia = fi_do_dia + fa_do_dia
@@ -3251,6 +3283,13 @@ with col_btn_processar:
                         cell_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
                         cell_header.alignment = Alignment(horizontal='center', vertical='center')
                     
+                    # Coluna MÉDIA no Header (Pós-loop dias)
+                    col_media_idx = dias_no_mes + 2 # Coluna após o último dia
+                    cell_media_header = ws_porcentagens.cell(row=8, column=col_media_idx, value="MÉDIA")
+                    cell_media_header.font = Font(bold=True, color='FFFFFF', size=10)
+                    cell_media_header.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+                    cell_media_header.alignment = Alignment(horizontal='center', vertical='center')
+
                     # Formata header coluna Área
                     cell_area_header = ws_porcentagens.cell(row=8, column=1)
                     cell_area_header.font = Font(bold=True, color='FFFFFF', size=10)
@@ -3353,6 +3392,22 @@ with col_btn_processar:
                             
                             cell.alignment = Alignment(horizontal='center', vertical='center')
                         
+                        # --- COLUNA MÉDIA (Pós-loop dias) ---
+                        col_media_letra = get_column_letter(col_media_idx)
+                        col_inicio_letra = get_column_letter(2) # B
+                        col_fim_letra = get_column_letter(dias_no_mes + 1)
+                        
+                        cell_media = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
+                        cell_media.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
+                        cell_media.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                        cell_media.font = Font(bold=True)
+                        cell_media.alignment = Alignment(horizontal='center', vertical='center')
+                        
+                        if '%' in setor_nome:
+                            cell_media.number_format = '0.00"%"'
+                        else:
+                            cell_media.number_format = '0.00'
+
                         row_pct += 1
                     
                     # Linha de TOTAL HC - mostrar HC total em todas as colunas
@@ -3404,6 +3459,14 @@ with col_btn_processar:
                             cell_hc_data.font = Font(bold=True)
                         
                         cell_hc_data.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # MÉDIA para TOTAL HC
+                    cell_media_thc = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
+                    cell_media_thc.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
+                    cell_media_thc.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    cell_media_thc.font = Font(bold=True)
+                    cell_media_thc.alignment = Alignment(horizontal='center', vertical='center')
+                    cell_media_thc.number_format = '0.00'
                     
                     row_total_hc = row_pct
                     row_pct += 1
@@ -3457,6 +3520,14 @@ with col_btn_processar:
                             cell_fi_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fi_data.alignment = Alignment(horizontal='center', vertical='center')
                     
+                    # MÉDIA para FI
+                    cell_media_fi = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
+                    cell_media_fi.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
+                    cell_media_fi.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
+                    cell_media_fi.font = Font(bold=True, color='FFFFFFFF')
+                    cell_media_fi.alignment = Alignment(horizontal='center', vertical='center')
+                    cell_media_fi.number_format = '0.00'
+                    
                     row_fi = row_pct
                     row_pct += 1
                     
@@ -3508,6 +3579,14 @@ with col_btn_processar:
                             cell_fa_data.font = Font(bold=True, color='FFFFFFFF')
                             cell_fa_data.alignment = Alignment(horizontal='center', vertical='center')
                     
+                    # MÉDIA para FA
+                    cell_media_fa = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
+                    cell_media_fa.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
+                    cell_media_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                    cell_media_fa.font = Font(bold=True, color='FFFFFFFF')
+                    cell_media_fa.alignment = Alignment(horizontal='center', vertical='center')
+                    cell_media_fa.number_format = '0.00'
+                    
                     row_fa = row_pct
                     row_pct += 1
                     
@@ -3550,6 +3629,14 @@ with col_btn_processar:
                             cell_total_data.font = Font(bold=True)
                         
                         cell_total_data.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # MÉDIA para TOTAL
+                    cell_media_tot = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
+                    cell_media_tot.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
+                    cell_media_tot.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
+                    cell_media_tot.font = Font(bold=True)
+                    cell_media_tot.alignment = Alignment(horizontal='center', vertical='center')
+                    cell_media_tot.number_format = '0.00'
                     
                     row_total_faltas = row_pct
                     row_pct += 1
@@ -3594,6 +3681,14 @@ with col_btn_processar:
                             cell_acum_data.font = Font(bold=True)
                         
                         cell_acum_data.alignment = Alignment(horizontal='center', vertical='center')
+                    
+                    # MÉDIA para %Acumulado
+                    cell_media_acum = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
+                    cell_media_acum.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
+                    cell_media_acum.fill = PatternFill(start_color='FF0D4F45', end_color='FF0D4F45', fill_type='solid')
+                    cell_media_acum.font = Font(bold=True, color='FFFFFFFF')
+                    cell_media_acum.alignment = Alignment(horizontal='center', vertical='center')
+                    cell_media_acum.number_format = '0.00"%"'
                     
                     # Adiciona regras condicionais para %Acumulado
                     from openpyxl.formatting.rule import CellIsRule

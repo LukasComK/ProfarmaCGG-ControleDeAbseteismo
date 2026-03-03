@@ -224,58 +224,113 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 worksheet.set_column(3, 3, 25) # Supervisor
                 worksheet.set_column(4, len(pivot_df.columns), 15) # Datas
                 
-                # Aba 2: Dados Brutos (Oculta) para Tabela Dinâmica
-                # Precisamos exportar os dados brutos filtrados (sem pivot)
-                # O df_filtered já teve lenomes renomeados para NOME e CARGO anteriormente
+                # DEFINIÇÃO DE FORMATOS
                 
-                df_dados = df_filtered[['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR', 'Data_Str', col_justif]].copy()
-                # Renomear colunas para ficar padrinizado
-                df_dados.columns = ['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR', 'DATA', 'JUSTIFICATIVA']
+                # 1. FALTA: Vermelho, texto branco, negrito
+                fmt_falta = workbook.add_format({
+                    'bg_color': '#FF0000',
+                    'font_color': '#FFFFFF',
+                    'bold': True
+                })
+
+                # 2. DATA LIVRE (Folga/Aniversário/Branco): Verde, texto branco (se tiver), negrito
+                fmt_verde = workbook.add_format({
+                    'bg_color': '#008000', # Green
+                    'font_color': '#FFFFFF',
+                    'bold': True
+                })
+
+                # 3. RESTO (Outras Justificativas): Preto, texto branco, negrito
+                fmt_preto = workbook.add_format({
+                    'bg_color': '#000000',
+                    'font_color': '#FFFFFF',
+                    'bold': True
+                })
+
+                # APLICAÇÃO DAS REGRAS EM ORDEM
+                # No XlsxWriter, a regra adicionada por último tem precedência no Excel se for aplicável.
+                # Vamos reordenar para garantir que as ESPECÍFICAS sobreponham a GERAL (PRETO).
+                # E também ajustar start_col para ignorar NOME, CARGO, GESTOR, SUPERVISOR (col 0 a 3).
                 
-                # Filtrar apenas quem tem justificativa (não vazio)
-                df_dados = df_dados[df_dados['JUSTIFICATIVA'].astype(str).str.strip() != '']
+                # pivot_df columns: ['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR'] + [Datas...]
+                # Vamos começar aplicar nas colunas de data (índice 4 em diante)
+                start_row = 1
+                start_col = 4
+                end_row = len(pivot_df)
+                end_col = len(pivot_df.columns) - 1
+
+
+                # 1. Regras Específicas (PRIMEIRO: Mais específicas)
                 
-                if not df_dados.empty:
-                    df_dados.to_excel(writer, sheet_name='Dados_Brutos', index=False)
-                    
-                    # Cria Tabela Dinâmica na aba "Resumo_Dinamico"
-                    workbook = writer.book
-                    worksheet_dados = writer.sheets['Dados_Brutos']
-                    worksheet_pivot = workbook.add_worksheet('Resumo_Dinamico')
-                    
-                    # Define intervalo dos dados brutos
-                    num_rows = len(df_dados)
-                    num_cols = len(df_dados.columns)
-                    # Sintaxe do Excel R1C1 ou A1
-                    # A1..F(num_rows+1)
-                    rng_name = f"Dados_Brutos!A1:F{num_rows+1}"
-                    
-                    # Cria a Tabela Dinâmica
-                    pivot_options = {
-                        'data': rng_name,
-                        'rows': ['SUPERVISOR', 'GESTOR', 'NOME', 'DATA'],
-                        'cols': [],
-                        'values': [{
-                            'name': 'Quantidade de Faltas',
-                            'data': 'JUSTIFICATIVA',
-                            'operation': 'count'
-                        }],
-                        'filters': ['CARGO'],
-                        'theme': 3, # Estilo visual
-                        'compact': True, # Modo compacto (hierarquia em uma coluna só)
-                    }
-                    
-                    worksheet_pivot.add_pivot_table('A3', pivot_options)
-                    
-                    # Adiciona fatiadores (Slicers)? XlsxWriter não suporta Slicers nativamente ainda de forma fácil.
-                    # Mas o layout compacto já dá as "setinhas" (outline).
-                    
-                    worksheet_pivot.write('A1', 'Tabela Dinâmica de Faltas por Hierarquia', header_fmt)
-                    worksheet_pivot.write('A2', 'Use os botões de +/- para expandir', header_fmt)
-                    worksheet_pivot.set_column(0, 0, 50) # Largura da coluna A
-                    
-                    # Ocultar a aba de dados brutos
-                    worksheet_dados.hide()
+                # FALTA -> Vermelho
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'text',
+                    'criteria': 'containing',
+                    'value':    'FALTA',
+                    'format':   fmt_falta
+                })
+
+                # FOLGA -> Verde
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'text',
+                    'criteria': 'containing',
+                    'value':    'FOLGA',
+                    'format':   fmt_verde
+                })
+
+                # Aniversário -> Verde
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'text',
+                    'criteria': 'containing',
+                    'value':    'Aniversário', 
+                    'format':   fmt_verde
+                })
+                
+                # Dia Livre -> Verde
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'text',
+                    'criteria': 'containing',
+                    'value':    'Dia Livre', 
+                    'format':   fmt_verde
+                })
+                
+                # Liberação da Empresa - Dia -> Verde
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'text',
+                    'criteria': 'containing',
+                    'value':    'Liberação da Empresa - Dia', 
+                    'format':   fmt_verde
+                })
+
+                # 2. Regra Base: NÃO VAZIO -> Preto (POR ÚLTIMO: Genérica)
+                # No Excel, verificamos se a ordem de aplicação importa.
+                # Se as de cima falharem, esta deve pegar.
+                
+                # Vamos tentar uma abordagem diferente: Formula!
+                # Regra Genérica (Preto): Se não estiver vazio E não contiver FALTA/FOLGA/Aniversário/Dia Livre/Liberação
+                
+                # Formula para "NÃO (FALTA ou FOLGA ou Aniversario ou Dia Livre ou Liberação) E NÃO VAZIO"
+                # range top-left é E2 (coluna 4 (0-based) = E). Linha 2 (1-based index).
+                # Em notação R1C1 ou A1 relativa? Xlsxwriter usa A1 relativo à célula inicial.
+                
+                # Célula Top-Left da área de dados: start_row=1 (Linha 2), start_col=4 (Coluna E -> A=0, B=1, C=2, D=3, E=4)
+                # Então a célula referência é E2.
+                
+                formula_resto = '=AND(E2<>"", ISERROR(SEARCH("FALTA", E2)), ISERROR(SEARCH("FOLGA", E2)), ISERROR(SEARCH("Aniversário", E2)), ISERROR(SEARCH("Dia Livre", E2)), ISERROR(SEARCH("Liberação da Empresa - Dia", E2)))'
+                
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'formula',
+                    'criteria': formula_resto,
+                    'format':   fmt_preto
+                })
+
+
+                # Aba 2: Dados Brutos (REMOVIDA A PEDIDO)
+                # O código anterior gerava uma aba extra com hierarquia ou dados brutos.
+                # O usuário solicitou que ficasse APENAS a aba "Justificativas" (Matriz Detalhada).
+                pass
+
+            # O writer.save() é chamado automaticamente ao sair do bloco 'with'
             
             st.download_button(
                 label="📥 Baixar Planilha Excel",
