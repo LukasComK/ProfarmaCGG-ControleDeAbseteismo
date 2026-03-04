@@ -82,46 +82,62 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
 
     st.success(f"Arquivo Absenteísmo carregado! {len(df)} linhas encontradas.")
 
+    # Verifica colunas para Layout Antigo (>=16) e Novo (>=39)
     if len(df.columns) < 16:
-        st.error("O arquivo parece não ter as colunas H..P necessárias ou o cabeçalho não foi lido corretamente.")
+        st.error("O arquivo não possui colunas suficientes. Verifique se é o arquivo correto.")
         st.write("Colunas encontradas:", list(df.columns))
     else:
-        # Colunas Chave pelo índice (0-based)
-        # H -> 7 (Nome)
-        # I -> 8 (Cargo)
-        # J -> 9 (Data)
-        # P -> 15 (Justificativa)
+        # Configuração de Colunas
+        col_nome = None
+        col_cargo = None
+        col_data = None
+        col_justif = None
+        filtrar_cargo = False
         
-        col_nome_idx = 7
-        col_cargo_idx = 8
-        col_data_idx = 9
-        col_justif_idx = 15
+        # Detecta Layout Novo (AM=38 existe)
+        if len(df.columns) >= 39:
+            st.info("Layout novo detectado (Colunas D, H, Z, AM).")
+            col_nome = df.columns[3]    # D (Nome)
+            col_cargo = df.columns[7]   # H (Cargo)
+            col_justif = df.columns[25] # Z (Ocorrencias/Justificativa)
+            col_data = df.columns[38]   # AM (Data)
+            
+            # Filtro de cargo é opcional para este layout; vamos assumir False por enquanto
+            # mas mapeamos a coluna para aparecer no relatório final.
+            filtrar_cargo = False
+        else:
+            # Layout Antigo (já verificado >= 16)
+            st.info("Layout padrão antigo detectado.")
+            col_nome = df.columns[7]
+            col_cargo = df.columns[8]
+            col_data = df.columns[9]
+            col_justif = df.columns[15]
+            filtrar_cargo = True
         
-        col_nome = df.columns[col_nome_idx]
-        col_cargo = df.columns[col_cargo_idx]
-        col_data = df.columns[col_data_idx]
-        col_justif = df.columns[col_justif_idx]
-        
-        # 2. Filtragem de Cargo
-        cargos_permitidos = [
-            "AUXILIAR DEPOSITO I",
-            "AUXILIAR DEPOSITO II",
-            "AUXILIAR DEPOSITO III"
-        ]
-        
-        # Cria coluna normalizada para evitar erros de espaços/case
-        df['Cargo_Norm'] = df[col_cargo].astype(str).str.strip().str.upper()
-        
-        # Filtra
-        # Vamos garantir que pegue variações com espaços extras
-        mask = df['Cargo_Norm'].isin([c.strip().upper() for c in cargos_permitidos])
-        
-        # Se nao achar nada exato, tenta contains?
-        if mask.sum() == 0:
-             st.warning("Nenhum cargo exato encontrado. Tentando busca parcial 'AUXILIAR DEPOSITO'...")
-             mask = df['Cargo_Norm'].str.contains("AUXILIAR DEPOSITO", case=False, na=False)
-        
-        df_filtered = df[mask].copy()
+        # 2. Filtragem de Cargo / Criação df_filtered
+        if filtrar_cargo:
+            cargos_permitidos = [
+                "AUXILIAR DEPOSITO I",
+                "AUXILIAR DEPOSITO II",
+                "AUXILIAR DEPOSITO III"
+            ]
+            
+            df['Cargo_Norm'] = df[col_cargo].astype(str).str.strip().str.upper()
+            mask = df['Cargo_Norm'].isin([c.strip().upper() for c in cargos_permitidos])
+            
+            if mask.sum() == 0:
+                 st.warning("Nenhum cargo exato encontrado. Tentando busca parcial 'AUXILIAR DEPOSITO'...")
+                 mask = df['Cargo_Norm'].str.contains("AUXILIAR DEPOSITO", case=False, na=False)
+            
+            df_filtered = df[mask].copy()
+        else:
+            df_filtered = df.copy()
+            # Garante coluna Cargo_Norm para visualização correta no Pivot
+            # Se col_cargo estiver definida (como strings/colunas), usa ela.
+            if col_cargo is not None:
+                df_filtered['Cargo_Norm'] = df_filtered[col_cargo].astype(str).str.strip().str.upper()
+            else:
+                df_filtered['Cargo_Norm'] = "N/A"
         
         st.info(f"Linhas após filtro de cargos: {len(df_filtered)}")
         
@@ -169,12 +185,17 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 col_cargo: 'CARGO'
             })
             
+            # PREENCHIMENTO DE VAZIOS COM "P" (Presença/Ponto)
+            # Se não tiver justificativa (vazio), assume "P"
             pivot_df = df_filtered.pivot_table(
                 index=['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR'], 
                 columns='Data_Str', 
                 values=col_justif, 
                 aggfunc=agg_func
-            ).fillna('') # Preenche vazios com string vazia
+            ).fillna('P') 
+            
+            # Garante que células vazias strings virem P também
+            pivot_df = pivot_df.replace('', 'P')
             
             # Reset index para NOME, CARGO, GESTOR, SUPERVISOR virarem colunas normais e facilitar export
             pivot_df = pivot_df.reset_index()
@@ -224,111 +245,115 @@ if uploaded_file is not None and uploaded_csv_gestores is not None:
                 worksheet.set_column(3, 3, 25) # Supervisor
                 worksheet.set_column(4, len(pivot_df.columns), 15) # Datas
                 
-                # DEFINIÇÃO DE FORMATOS
+
+                # --- NOVAS REGRAS DE FORMATACAO ---
+                                
+                # 1. Definindo os Formatos
                 
-                # 1. FALTA: Vermelho, texto branco, negrito
-                fmt_falta = workbook.add_format({
-                    'bg_color': '#FF0000',
-                    'font_color': '#FFFFFF',
+                # Afast: Amarelo, Preto, Negrito
+                fmt_amarelo_preto_bold = workbook.add_format({
+                    'bg_color': '#FFFF00', # Amarelo
+                    'font_color': '#000000', # Preto
                     'bold': True
                 })
-
-                # 2. DATA LIVRE (Folga/Aniversário/Branco): Verde, texto branco (se tiver), negrito
-                fmt_verde = workbook.add_format({
-                    'bg_color': '#008000', # Green
-                    'font_color': '#FFFFFF',
-                    'bold': True
-                })
-
-                # 3. RESTO (Outras Justificativas): Preto, texto branco, negrito
-                fmt_preto = workbook.add_format({
-                    'bg_color': '#000000',
-                    'font_color': '#FFFFFF',
-                    'bold': True
-                })
-
-                # APLICAÇÃO DAS REGRAS EM ORDEM
-                # No XlsxWriter, a regra adicionada por último tem precedência no Excel se for aplicável.
-                # Vamos reordenar para garantir que as ESPECÍFICAS sobreponham a GERAL (PRETO).
-                # E também ajustar start_col para ignorar NOME, CARGO, GESTOR, SUPERVISOR (col 0 a 3).
                 
-                # pivot_df columns: ['NOME', 'CARGO', 'GESTOR', 'SUPERVISOR'] + [Datas...]
-                # Vamos começar aplicar nas colunas de data (índice 4 em diante)
+                # Falta / Sem: Vermelho, Branco, Negrito
+                fmt_vermelho_branco_bold = workbook.add_format({
+                    'bg_color': '#FF0000', # Vermelho
+                    'font_color': '#FFFFFF', # Branco
+                    'bold': True
+                })
+                
+                # Férias / Folgas: Preto, Branco, Negrito
+                fmt_preto_branco_bold = workbook.add_format({
+                    'bg_color': '#000000', # Preto
+                    'font_color': '#FFFFFF', # Branco
+                    'bold': True
+                })
+                
+                # P (Vazio/Ponto): Verde, Preto, Negrito
+                fmt_verde_preto_bold = workbook.add_format({
+                    'bg_color': '#92D050', # Verde Claro (ajustado para legibilidade com preto)
+                    'font_color': '#000000', # Preto
+                    'bold': True
+                })
+
+                # Área de Aplicação (apenas colunas de datas)
                 start_row = 1
                 start_col = 4
                 end_row = len(pivot_df)
                 end_col = len(pivot_df.columns) - 1
 
-
-                # 1. Regras Específicas (PRIMEIRO: Mais específicas)
+                # 2. Aplicando Regras (Ordem de prioridade no Excel pode variar, mas no XlsxWriter aplicamos em ordem)
                 
-                # FALTA -> Vermelho
+                # A. Regras que CONTEM string (Parciais)
+                
+                # "Afast..." -> Amarelo/Preto
                 worksheet.conditional_format(start_row, start_col, end_row, end_col, {
                     'type':     'text',
                     'criteria': 'containing',
-                    'value':    'FALTA',
-                    'format':   fmt_falta
+                    'value':    'Afast',
+                    'format':   fmt_amarelo_preto_bold
                 })
-
-                # FOLGA -> Verde
+                
+                # "Falta..." -> Vermelho/Branco
                 worksheet.conditional_format(start_row, start_col, end_row, end_col, {
                     'type':     'text',
                     'criteria': 'containing',
-                    'value':    'FOLGA',
-                    'format':   fmt_verde
+                    'value':    'Falta',
+                    'format':   fmt_vermelho_branco_bold
                 })
-
-                # Aniversário -> Verde
+                
+                # "Sem..." -> Vermelho/Branco
                 worksheet.conditional_format(start_row, start_col, end_row, end_col, {
                     'type':     'text',
                     'criteria': 'containing',
-                    'value':    'Aniversário', 
-                    'format':   fmt_verde
+                    'value':    'Sem',
+                    'format':   fmt_vermelho_branco_bold
                 })
                 
-                # Dia Livre -> Verde
+                # "Férias..." -> Preto/Branco
+                # Adicionando regra para "Ferias" (sem acento) conforme solicitado
                 worksheet.conditional_format(start_row, start_col, end_row, end_col, {
                     'type':     'text',
                     'criteria': 'containing',
-                    'value':    'Dia Livre', 
-                    'format':   fmt_verde
+                    'value':    'Ferias',
+                    'format':   fmt_preto_branco_bold
                 })
                 
-                # Liberação da Empresa - Dia -> Verde
+                # Mantendo "Férias" (com acento) também
                 worksheet.conditional_format(start_row, start_col, end_row, end_col, {
                     'type':     'text',
                     'criteria': 'containing',
-                    'value':    'Liberação da Empresa - Dia', 
-                    'format':   fmt_verde
+                    'value':    'Férias',
+                    'format':   fmt_preto_branco_bold
                 })
-
-                # 2. Regra Base: NÃO VAZIO -> Preto (POR ÚLTIMO: Genérica)
-                # No Excel, verificamos se a ordem de aplicação importa.
-                # Se as de cima falharem, esta deve pegar.
                 
-                # Vamos tentar uma abordagem diferente: Formula!
-                # Regra Genérica (Preto): Se não estiver vazio E não contiver FALTA/FOLGA/Aniversário/Dia Livre/Liberação
+                # B. Regras EXATAS
                 
-                # Formula para "NÃO (FALTA ou FOLGA ou Aniversario ou Dia Livre ou Liberação) E NÃO VAZIO"
-                # range top-left é E2 (coluna 4 (0-based) = E). Linha 2 (1-based index).
-                # Em notação R1C1 ou A1 relativa? Xlsxwriter usa A1 relativo à célula inicial.
-                
-                # Célula Top-Left da área de dados: start_row=1 (Linha 2), start_col=4 (Coluna E -> A=0, B=1, C=2, D=3, E=4)
-                # Então a célula referência é E2.
-                
-                formula_resto = '=AND(E2<>"", ISERROR(SEARCH("FALTA", E2)), ISERROR(SEARCH("FOLGA", E2)), ISERROR(SEARCH("Aniversário", E2)), ISERROR(SEARCH("Dia Livre", E2)), ISERROR(SEARCH("Liberação da Empresa - Dia", E2)))'
-                
+                # "Folga" -> Preto/Branco
                 worksheet.conditional_format(start_row, start_col, end_row, end_col, {
-                    'type':     'formula',
-                    'criteria': formula_resto,
-                    'format':   fmt_preto
+                    'type':     'cell', # cell value compare
+                    'criteria': 'equal to',
+                    'value':    '"Folga"', # Excel string literal requires inner quotes
+                    'format':   fmt_preto_branco_bold
                 })
-
-
-                # Aba 2: Dados Brutos (REMOVIDA A PEDIDO)
-                # O código anterior gerava uma aba extra com hierarquia ou dados brutos.
-                # O usuário solicitou que ficasse APENAS a aba "Justificativas" (Matriz Detalhada).
-                pass
+                
+                # "Folga Remunerada" -> Preto/Branco
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'cell',
+                    'criteria': 'equal to',
+                    'value':    '"Folga Remunerada"',
+                    'format':   fmt_preto_branco_bold
+                })
+                
+                # "P" (Gerado para vazios) -> Verde/Preto
+                worksheet.conditional_format(start_row, start_col, end_row, end_col, {
+                    'type':     'cell',
+                    'criteria': 'equal to',
+                    'value':    '"P"',
+                    'format':   fmt_verde_preto_bold
+                })
 
             # O writer.save() é chamado automaticamente ao sair do bloco 'with'
             
