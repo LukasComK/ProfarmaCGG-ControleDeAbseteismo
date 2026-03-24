@@ -3409,100 +3409,10 @@ with col_btn_processar:
                             cell_media.number_format = '0.00'
 
                         row_pct += 1
-
-                    # --- LINHA TOTAL DE FALTAS (Soma de M&A e CRDK) ---
-                    # row_pct atual deve ser 13 (9, 10, 11, 12 ocupados)
                     
-                    cell_total_faltas_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL ABS (FI + FA)')
-                    cell_total_faltas_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                    cell_total_faltas_label.font = Font(bold=True)
-                    
-                    # Para simplificar, vamos assumir que as linhas de contagem são row_pct-4 (M&A) e row_pct-2 (CRDK)
-                    # M&A está em row_pct - 4
-                    # CRDK está em row_pct - 2
-                    row_ma = row_pct - 4
-                    row_crdk = row_pct - 2
-                    
-                    for dia in range(1, dias_no_mes + 1):
-                        col_idx = dia + 1
-                        col_letter = get_column_letter(col_idx)
-                        data_obj = datetime.date(ano_dados, mes_dados, dia)
-                        eh_domingo = data_obj.weekday() == 6
-                        eh_feriado = data_obj in feriados_temp
-                        
-                        cell_total = ws_porcentagens.cell(row=row_pct, column=col_idx)
-                        
-                        if eh_feriado:
-                            cell_total.value = "FERIADO"
-                            cell_total.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                            cell_total.font = Font(bold=True, color='FFFFFFFF')
-                        elif eh_domingo:
-                            cell_total.value = "DOMINGO"
-                            cell_total.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                            cell_total.font = Font(bold=True, color='FFFFFFFF')
-                        else:
-                            # Soma as células de contagem de M&A e CRDK
-                            cell_total.value = f'={col_letter}{row_ma}+{col_letter}{row_crdk}'
-                            cell_total.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
-                            cell_total.font = Font(bold=True)
-                            cell_total.alignment = Alignment(horizontal='center', vertical='center')
-                    
-                    # Média do Total
-                    col_media_letra = get_column_letter(col_media_idx)
-                    col_inicio_letra = get_column_letter(2)
-                    col_fim_letra = get_column_letter(dias_no_mes + 1)
-                    cell_media_total = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
-                    cell_media_total.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
-                    cell_media_total.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                    cell_media_total.font = Font(bold=True)
-                    cell_media_total.number_format = '0.00'
-                    cell_media_total.alignment = Alignment(horizontal='center', vertical='center')
-                    
-                    row_pct += 1
-                    
-                    # --- LINHA TOTAL % (Total Faltas / Total HC) ---
-                    cell_total_pct_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL ABS %')
-                    cell_total_pct_label.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                    cell_total_pct_label.font = Font(bold=True)
-                    
-                    row_total_faltas = row_pct - 1
-                    
-                    for dia in range(1, dias_no_mes + 1):
-                        col_idx = dia + 1
-                        col_letter = get_column_letter(col_idx)
-                        data_obj = datetime.date(ano_dados, mes_dados, dia)
-                        eh_domingo = data_obj.weekday() == 6
-                        eh_feriado = data_obj in feriados_temp
-                        
-                        cell_pct = ws_porcentagens.cell(row=row_pct, column=col_idx)
-                        
-                        if eh_feriado:
-                            cell_pct.value = "FERIADO"
-                            cell_pct.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                            cell_pct.font = Font(bold=True, color='FFFFFFFF')
-                        elif eh_domingo:
-                            cell_pct.value = "DOMINGO"
-                            cell_pct.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
-                            cell_pct.font = Font(bold=True, color='FFFFFFFF')
-                        else:
-                            # Formula: (Total Faltas / Total HC) * 100
-                            # Total HC está em Fixo (B4+B5) ou na linha de baixo (que será row_pct+1).
-                            # Vamos usar a soma fixa B4+B5 para garantir.
-                            cell_pct.value = f'=IFERROR(({col_letter}{row_total_faltas}/(B4+B5))*100, 0)'
-                            cell_pct.number_format = '0.00"%"'
-                            cell_pct.fill = PatternFill(start_color='FFE2EFDA', end_color='FFE2EFDA', fill_type='solid')
-                            cell_pct.font = Font(bold=True)
-                            cell_pct.alignment = Alignment(horizontal='center', vertical='center')
-                            
-                    # Média do Total %
-                    cell_media_pct = ws_porcentagens.cell(row=row_pct, column=col_media_idx)
-                    cell_media_pct.value = f'=AVERAGE({col_inicio_letra}{row_pct}:{col_fim_letra}{row_pct})'
-                    cell_media_pct.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
-                    cell_media_pct.font = Font(bold=True)
-                    cell_media_pct.number_format = '0.00"%"'
-                    cell_media_pct.alignment = Alignment(horizontal='center', vertical='center')
-
-                    row_pct += 1
+                    # --- LINHA TOTAL DE FALTAS (Soma de M&A e CRDK) - REMOVIDO A PEDIDO PELO USUARIO ---
+                    # O usuario quer que apareça FI e FA e o total abaixo
+                    # Entao pulamos a criacao das linhas "TOTAL ABS (FI + FA)" e "TOTAL ABS %" aqui
                     
                     # Linha de TOTAL HC - mostrar HC total em todas as colunas
                     cell_total_hc_label = ws_porcentagens.cell(row=row_pct, column=1, value='TOTAL HC')
@@ -3718,7 +3628,8 @@ with col_btn_processar:
                             cell_total_data.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid')
                             cell_total_data.font = Font(bold=True, color='FFFFFFFF')
                         else:
-                            cell_total_data.value = f'={col_letter}9+{col_letter}11'
+                            # Soma FI e FA (linhas armazenadas em row_fi e row_fa)
+                            cell_total_data.value = f'={col_letter}{row_fi}+{col_letter}{row_fa}'
                             cell_total_data.fill = PatternFill(start_color='FFF0F0F0', end_color='FFF0F0F0', fill_type='solid')
                             cell_total_data.font = Font(bold=True)
                         
