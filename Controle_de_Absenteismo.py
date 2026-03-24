@@ -1730,6 +1730,7 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                 elif "MOVIMENTACAO E ARMAZENAGEM" in area and "PROJETO INTERPRISE" not in area: eh_ma = True
                 elif "BLOQ" in area: eh_ma = True
                 elif "CD-RJ | FOB" in area: eh_ma = True
+                elif "M&A | LOCAFARMA CD-RJ" in area: eh_ma = True
                 
                 if eh_ma:
                     hc_ma += 1
@@ -1826,6 +1827,8 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                 elif "MOVIMENTACAO E ARMAZENAGEM" in area and "PROJETO INTERPRISE" not in area: eh_ma = True
                 elif "BLOQ" in area: eh_ma = True
                 elif "CD-RJ | FOB" in area: eh_ma = True
+                elif "M&A | LOCAFARMA CD-RJ" in area: eh_ma = True
+
                 
                 # eh_crdk removido logica interna pois nao usamos mais na saida
                 
