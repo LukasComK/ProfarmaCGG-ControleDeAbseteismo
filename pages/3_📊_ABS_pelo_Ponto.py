@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.set_page_config(page_title="ABS por Setor", layout="wide")
+st.set_page_config(page_title="ABS pelo Ponto", layout="wide")
 
-st.title("📊 ABS por Setor")
+st.title("📊 ABS pelo Ponto")
 st.markdown("""
 Esta página processa o arquivo Excel (XLSX) para gerar uma tabela de **Justificativas** (ABS) por dia.
 
