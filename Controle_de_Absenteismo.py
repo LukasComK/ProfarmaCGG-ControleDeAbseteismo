@@ -2876,6 +2876,13 @@ with col_btn_processar:
                 st.write(f"📅 Encontradas {len(mapa_datas)} colunas de data")
                 if len(mapa_datas) == 0:
                     st.warning("⚠️ Nenhuma coluna de data encontrada! Colunas disponíveis: " + str(list(df_mest.columns)))
+
+                # Em alguns ambientes (ex.: Streamlit Cloud), colunas totalmente vazias podem
+                # ser inferidas como float64. Converte colunas de data para object para aceitar
+                # marcadores de texto como 'D', 'FI', 'FA' sem erro de dtype.
+                for _, col_data_obj in mapa_datas.items():
+                    if col_data_obj in df_mest.columns and df_mest[col_data_obj].dtype != 'object':
+                        df_mest[col_data_obj] = df_mest[col_data_obj].astype('object')
                 
                 # Pré-preenche APENAS sábados e domingos VAZIOS com "D" (Descanso)
                 st.info("🗓️ Pré-preenchendo fins de semana vazios com 'D'...")
