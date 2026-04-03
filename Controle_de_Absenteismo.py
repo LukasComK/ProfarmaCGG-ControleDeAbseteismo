@@ -1112,9 +1112,15 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
         
         # Tenta ordenar como data para garantir ordem cronológica
         colunas_datas_ordenadas = sorted(colunas_datas, key=lambda x: pd.to_datetime(x, dayfirst=True, errors='coerce'))
+        col_inicio_dados = 2
+        col_fim_dados = len(colunas_datas_ordenadas) + 1
+        col_media_idx = len(colunas_datas_ordenadas) + 2
+        col_inicio_letra = get_column_letter(col_inicio_dados)
+        col_fim_letra = get_column_letter(col_fim_dados)
 
         # Ajuste de largura da Coluna A (30 a pedido)
         ws.column_dimensions['A'].width = 30
+        ws.column_dimensions[get_column_letter(col_media_idx)].width = 12
 
 
         # --- 5. ESCREVER CADA SETOR E SUB-LINHAS (HC, FI, FA, TOTAL, %) ---
@@ -1209,6 +1215,12 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
                  else:
                      c_dt.fill = fill_label_pct
                      c_dt.font = font_white_bold
+
+            c_media = ws.cell(row=linha_atual, column=col_media_idx, value='MÉDIA')
+            c_media.alignment = Alignment(horizontal='center', vertical='center')
+            c_media.border = thin_border
+            c_media.fill = fill_label_pct
+            c_media.font = font_white_bold
             linha_atual += 1
 
             # 1. NOME DO SETOR e CONTAGEM HC NA MESMA LINHA
@@ -1233,6 +1245,13 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
                 else:
                     cc.fill = fill_hc
                     cc.font = font_black_bold
+
+            c_media_hc = ws.cell(row=linha_atual, column=col_media_idx, value=f"=AVERAGE({col_inicio_letra}{linha_atual}:{col_fim_letra}{linha_atual})")
+            c_media_hc.alignment = Alignment(horizontal='center', vertical='center')
+            c_media_hc.border = thin_border
+            c_media_hc.fill = fill_hc
+            c_media_hc.font = font_black_bold
+            c_media_hc.number_format = '0.00'
             linha_atual += 1
 
             # 3. FI - Faltas Injustificadas
@@ -1253,6 +1272,13 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
                 else:
                     cc.font = font_white_bold
                     cc.fill = fill_fi
+
+            c_media_fi = ws.cell(row=linha_atual, column=col_media_idx, value=f"=AVERAGE({col_inicio_letra}{linha_atual}:{col_fim_letra}{linha_atual})")
+            c_media_fi.alignment = Alignment(horizontal='center', vertical='center')
+            c_media_fi.border = thin_border
+            c_media_fi.fill = fill_fi
+            c_media_fi.font = font_white_bold
+            c_media_fi.number_format = '0.00'
             linha_atual += 1
             
             # 4. FA - Faltas por Atestado
@@ -1273,6 +1299,13 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
                 else:
                     cc.font = font_white_bold
                     cc.fill = fill_fa
+
+            c_media_fa = ws.cell(row=linha_atual, column=col_media_idx, value=f"=AVERAGE({col_inicio_letra}{linha_atual}:{col_fim_letra}{linha_atual})")
+            c_media_fa.alignment = Alignment(horizontal='center', vertical='center')
+            c_media_fa.border = thin_border
+            c_media_fa.fill = fill_fa
+            c_media_fa.font = font_white_bold
+            c_media_fa.number_format = '0.00'
             linha_atual += 1
             
             # 5. TOTAL
@@ -1293,6 +1326,13 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
                 else:
                     cc.font = font_black_bold
                     cc.fill = fill_total
+
+            c_media_tot = ws.cell(row=linha_atual, column=col_media_idx, value=f"=AVERAGE({col_inicio_letra}{linha_atual}:{col_fim_letra}{linha_atual})")
+            c_media_tot.alignment = Alignment(horizontal='center', vertical='center')
+            c_media_tot.border = thin_border
+            c_media_tot.fill = fill_total
+            c_media_tot.font = font_black_bold
+            c_media_tot.number_format = '0.00'
             linha_atual += 1
             
             # 6. %Acumulado
@@ -1322,6 +1362,13 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
                     else:
                         cc.fill = fill_meta_ok # Verde Vibrante
                         cc.font = font_white_bold
+
+            c_media_pct = ws.cell(row=linha_atual, column=col_media_idx, value=f"=AVERAGE({col_inicio_letra}{linha_atual}:{col_fim_letra}{linha_atual})")
+            c_media_pct.alignment = Alignment(horizontal='center', vertical='center')
+            c_media_pct.border = thin_border
+            c_media_pct.fill = fill_label_pct
+            c_media_pct.font = font_white_bold
+            c_media_pct.number_format = '0.00%'
             linha_atual += 1
             
             # Espaço entre setores
@@ -3820,81 +3867,10 @@ with col_btn_processar:
                     
                     criar_sheet_ofensores_semanais(df_mest_marcado, w, mapa_datas, df_colab_para_ranking)
 
-                    # ===== CRIAR SHEET FALTANTES (FI) =====
-                    status_text.info("🚫 Gerando sheet de Faltantes...")
-                    progress_bar.progress(74)
-                    try:
-                        # Identifica colunas de datas
-                        colunas_datas_nomes = list(mapa_datas.values())
-                        
-                        # Filtra DataFrame: Somente linhas com algum 'FI' nas colunas de data
-                        # Mas cuidado: df_mest_marcado pode ter 'FI' como string
-                        def tem_fi(row):
-                            for col in colunas_datas_nomes:
-                                val = row.get(col)
-                                if str(val).strip().upper() == 'FI':
-                                    return True
-                            return False
-                        
-                        df_faltantes = df_mest_marcado[df_mest_marcado.apply(tem_fi, axis=1)]
-                        
-                        if not df_faltantes.empty:
-                            ws_faltantes = w.book.create_sheet("Faltantes")
-                            
-                            # Copia estilo da sheet 'Dados'
-                            ws_dados = w.book['Dados']
-                            
-                            # --- Cabeçalho ---
-                            header = []
-                            for cell in ws_dados[1]:
-                                header.append(cell.value)
-                                new_cell = ws_faltantes.cell(row=1, column=cell.column, value=cell.value)
-                                if cell.has_style:
-                                    # Copia estilos básicos
-                                    new_cell.font = copy(cell.font)
-                                    new_cell.fill = copy(cell.fill)
-                                    new_cell.border = copy(cell.border)
-                                    new_cell.alignment = copy(cell.alignment)
-                                    
-                                # Largura da coluna
-                                col_letter = cell.column_letter
-                                if col_letter in ws_dados.column_dimensions:
-                                    ws_faltantes.column_dimensions[col_letter].width = ws_dados.column_dimensions[col_letter].width
-                            
-                            # --- Dados ---
-                            # Escreve cada linha do DataFrame filtrado
-                            # Nota: df_faltantes tem colunas que coincidem com 'header'
-                            
-                            current_row = 2
-                            for idx, row in df_faltantes.iterrows():
-                                for col_idx, col_name in enumerate(header, 1):
-                                    val = row.get(col_name)
-                                    cell = ws_faltantes.cell(row=current_row, column=col_idx, value=val)
-                                    
-                                    # Formatação condicional simples para FI/FA
-                                    val_str = str(val).strip().upper() if val is not None else ''
-                                    if val_str == 'FI':
-                                        cell.fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid') # Vermelho
-                                        cell.font = Font(color='FFFFFFFF', bold=True)
-                                    elif val_str == 'FA':
-                                        cell.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid') # Amarelo
-                                        cell.font = Font(color='FF000000', bold=True)
-                                    elif val_str == 'P':
-                                        cell.fill = PatternFill(start_color='FF90EE90', end_color='FF90EE90', fill_type='solid') # Verde Claro (Padronizado)
-                                        cell.font = Font(color='FF000000', bold=True)
-                                    elif val_str in ['FÉRIAS-BH', 'FERIAS-BH']:
-                                        cell.fill = PatternFill(start_color='FF000000', end_color='FF000000', fill_type='solid') # Preto
-                                        cell.font = Font(color='FFFFFFFF', bold=True)
-                                    else:
-                                        # Tenta copiar o estilo da coluna correspondente da linha 2 de Dados?
-                                        # Ou melhor, deixar sem estilo específico (branco)
-                                        # Se quiser ser perfeito, teria que copiar de Dados linha correspondente, mas Dados muda
-                                        pass
-                                current_row += 1
-                                
-                    except Exception as e:
-                        st.error(f"Erro ao criar sheet Faltantes: {e}")
-                        # Não para a execução, apenas mostra erro
+                    # ===== FALTANTES DESATIVADO =====
+                    # Não gera mais esta planilha por regra de negócio.
+                    if 'Faltantes' in w.book.sheetnames:
+                        del w.book['Faltantes']
                     
                     # ===== CRIAR SHEET OFENSORES POR TURNO =====
                     status_text.info("🏭 Gerando ofensores por turno...")
