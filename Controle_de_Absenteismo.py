@@ -768,7 +768,8 @@ def criar_sheet_ofensores_abs(df_mest, w, mapa_datas, mapa_cores, afastamentos=N
 
 def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, top10_fi_enriquecido=None):
     """
-    Cria sheet 'Ranking ABS' com TOP 10 colaboradores com mais FA e TOP 10 com mais FI
+    Cria sheet 'Ranking ABS' completo (sem limite), ordenado do maior para o menor
+    para FA e FI.
     
     Args:
         df_mest: DataFrame da planilha mestra
@@ -796,15 +797,16 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         # Remove registros vazios
         df_ranking = df_ranking[df_ranking['NOME'].notna() & (df_ranking['NOME'] != '')]
         
-        # TOP 10 FA e FI
-        top10_fa = df_ranking.nlargest(10, 'FA')
-        top10_fi = df_ranking.nlargest(10, 'FI')
+        # Ranking completo (sem limite), do maior para o menor
+        # Exibe apenas colaboradores com pelo menos 1 ocorrência no indicador.
+        top10_fa = df_ranking[df_ranking['FA'] >= 1].sort_values(by='FA', ascending=False)
+        top10_fi = df_ranking[df_ranking['FI'] >= 1].sort_values(by='FI', ascending=False)
         
         # Se foram passados dados enriquecidos, use-os
         if top10_fa_enriquecido is not None:
-            top10_fa = top10_fa_enriquecido
+            top10_fa = top10_fa_enriquecido[top10_fa_enriquecido['FA'] >= 1].sort_values(by='FA', ascending=False)
         if top10_fi_enriquecido is not None:
-            top10_fi = top10_fi_enriquecido
+            top10_fi = top10_fi_enriquecido[top10_fi_enriquecido['FI'] >= 1].sort_values(by='FI', ascending=False)
         
         # Cria o sheet
         ws = w.book.create_sheet('Ranking ABS')
@@ -829,9 +831,9 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         ws.row_dimensions[row_idx].height = 25
         row_idx += 2
         
-        # ===== TOP 10 FA =====
+        # ===== RANKING COMPLETO FA =====
         ws.merge_cells(f'A{row_idx}:H{row_idx}')
-        fa_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS POR ATESTADO (FA)')
+        fa_header = ws.cell(row=row_idx, column=1, value='RANKING COMPLETO - FALTAS POR ATESTADO (FA)')
         fa_header.font = Font(bold=True, size=12, color='FFFFFFFF')
         fa_header.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
         fa_header.alignment = Alignment(horizontal='center', vertical='center')
@@ -848,7 +850,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell.border = thin_border
         row_idx += 1
         
-        # Dados TOP 10 FA
+        # Dados ranking FA
         for idx, (_, row) in enumerate(top10_fa.iterrows(), 1):
             # Posição
             cell_pos = ws.cell(row=row_idx, column=1, value=idx)
@@ -902,9 +904,9 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
         
         row_idx += 2
         
-        # ===== TOP 10 FI =====
+        # ===== RANKING COMPLETO FI =====
         ws.merge_cells(f'A{row_idx}:H{row_idx}')
-        fi_header = ws.cell(row=row_idx, column=1, value='TOP 10 - FALTAS INJUSTIFICADAS (FI)')
+        fi_header = ws.cell(row=row_idx, column=1, value='RANKING COMPLETO - FALTAS INJUSTIFICADAS (FI)')
         fi_header.font = Font(bold=True, size=12, color='FFFFFFFF')
         fi_header.fill = PatternFill(start_color='FF007864', end_color='FF007864', fill_type='solid')
         fi_header.alignment = Alignment(horizontal='center', vertical='center')
@@ -921,7 +923,7 @@ def criar_sheet_ranking_abs(df_mest, w, mapa_colors, top10_fa_enriquecido=None, 
             cell.border = thin_border
         row_idx += 1
         
-        # Dados TOP 10 FI
+        # Dados ranking FI
         for idx, (_, row) in enumerate(top10_fi.iterrows(), 1):
             # Posição
             cell_pos = ws.cell(row=row_idx, column=1, value=idx)
@@ -1984,8 +1986,8 @@ def criar_sheet_ofensores_por_turno(df_mest, w, mapa_datas):
                     
                     # FA
                     c_fa.value = fa_do_dia
-                    c_fa.fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid') # Amarelo
-                    c_fa.font = Font(bold=True, color='FF000000')
+                    c_fa.fill = PatternFill(start_color='FF008C4B', end_color='FF008C4B', fill_type='solid')
+                    c_fa.font = Font(bold=True, color='FFFFFFFF')
                     
                     # TOTAL
                     c_tot.value = tot_faltas_dia
@@ -3905,7 +3907,7 @@ with col_btn_processar:
                     
                     if df_colab_para_ranking is not None:
                         try:
-                            # Re-gera TOP 10 para enriquecimento
+                            # Re-gera ranking completo para enriquecimento
                             colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
                             df_ranking_temp = pd.DataFrame({
                                 'NOME': df_mest_marcado['NOME'],
@@ -3917,8 +3919,8 @@ with col_btn_processar:
                             }).copy()
                             df_ranking_temp = df_ranking_temp[df_ranking_temp['NOME'].notna() & (df_ranking_temp['NOME'] != '')]
                             
-                            top10_fa_display = df_ranking_temp.nlargest(10, 'FA')
-                            top10_fi_display = df_ranking_temp.nlargest(10, 'FI')
+                            top10_fa_display = df_ranking_temp.sort_values(by='FA', ascending=False)
+                            top10_fi_display = df_ranking_temp.sort_values(by='FI', ascending=False)
                             
                             # Enriquece com dados do CSV
                             top10_fa_display, top10_fi_display = enriquecer_ranking_com_dados_csv(top10_fa_display, top10_fi_display, df_colab_para_ranking)
