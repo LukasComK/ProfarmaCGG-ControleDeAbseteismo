@@ -2703,7 +2703,7 @@ if files_encarregado:
     if col_detectada_auto is None:
         for i in range(len(df_raw.columns) - 1, -1, -1):
             valores = df_raw.iloc[:, i].astype(str).str.strip()
-            tem_letras = valores.apply(lambda x: any(c.isalpha() for c in x)).sum() > len(valores) * 0.7
+            tem_letras = valores.apply(lambda x: any(c.isalpha() for c in str(x))).sum() > len(valores) * 0.7
             if tem_letras:
                 col_detectada_auto = letras_disponíveis[i]
                 idx_col_detectada_auto = i
