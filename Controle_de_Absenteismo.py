@@ -2502,12 +2502,11 @@ if files_encarregado:
     if not files_encarregado:
         st.error("❌ Nenhum arquivo válido encontrado! Por favor, envie arquivos Excel válidos.")
         st.stop()
-    
-    files_encarregado = arquivos_validos
-    
-    if not files_encarregado:
-        st.error("❌ Nenhum arquivo válido encontrado! Por favor, envie arquivos Excel válidos.")
-        st.stop()
+        
+    # Mostra uma lista com os índices para ajudar na identificação
+    st.markdown("### 📋 Controles Adicionados:")
+    for idx, f in enumerate(files_encarregado):
+        st.markdown(f"**[{idx + 1}]** - `{f.name}`")
     
     # Função auxiliar para detecção automática (reutilizada no modo individual e em lote)
     def detectar_config_arquivo(df_raw):
@@ -2567,7 +2566,7 @@ if files_encarregado:
                 status_text = st.empty()
                 
                 for i, file_obj in enumerate(files_encarregado):
-                    status_text.text(f"Processando {file_obj.name}...")
+                    status_text.text(f"Processando [{i + 1}/{len(files_encarregado)}] - {file_obj.name}...")
                     
                     try:
                         # Carrega arquivo
@@ -2593,7 +2592,7 @@ if files_encarregado:
                                 'nome_encarregado': ""
                             }
                     except Exception as e:
-                        st.error(f"Erro ao processar {file_obj.name}: {e}")
+                        st.error(f"Erro ao processar [{i + 1}] {file_obj.name}: {e}")
                     
                     # Atualiza progresso
                     progress_bar.progress((i + 1) / len(files_encarregado))
@@ -2975,7 +2974,7 @@ with col_btn_processar:
                         guia_usar = config['guia']
                         nome_encarregado = config['nome_encarregado']
                         
-                        st.write(f"📄 [{idx_arquivo + 1}] Processando: **{file_enc.name}**")
+                        st.write(f"📄 **[{idx_arquivo + 1}]** Processando: **{file_enc.name}**")
                         
                         df_enc = None
                         try:
