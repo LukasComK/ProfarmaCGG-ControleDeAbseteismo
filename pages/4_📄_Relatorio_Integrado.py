@@ -419,7 +419,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     
                     # Se for o exato local da empresa
                     if (lat1 == lat2 and lon1 == lon2) or cep_limpo == "23078001":
-                        return "0.0 km"
+                        return f"0.0 km (C:{cep_limpo},L:{lat1})"
                         
                     R = 6371.0 # Raio da Terra
                     lat1_r, lon1_r, lat2_r, lon2_r = map(math.radians, [lat1, lon1, lat2, lon2])
@@ -432,7 +432,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     
                     # Evita exibir algo como "0.0 km" para CEPs distintos se a fórmula não for precisa
                     if dist_km < 0.1:
-                        return "< 0.1 km"
+                        return f"< 0.1 km (C:{cep_limpo})"
                         
                     return f"{dist_km:.1f} km"
 
