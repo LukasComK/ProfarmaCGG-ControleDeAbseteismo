@@ -587,6 +587,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 
                 lista_ofensores_fi = []
                 lista_ofensores_fa = []
+                lista_ofensores_pendentes = []
                 
                 for sem in semanas_lista:
                     # Linha Separadora de Semana
@@ -596,9 +597,13 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     lista_ofensores_fa.append({
                         "Nome": sem["nome"], "Gestor": "", "Dias das Faltas": "", "Faltas por Atestado": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
                     })
+                    lista_ofensores_pendentes.append({
+                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas (FA)": "", "Datas de Retorno (P)": "", "Quantidade de Faltas": None, "Desligamento": ""
+                    })
                     
                     pessoas_fi = []
                     pessoas_fa = []
+                    pessoas_pendentes = []
                     
                     for nome, rec in sorted(absencias.items()):
                         # Filtrar os afastados e demitidos da base CSV
@@ -650,6 +655,41 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 "Nome": nome, "Gestor": gestor_final, "Dias das Faltas": dias_fa_str, "Faltas por Atestado": qtd_fa, "Entrevista de Absenteísmo": texto_entrevista, "Motivo": texto_motivo, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
                             })
 
+                        # Pendentes Semanais Logic
+                        entrevista_motivo = buscar_info_aproximada(nome, entrevistas_fa_dict)
+                        if not entrevista_motivo and rec.get('FA'):
+                            timeline = sorted([(d, 'FA') for d in rec.get('FA', [])] + [(d, 'P') for d in rec.get('P', [])], key=lambda x: x[0] if isinstance(x[0], datetime.date) else datetime.date.min)
+                            current_fa_block = []
+                            week_fa_pendentes = []
+                            week_retornos = []
+                            
+                            for d, st_timeline in timeline:
+                                if st_timeline == 'FA':
+                                    current_fa_block.append(d)
+                                elif st_timeline == 'P':
+                                    if current_fa_block:
+                                        block_dates = current_fa_block + [d]
+                                        overlap = any((bd in sem["dias"]) for bd in block_dates) if sem["dias"] else True
+                                        
+                                        if overlap:
+                                            week_fa_pendentes.extend(current_fa_block)
+                                            ret_str = d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d)
+                                            if ret_str not in week_retornos:
+                                                week_retornos.append(ret_str)
+                                        current_fa_block = []
+                                        
+                            if week_fa_pendentes:
+                                dias_str = ", ".join([df.strftime('%d/%m') if isinstance(df, datetime.date) and pd.notna(df) else str(df) for df in week_fa_pendentes])
+                                retornos_str = ", ".join(week_retornos)
+                                pessoas_pendentes.append({
+                                    "Nome": nome,
+                                    "Gestor": gestor_final,
+                                    "Dias das Faltas (FA)": dias_str,
+                                    "Datas de Retorno (P)": retornos_str,
+                                    "Quantidade de Faltas": len(week_fa_pendentes),
+                                    "Desligamento": texto_dem
+                                })
+
                     # Ordenar ofensores
                     if pessoas_fi:
                         pessoas_fi.sort(key=lambda x: x["Faltas Injustificadas"], reverse=True)
@@ -657,9 +697,13 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     if pessoas_fa:
                         pessoas_fa.sort(key=lambda x: x["Faltas por Atestado"], reverse=True)
                         lista_ofensores_fa.extend(pessoas_fa)
+                    if pessoas_pendentes:
+                        pessoas_pendentes.sort(key=lambda x: x["Quantidade de Faltas"], reverse=True)
+                        lista_ofensores_pendentes.extend(pessoas_pendentes)
 
                 df_of_fi = pd.DataFrame(lista_ofensores_fi)
                 df_of_fa = pd.DataFrame(lista_ofensores_fa)
+                df_of_pendentes = pd.DataFrame(lista_ofensores_pendentes)
 
                 # =========================================================
                 # EXIBIÇÃO E EXPORTAÇÃO PARA EXCEL
@@ -686,6 +730,10 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     st.write("##### Ofensores de Atestado (FA)")
                     if not df_of_fa.empty:
                         st.dataframe(df_of_fa, use_container_width=True, hide_index=True)
+                        
+                    st.write("##### Entrevistas Pendentes (FA -> Retorno)")
+                    if not df_of_pendentes.empty:
+                        st.dataframe(df_of_pendentes, use_container_width=True, hide_index=True)
                         
                 with tab4:
                     st.write("##### Colaboradores com Faltas por Atestado (FA) pendentes de Entrevista de Absenteísmo após Retorno (P)")
@@ -718,6 +766,11 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                         df_of_fa.to_excel(writer, sheet_name='Semanal Atestados', index=False)
                     else:
                         pd.DataFrame({'Aviso': ['Sem faltas semanais']}).to_excel(writer, sheet_name='Semanal Atestados', index=False)
+
+                    if not df_of_pendentes.empty:
+                        df_of_pendentes.to_excel(writer, sheet_name='Semanal Entr. Pendentes', index=False)
+                    else:
+                        pd.DataFrame({'Aviso': ['Nenhuma entrevista pendente']}).to_excel(writer, sheet_name='Semanal Entr. Pendentes', index=False)
 
                     # Entrevistas Pendentes
                     if not df_entrevistas_pendentes.empty:
