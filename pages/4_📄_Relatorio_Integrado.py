@@ -305,14 +305,12 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 df_gest = carregar_arquivo(f_gest)
                 gestores_dict = {}
                 admissoes_dict = {}
-                ceps_dict = {}
                 
                 # Busca automática pela linha e índices das colunas no CSV/Excel
                 linha_cab_gest = 0
                 col_colab = 3  # Padrão original no CSV era 3 se desse erro
                 col_nome_gest = 25 # Padrão original era 25
                 col_admissao = 12 # Padrão é coluna M (índice 12)
-                col_cep = 63
                 
                 for r in range(min(15, len(df_gest))):
                     linha_txt = [str(v).upper() for v in df_gest.iloc[r, :]]
@@ -324,7 +322,6 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             if "COLABORADOR" in v: col_colab = idx
                             if "NOME GESTOR" in v: col_nome_gest = idx
                             if "ADMISS" in v: col_admissao = idx
-                            if (v == "CEP" or v == "C.E.P" or v == "C.E.P." or v == "CEP RESIDENCIAL") and idx < 80: col_cep = idx
                         break
                         
                 for r in range(linha_cab_gest + 1, len(df_gest)):
@@ -344,105 +341,9 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                     # Limpa possíveis aspas no texto da data (ex: CSV bugado)
                                     val_adm = str(val_adm).replace('"', '').replace("'", "").strip()
                                     admissoes_dict[colab_nome] = val_adm                                        
-                                # CEP
-                                if len(df_gest.columns) > col_cep:
-                                    val_cep = df_gest.iloc[r, col_cep]
-                                    if pd.notna(val_cep) and str(val_cep).strip() != "":
-                                        val_cep = str(val_cep).replace('"', '').replace("'", "").strip()
-                                        ceps_dict[colab_nome] = val_cep
                 # =========================================================
                 # FUNÇÕES AUXILIARES DE CÁLCULO
                 # =========================================================
-                def calcular_distancia_cep(cep_colab):
-                    if not cep_colab or str(cep_colab).strip() in ["", "nan", "NaN", "NaT", "N/A", "None"]:
-                        return "Não Informado"
-                        
-                    cep_limpo = str(cep_colab).replace("-", "").replace(".", "").strip()
-                    if len(cep_limpo) != 8 or not cep_limpo.isdigit():
-                        return f"CEP Inválido ({cep_limpo})"
-                        
-                    if "dict_ceps_cache" not in st.session_state:
-                        st.session_state["dict_ceps_cache"] = {}
-                            
-                    cache_local = st.session_state["dict_ceps_cache"]
-                            
-                    if cep_limpo in cache_local and cache_local[cep_limpo] != "Erro":
-                        lat1, lon1 = cache_local[cep_limpo]
-                    else:
-                        try:
-                            import urllib.request
-                            import json
-                            import urllib.parse
-                            import time
-                            
-                            # 1. Buscamos o endereço MÍMINO gratuito e sem limites pesados via ViaCEP
-                            time.sleep(0.5) # Pausa pequena e amena para Nominatim respeitar
-                            url_via = f"https://viacep.com.br/ws/{cep_limpo}/json/"
-                            req_via = urllib.request.Request(url_via, headers={'User-Agent': 'Mozilla/5.0'})
-                            with urllib.request.urlopen(req_via, timeout=5) as res_v:
-                                dados_end = json.loads(res_v.read().decode())
-                                
-                            if "erro" in dados_end:
-                                cache_local[cep_limpo] = "Erro"
-                                return "CEP Inválido (ViaCEP)"
-                                
-                            rua = dados_end.get('logradouro', '')
-                            bairro = dados_end.get('bairro', '')
-                            cidade = dados_end.get('localidade', '')
-                            uf = dados_end.get('uf', '')
-                            
-                            # 2. Buscamos as coordenadas no gigantesco OpenStreetMap (Nominatim)
-                            query_rua = urllib.parse.quote(f"{rua}, {bairro}, {cidade}, {uf}, Brasil")
-                            url_nome = f"https://nominatim.openstreetmap.org/search?q={query_rua}&format=json&limit=1"
-                            req_nome = urllib.request.Request(url_nome, headers={'User-Agent': 'AppAbsenteismo/1.0'})
-                            
-                            achou = False
-                            with urllib.request.urlopen(req_nome, timeout=5) as res_n:
-                                dados_map = json.loads(res_n.read().decode())
-                                if len(dados_map) > 0:
-                                    lat1, lon1 = float(dados_map[0]['lat']), float(dados_map[0]['lon'])
-                                    achou = True
-                                    
-                            if not achou:
-                                # Backup: Busca apenas pela cidade/bairro (caso a rua seja nova/desconhecida)
-                                query_bairro = urllib.parse.quote(f"{bairro}, {cidade}, {uf}, Brasil")
-                                url_bairro = f"https://nominatim.openstreetmap.org/search?q={query_bairro}&format=json&limit=1"
-                                req_bairro = urllib.request.Request(url_bairro, headers={'User-Agent': 'AppAbsenteismo/1.0'})
-                                with urllib.request.urlopen(req_bairro, timeout=5) as res_b:
-                                    dados_map2 = json.loads(res_b.read().decode())
-                                    if len(dados_map2) > 0:
-                                        lat1, lon1 = float(dados_map2[0]['lat']), float(dados_map2[0]['lon'])
-                                        achou = True
-                                        
-                            if achou:
-                                cache_local[cep_limpo] = (lat1, lon1)
-                            else:
-                                cache_local[cep_limpo] = "Erro"
-                                return "Sem Coordenadas no Mapa"
-                                
-                        except Exception as e:
-                            return f"Falha temporária de Conexão com o Mapa"
-                            
-                    lat2, lon2 = -22.866352, -43.5856617
-                    
-                    if (lat1 == lat2 and lon1 == lon2) or cep_limpo == "23078001":
-                        return "0.0 km"
-                        
-                    import math
-                    R = 6371.0
-                    lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
-                    lat2_rad, lon2_rad = math.radians(lat2), math.radians(lon2)
-                    dlat = lat2_rad - lat1_rad
-                    dlon = lon2_rad - lon1_rad
-                    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
-                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-                    dist_km = R * c
-                    
-                    if dist_km < 0.1:
-                        return "< 0.1 km"
-                        
-                    return f"{dist_km:.1f} km"
-
                 def calcular_tempo_servico(data_adm, data_ref=None):
                     if data_adm is None or pd.isna(data_adm) or str(data_adm).strip() in ["", "NaT", "NaN", "nan"]:
                         return "N/A"
@@ -550,23 +451,36 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     if not entrevista_motivo and rec.get('FA'):
                         timeline = sorted([(d, 'FA') for d in rec.get('FA', [])] + [(d, 'P') for d in rec.get('P', [])], key=lambda x: x[0] if isinstance(x[0], datetime.date) else datetime.date.min)
                         current_fa_block = []
+                        all_fa_pendentes = []
+                        datas_retornos = []
+                        
                         for d, st_timeline in timeline:
                             if st_timeline == 'FA':
                                 current_fa_block.append(d)
                             elif st_timeline == 'P':
                                 if current_fa_block:
-                                    dias_str = ", ".join([df.strftime('%d/%m') if isinstance(df, datetime.date) and pd.notna(df) else str(df) for df in current_fa_block])
+                                    all_fa_pendentes.extend(current_fa_block)
                                     ret_str = d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d)
-                                    lista_entrevistas_pendentes.append({
-                                        "Colaborador": nome,
-                                        "Gestor": gestor_final,
-                                        "Supervisor": supervisor_final,
-                                        "Data de Retorno": ret_str,
-                                        "Datas de Ausência": dias_str,
-                                        "Quantidade das faltas": len(current_fa_block),
-                                        "Distância Residência x Trabalho": calcular_distancia_cep(buscar_info_aproximada(nome, ceps_dict))
-                                    })
+                                    if ret_str not in datas_retornos:
+                                        datas_retornos.append(ret_str)
                                     current_fa_block = []
+                                    
+                        if all_fa_pendentes:
+                            dem = buscar_info_aproximada(nome, demissoes_dict)
+                            texto_dem = f"{dem['data']} - {dem['tipo']}" if dem else "Sem projeção"
+                            
+                            dias_str = ", ".join([df.strftime('%d/%m') if isinstance(df, datetime.date) and pd.notna(df) else str(df) for df in all_fa_pendentes])
+                            retornos_str = ", ".join(datas_retornos)
+                            
+                            lista_entrevistas_pendentes.append({
+                                "Colaborador": nome,
+                                "Gestor": gestor_final,
+                                "Supervisor": supervisor_final,
+                                "Datas de Ausência": dias_str,
+                                "Datas de Retorno (P)": retornos_str,
+                                "Quantidade de faltas": len(all_fa_pendentes),
+                                "Desligamento": texto_dem
+                            })
 
                     if rec.get('FI'):
                         med = buscar_info_aproximada(nome, medidas_dict)
@@ -593,7 +507,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             "Colaborador": nome, "Gestor": gestor_final, "Supervisor": supervisor_final,
                             "Datas das Faltas (FI)": ", ".join([d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d) for d in rec['FI']]),
                             "Quantidade de Faltas": len(rec['FI']), "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Medida Disciplinar": texto_medida, "Desligamento": texto_dem,
-                            "Tempo de Serviço": ts_geral, "Distância Residência x Trabalho": calcular_distancia_cep(buscar_info_aproximada(nome, ceps_dict))
+                            "Tempo de Serviço": ts_geral
                         })
                         
                     if rec['FA']:
@@ -663,10 +577,10 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 for sem in semanas_lista:
                     # Linha Separadora de Semana
                     lista_ofensores_fi.append({
-                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas": "", "Faltas Injustificadas": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": "", "Distância Residência x Trabalho": ""
+                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas": "", "Faltas Injustificadas": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
                     })
                     lista_ofensores_fa.append({
-                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas": "", "Faltas por Atestado": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": "", "Distância Residência x Trabalho": ""
+                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas": "", "Faltas por Atestado": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
                     })
                     
                     pessoas_fi = []
@@ -700,7 +614,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 texto_motivo_fi = "N/A"
                                 
                             pessoas_fi.append({
-                                "Nome": nome, "Gestor": gestor_final, "Dias das Faltas": dias_fi_str, "Faltas Injustificadas": qtd_fi, "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal, "Distância Residência x Trabalho": calcular_distancia_cep(buscar_info_aproximada(nome, ceps_dict))
+                                "Nome": nome, "Gestor": gestor_final, "Dias das Faltas": dias_fi_str, "Faltas Injustificadas": qtd_fi, "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
                             })
                             
                         # Se teve ATESTADO na semana, coloca na aba de Semanais FA
@@ -715,7 +629,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 texto_motivo = "N/A"
                                 
                             pessoas_fa.append({
-                                "Nome": nome, "Gestor": gestor_final, "Dias das Faltas": dias_fa_str, "Faltas por Atestado": qtd_fa, "Entrevista de Absenteísmo": texto_entrevista, "Motivo": texto_motivo, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal, "Distância Residência x Trabalho": calcular_distancia_cep(buscar_info_aproximada(nome, ceps_dict))
+                                "Nome": nome, "Gestor": gestor_final, "Dias das Faltas": dias_fa_str, "Faltas por Atestado": qtd_fa, "Entrevista de Absenteísmo": texto_entrevista, "Motivo": texto_motivo, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
                             })
 
                     # Ordenar ofensores
