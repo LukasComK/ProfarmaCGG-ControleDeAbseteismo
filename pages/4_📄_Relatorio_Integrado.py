@@ -545,7 +545,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     
                 df_entrevistas_pendentes = pd.DataFrame(lista_entrevistas_pendentes)
                 if not df_entrevistas_pendentes.empty:
-                    df_entrevistas_pendentes = df_entrevistas_pendentes.sort_values(by="Data de Retorno", ascending=True)
+                    df_entrevistas_pendentes = df_entrevistas_pendentes.sort_values(by="Datas de Retorno (P)", ascending=True)
 
                 # -------------------------------
                 # RELATÓRIO NOVO (OFENSORES SEMANAIS)
