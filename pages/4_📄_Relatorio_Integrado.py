@@ -305,12 +305,14 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 df_gest = carregar_arquivo(f_gest)
                 gestores_dict = {}
                 admissoes_dict = {}
+                colaboradores_excluidos = {}
                 
                 # Busca automática pela linha e índices das colunas no CSV/Excel
                 linha_cab_gest = 0
                 col_colab = 3  # Padrão original no CSV era 3 se desse erro
                 col_nome_gest = 25 # Padrão original era 25
                 col_admissao = 12 # Padrão é coluna M (índice 12)
+                col_situacao = 11 # Padrão é coluna L (índice 11)
                 
                 for r in range(min(15, len(df_gest))):
                     linha_txt = [str(v).upper() for v in df_gest.iloc[r, :]]
@@ -322,6 +324,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             if "COLABORADOR" in v: col_colab = idx
                             if "NOME GESTOR" in v: col_nome_gest = idx
                             if "ADMISS" in v: col_admissao = idx
+                            if "SITUAÇ" in v or "SITUAC" in v: col_situacao = idx
                         break
                         
                 for r in range(linha_cab_gest + 1, len(df_gest)):
@@ -329,6 +332,13 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                         colab_nome = limpar_nome(df_gest.iloc[r, col_colab])
                         
                         if colab_nome and str(colab_nome) != "NAN":
+                            # Situação
+                            if len(df_gest.columns) > col_situacao:
+                                sit = str(df_gest.iloc[r, col_situacao]).upper().strip()
+                                if "AFASTAMENTO" in sit or "RECIS" in sit or "RESCIS" in sit:
+                                    colaboradores_excluidos[colab_nome] = True
+                                    continue
+                                    
                             # Gestor
                             gest_nome = limpar_nome(df_gest.iloc[r, col_nome_gest])
                             if gest_nome:
@@ -436,6 +446,10 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 lista_entrevistas_pendentes = []
                 
                 for nome, rec in sorted(absencias.items()):
+                    # Filtrar os afastados e demitidos da base CSV
+                    if buscar_info_aproximada(nome, colaboradores_excluidos):
+                        continue
+                        
                     # Pegar Gestor e Supervisor
                     gestor_nome = buscar_info_aproximada(nome, gestores_dict)
                     gestor_final = gestor_nome if gestor_nome else "Sem Gestor Mapeado"
@@ -587,6 +601,10 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                     pessoas_fa = []
                     
                     for nome, rec in sorted(absencias.items()):
+                        # Filtrar os afastados e demitidos da base CSV
+                        if buscar_info_aproximada(nome, colaboradores_excluidos):
+                            continue
+                            
                         gestor_nome = buscar_info_aproximada(nome, gestores_dict)
                         gestor_final = gestor_nome if gestor_nome else "Sem Gestor Mapeado"
                         
