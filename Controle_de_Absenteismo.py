@@ -2431,6 +2431,12 @@ if 'idx_arquivo_nav' not in st.session_state:
     st.session_state.idx_arquivo_nav = 0
 if 'config_arquivos' not in st.session_state:
     st.session_state.config_arquivos = {}
+if 'nao_encontrados_processamento' not in st.session_state:
+    st.session_state.nao_encontrados_processamento = []
+if 'mostrar_insercao_mestra' not in st.session_state:
+    st.session_state.mostrar_insercao_mestra = False
+if 'insercoes_mestra_pendentes' not in st.session_state:
+    st.session_state.insercoes_mestra_pendentes = []
 
 st.title("🤖 Lançamento de Absenteísmo")
 st.write("VERSÃO 1.0")
@@ -2902,6 +2908,32 @@ with col_btn_processar:
                 if 'NOME' not in df_mest.columns:
                     st.error("Coluna NOME não encontrada!")
                     st.stop()
+
+                # Aplica inserções pendentes feitas manualmente para o próximo ciclo de processamento.
+                if st.session_state.insercoes_mestra_pendentes:
+                    inseridos_agora = 0
+                    nomes_existentes = set(df_mest['NOME'].apply(limpar_nome).tolist())
+
+                    for item in st.session_state.insercoes_mestra_pendentes:
+                        nome_novo = str(item.get('nome', '')).strip()
+                        nome_novo_limpo = limpar_nome(nome_novo)
+
+                        if not nome_novo or nome_novo_limpo in ['', 'LEGENDA']:
+                            continue
+                        if nome_novo_limpo in nomes_existentes:
+                            continue
+
+                        nova_linha = {col: '' for col in df_mest.columns}
+                        nova_linha['NOME'] = nome_novo
+                        if 'GESTOR' in df_mest.columns:
+                            nova_linha['GESTOR'] = str(item.get('encarregado', '')).strip()
+
+                        df_mest = pd.concat([df_mest, pd.DataFrame([nova_linha])], ignore_index=True)
+                        nomes_existentes.add(nome_novo_limpo)
+                        inseridos_agora += 1
+
+                    if inseridos_agora > 0:
+                        st.info(f"✅ {inseridos_agora} nome(s) inserido(s) manualmente na base mestra antes do processamento.")
                 
                 df_mest['NOME_LIMPO'] = df_mest['NOME'].apply(limpar_nome)
                 
@@ -3059,6 +3091,10 @@ with col_btn_processar:
                             nome = row['NOME_LIMPO']
                             cod = row['CODIGO']
                             data = row['DATA']
+
+                            # Regra fixa: nunca processar o rótulo LEGENDA.
+                            if nome == 'LEGENDA':
+                                continue
                             
                             nomes_unicos.add(nome)
                             total_nomes_unicos.add(nome)
@@ -3119,10 +3155,14 @@ with col_btn_processar:
                 
                 st.divider()
                 st.success(f"🎉 Total: ✅ {total_sucesso} lançamentos | 👥 {len(total_nomes_unicos)} colaboradores processados")
+
+                # Mantém lista de não encontrados para permitir inserção manual após o processamento.
+                erros_filtrados = [(nome_colab, nome_arq) for nome_colab, nome_arq in total_erros if limpar_nome(nome_colab) != 'LEGENDA']
+                st.session_state.nao_encontrados_processamento = sorted(set(erros_filtrados))
                 
-                if total_erros:
-                    with st.expander(f"⚠️ {len(set(total_erros))} não encontrados (de todos os arquivos)"):
-                        for e in list(set(total_erros))[:15]:
+                if erros_filtrados:
+                    with st.expander(f"⚠️ {len(set(erros_filtrados))} não encontrados (de todos os arquivos)"):
+                        for e in list(set(erros_filtrados))[:15]:
                             st.write(f"- {e}")
                 
                 # ===== GERADOR DE RELATÓRIO =====
@@ -3132,16 +3172,16 @@ with col_btn_processar:
                 # Seção 1: Colaboradores não processados
                 st.subheader("❌ Colaboradores não encontrados")
                 
-                if total_erros:
+                if erros_filtrados:
                     col1, col2 = st.columns([2, 1])
                     with col1:
-                        st.write(f"**Total:** {len(total_erros)} colaboradores")
+                        st.write(f"**Total:** {len(erros_filtrados)} colaboradores")
                     with col2:
                         st.write(f"**Motivo:** Não encontrados na Planilha Mestra")
                     
-                    with st.expander(f"📋 Ver lista completa ({len(total_erros)} nomes)"):
+                    with st.expander(f"📋 Ver lista completa ({len(erros_filtrados)} nomes)"):
                         # Cria uma tabela com nome e arquivo
-                        for nome_colaborador, nome_arquivo in sorted(total_erros):
+                        for nome_colaborador, nome_arquivo in sorted(erros_filtrados):
                             st.write(f"• **{nome_colaborador}** - Arquivo: `{nome_arquivo}`")
                 else:
                     st.success("✅ Todos os colaboradores foram encontrados e processados!")
@@ -4035,6 +4075,72 @@ with col_btn_processar:
                     )
             except Exception as e:
                 st.error(f"❌ Erro durante o processamento: {str(e)}")
+
+# ===== INSERÇÃO MANUAL DE NÃO ENCONTRADOS NA MESTRA =====
+if st.session_state.nao_encontrados_processamento:
+    st.divider()
+    st.subheader("🧩 Inserção Manual Na Mestra")
+    st.caption("Use este fluxo para cadastrar colaboradores não encontrados e vincular o encarregado de cada pessoa.")
+
+    col_btn_insert, col_info_insert = st.columns([1, 3])
+    with col_btn_insert:
+        if st.button("INSERIR NOMES A PLANILHA MESTRA", key="btn_inserir_mestra"):
+            st.session_state.mostrar_insercao_mestra = not st.session_state.mostrar_insercao_mestra
+
+    with col_info_insert:
+        st.write(f"Pendentes atuais: {len(st.session_state.nao_encontrados_processamento)}")
+
+    if st.session_state.mostrar_insercao_mestra:
+        with st.expander("Cadastro por colaborador", expanded=True):
+            st.info("Depois de salvar, clique em '🚀 Processar TODOS os Arquivos' novamente para aplicar na planilha final.")
+
+            with st.form("form_inserir_na_mestra"):
+                insercoes = []
+
+                for i, (nome_colaborador, nome_arquivo) in enumerate(st.session_state.nao_encontrados_processamento):
+                    col_nome, col_arquivo, col_enc = st.columns([2, 2, 3])
+
+                    with col_nome:
+                        st.write(f"**Nome:** {nome_colaborador}")
+                    with col_arquivo:
+                        st.write(f"**Arquivo:** {nome_arquivo}")
+                    with col_enc:
+                        encarregado_default = ''
+                        if nome_arquivo in st.session_state.config_arquivos:
+                            encarregado_default = st.session_state.config_arquivos[nome_arquivo].get('nome_encarregado', '')
+
+                        encarregado_input = st.text_input(
+                            f"Encarregado ({nome_colaborador})",
+                            value=encarregado_default,
+                            key=f"encarregado_insercao_{i}_{nome_arquivo}_{nome_colaborador}"
+                        )
+
+                    insercoes.append({
+                        'nome': nome_colaborador,
+                        'arquivo': nome_arquivo,
+                        'encarregado': encarregado_input
+                    })
+
+                salvar_insercoes = st.form_submit_button("💾 Salvar Inserções", type="primary")
+
+                if salvar_insercoes:
+                    pendentes_sem_encarregado = [x['nome'] for x in insercoes if str(x.get('encarregado', '')).strip() == '']
+
+                    if pendentes_sem_encarregado:
+                        st.error("Preencha o nome do encarregado para todos os colaboradores antes de salvar.")
+                    else:
+                        # Dedup por nome limpo para evitar duplicidade no próximo processamento.
+                        insercoes_unicas = {}
+                        for item in insercoes:
+                            nome_chave = limpar_nome(item.get('nome', ''))
+                            if nome_chave and nome_chave != 'LEGENDA':
+                                insercoes_unicas[nome_chave] = item
+
+                        st.session_state.insercoes_mestra_pendentes = list(insercoes_unicas.values())
+                        st.success(
+                            f"✅ {len(st.session_state.insercoes_mestra_pendentes)} cadastro(s) salvo(s). "
+                            "Agora clique em '🚀 Processar TODOS os Arquivos' novamente para aplicar."
+                        )
 
 # CSS final para garantir full-width em todo o app
 st.markdown("""
