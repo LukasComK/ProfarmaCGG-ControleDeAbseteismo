@@ -4,6 +4,7 @@ import pandas as pd
 from unidecode import unidecode
 import io
 import datetime
+import sys
 from dateutil.relativedelta import relativedelta
 import re
 import openpyxl
@@ -2911,11 +2912,143 @@ with col_btn_processar:
 
                 # Aplica inserções pendentes feitas manualmente para o próximo ciclo de processamento.
                 if st.session_state.insercoes_mestra_pendentes:
+
+                    def extrair_dados_colaborador_csv(nome_colaborador, df_csv_base):
+                        """
+                        Busca um colaborador no CSV de base de ativos e extrai os dados mapeados.
+                        Mapeamento de colunas (Excel):
+                        - D (idx 3): Colaborador
+                        - T (idx 19): CARGO
+                        - I (idx 8): Descrição Situação
+                        - AD (idx 29): Descrição CC
+                        - Z (idx 25): Nome Gestor
+                        - V (idx 21): Descrição da Unidade Organizacional
+                        - AQ (idx 42): Jornada
+                        """
+                        if df_csv_base is None or df_csv_base.empty:
+                            return {}
+
+                        try:
+                            nome_limpo = limpar_nome(nome_colaborador)
+                            
+                            # Índices das colunas (Excel padrão)
+                            indices_esperados = {
+                                'colaborador': 3,   # D
+                                'cargo': 19,        # T
+                                'situacao': 8,      # I
+                                'cc': 29,           # AD
+                                'gestor': 25,       # Z
+                                'unidade': 21,      # V
+                                'jornada': 42       # AQ
+                            }
+
+                            # Busca o colaborador por índice 3 (coluna D)
+                            col_colaborador_idx = indices_esperados.get('colaborador', 3)
+                            
+                            if col_colaborador_idx >= len(df_csv_base.columns):
+                                return {}
+
+                            # Procura na coluna D por match do nome limpo
+                            match_encontrado = None
+                            for idx, val in df_csv_base.iloc[:, col_colaborador_idx].items():
+                                if pd.notna(val) and limpar_nome(str(val)) == nome_limpo:
+                                    match_encontrado = idx
+                                    break
+
+                            if match_encontrado is None:
+                                return {}
+
+                            linha_csv = df_csv_base.iloc[match_encontrado]
+                            
+                            # Extrai os dados mapeados
+                            dados_extraidos = {}
+
+                            # FUNÇÃO (coluna T, idx 19)
+                            if indices_esperados['cargo'] < len(df_csv_base.columns):
+                                dados_extraidos['FUNCAO'] = str(linha_csv.iloc[indices_esperados['cargo']]).strip() if pd.notna(linha_csv.iloc[indices_esperados['cargo']]) else ''
+
+                            # SITUAÇÃO (coluna I, idx 8)
+                            if indices_esperados['situacao'] < len(df_csv_base.columns):
+                                dados_extraidos['SITUACAO'] = str(linha_csv.iloc[indices_esperados['situacao']]).strip() if pd.notna(linha_csv.iloc[indices_esperados['situacao']]) else ''
+
+                            # AREA (coluna AD, idx 29 = descrição CC)
+                            if indices_esperados['cc'] < len(df_csv_base.columns):
+                                dados_extraidos['AREA'] = str(linha_csv.iloc[indices_esperados['cc']]).strip() if pd.notna(linha_csv.iloc[indices_esperados['cc']]) else ''
+
+                            # SUPERVISOR (coluna Z = Nome Gestor, idx 25)
+                            if indices_esperados['gestor'] < len(df_csv_base.columns):
+                                dados_extraidos['SUPERVISOR'] = str(linha_csv.iloc[indices_esperados['gestor']]).strip() if pd.notna(linha_csv.iloc[indices_esperados['gestor']]) else ''
+
+                            # SETOR (coluna V, idx 21)
+                            if indices_esperados['unidade'] < len(df_csv_base.columns):
+                                dados_extraidos['SETOR'] = str(linha_csv.iloc[indices_esperados['unidade']]).strip() if pd.notna(linha_csv.iloc[indices_esperados['unidade']]) else ''
+
+                            # JORNADA (coluna AQ, idx 42) - para determinar TURNO
+                            if indices_esperados['jornada'] < len(df_csv_base.columns):
+                                jornada_val = linha_csv.iloc[indices_esperados['jornada']]
+                                dados_extraidos['HORARIO'] = str(jornada_val).strip() if pd.notna(jornada_val) else ''
+                                
+                                # Calcula TURNO usando a função determinar_turno
+                                try:
+                                    from funcoes_processamento_csv import determinar_turno
+                                    dados_extraidos['TURNO'] = determinar_turno(dados_extraidos['HORARIO'])
+                                except:
+                                    dados_extraidos['TURNO'] = ''
+
+                            return dados_extraidos
+                        except Exception as e:
+                            return {}
+
                     inseridos_agora = 0
+                    inseridos_sem_modelo = 0
                     nomes_existentes = set(df_mest['NOME'].apply(limpar_nome).tolist())
+
+                    def normalizar_coluna(col_nome):
+                        texto = unidecode(str(col_nome)).upper()
+                        return re.sub(r'[^A-Z0-9]', '', texto)
+
+                    def encontrar_coluna_por_alias(aliases):
+                        aliases_norm = set(normalizar_coluna(a) for a in aliases)
+                        for c in df_mest.columns:
+                            if normalizar_coluna(c) in aliases_norm:
+                                return c
+                        return None
+
+                    # Detecta colunas principais na mestra (com fallback por alias).
+                    col_gestor = encontrar_coluna_por_alias(['GESTOR', 'ENCARREGADO'])
+                    colunas_copiar = {
+                        'FUNCAO': encontrar_coluna_por_alias(['FUNÇÃO', 'FUNCAO']),
+                        'SITUACAO': encontrar_coluna_por_alias(['SITUAÇÃO', 'SITUACAO']),
+                        'AREA': encontrar_coluna_por_alias(['AREA', 'ÁREA']),
+                        'SUPERVISOR': encontrar_coluna_por_alias(['SUPERVISOR']),
+                        'SETOR': encontrar_coluna_por_alias(['SETOR']),
+                        'TURNO': encontrar_coluna_por_alias(['TURNO']),
+                        'HORARIO': encontrar_coluna_por_alias(['HORARIO', 'HORÁRIO'])
+                    }
+
+                    # Carrega CSV de base de ativos se disponível
+                    df_csv_base = None
+                    if file_colaboradores is not None:
+                        try:
+                            file_colaboradores.seek(0)
+                            if file_colaboradores.name.endswith('.xlsx'):
+                                df_csv_base = pd.read_excel(file_colaboradores, header=None)
+                            else:
+                                # CSV: tenta diferentes encodings
+                                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                                for enc in encodings:
+                                    try:
+                                        file_colaboradores.seek(0)
+                                        df_csv_base = pd.read_csv(file_colaboradores, encoding=enc, header=None)
+                                        break
+                                    except:
+                                        continue
+                        except Exception as e:
+                            pass  # Se falhar, continua sem CSV
 
                     for item in st.session_state.insercoes_mestra_pendentes:
                         nome_novo = str(item.get('nome', '')).strip()
+                        encarregado_novo = str(item.get('encarregado', '')).strip()
                         nome_novo_limpo = limpar_nome(nome_novo)
 
                         if not nome_novo or nome_novo_limpo in ['', 'LEGENDA']:
@@ -2925,15 +3058,42 @@ with col_btn_processar:
 
                         nova_linha = {col: '' for col in df_mest.columns}
                         nova_linha['NOME'] = nome_novo
-                        if 'GESTOR' in df_mest.columns:
-                            nova_linha['GESTOR'] = str(item.get('encarregado', '')).strip()
+
+                        if col_gestor is not None:
+                            nova_linha[col_gestor] = encarregado_novo
+
+                        # Tenta extrair dados do CSV de base de ativos
+                        dados_csv = extrair_dados_colaborador_csv(nome_novo, df_csv_base)
+
+                        if dados_csv:
+                            # Mapeia dados do CSV para colunas da mestra
+                            mapa_csv_para_mestra = {
+                                'FUNCAO': colunas_copiar.get('FUNCAO'),
+                                'SITUACAO': colunas_copiar.get('SITUACAO'),
+                                'AREA': colunas_copiar.get('AREA'),
+                                'SUPERVISOR': colunas_copiar.get('SUPERVISOR'),
+                                'SETOR': colunas_copiar.get('SETOR'),
+                                'TURNO': colunas_copiar.get('TURNO'),
+                                'HORARIO': colunas_copiar.get('HORARIO')
+                            }
+
+                            for chave_csv, coluna_mestra in mapa_csv_para_mestra.items():
+                                if coluna_mestra is not None and coluna_mestra in df_mest.columns:
+                                    nova_linha[coluna_mestra] = dados_csv.get(chave_csv, '')
+                        else:
+                            inseridos_sem_modelo += 1
 
                         df_mest = pd.concat([df_mest, pd.DataFrame([nova_linha])], ignore_index=True)
                         nomes_existentes.add(nome_novo_limpo)
                         inseridos_agora += 1
 
                     if inseridos_agora > 0:
-                        st.info(f"✅ {inseridos_agora} nome(s) inserido(s) manualmente na base mestra antes do processamento.")
+                        st.info(f"✅ {inseridos_agora} nome(s) inserido(s) da base de ativos CSV antes do processamento.")
+                    if inseridos_sem_modelo > 0:
+                        st.warning(
+                            f"⚠️ {inseridos_sem_modelo} nome(s) não foram encontrados no CSV de base de ativos. "
+                            "Nesses casos, os campos de função/área/turno podem ficar em branco."
+                        )
                 
                 df_mest['NOME_LIMPO'] = df_mest['NOME'].apply(limpar_nome)
                 
@@ -4091,43 +4251,56 @@ if st.session_state.nao_encontrados_processamento:
         st.write(f"Pendentes atuais: {len(st.session_state.nao_encontrados_processamento)}")
 
     if st.session_state.mostrar_insercao_mestra:
-        with st.expander("Cadastro por colaborador", expanded=True):
+        with st.expander("Cadastro por planilha", expanded=True):
             st.info("Depois de salvar, clique em '🚀 Processar TODOS os Arquivos' novamente para aplicar na planilha final.")
 
             with st.form("form_inserir_na_mestra"):
                 insercoes = []
+                nao_encontrados_agrupados = {}
 
-                for i, (nome_colaborador, nome_arquivo) in enumerate(st.session_state.nao_encontrados_processamento):
-                    col_nome, col_arquivo, col_enc = st.columns([2, 2, 3])
+                for nome_colaborador, nome_arquivo in st.session_state.nao_encontrados_processamento:
+                    if nome_arquivo not in nao_encontrados_agrupados:
+                        nao_encontrados_agrupados[nome_arquivo] = []
+                    nao_encontrados_agrupados[nome_arquivo].append(nome_colaborador)
 
-                    with col_nome:
-                        st.write(f"**Nome:** {nome_colaborador}")
-                    with col_arquivo:
-                        st.write(f"**Arquivo:** {nome_arquivo}")
-                    with col_enc:
-                        encarregado_default = ''
-                        if nome_arquivo in st.session_state.config_arquivos:
-                            encarregado_default = st.session_state.config_arquivos[nome_arquivo].get('nome_encarregado', '')
+                for i, (nome_arquivo, nomes_colaboradores) in enumerate(sorted(nao_encontrados_agrupados.items())):
+                    st.markdown(f"### 📄 {nome_arquivo}")
+                    st.caption(f"Colaboradores não encontrados neste arquivo: {len(nomes_colaboradores)}")
 
-                        encarregado_input = st.text_input(
-                            f"Encarregado ({nome_colaborador})",
-                            value=encarregado_default,
-                            key=f"encarregado_insercao_{i}_{nome_arquivo}_{nome_colaborador}"
-                        )
+                    chave_arquivo = re.sub(r'[^a-zA-Z0-9_]+', '_', str(nome_arquivo))
+                    encarregado_default = ''
+                    if nome_arquivo in st.session_state.config_arquivos:
+                        encarregado_default = st.session_state.config_arquivos[nome_arquivo].get('nome_encarregado', '')
 
-                    insercoes.append({
-                        'nome': nome_colaborador,
-                        'arquivo': nome_arquivo,
-                        'encarregado': encarregado_input
-                    })
+                    encarregado_input = st.text_input(
+                        f"Encarregado ({nome_arquivo})",
+                        value=encarregado_default,
+                        key=f"encarregado_insercao_arquivo_{i}_{chave_arquivo}"
+                    )
+
+                    with st.container():
+                        for nome_colaborador in sorted(nomes_colaboradores):
+                            st.write(f"• {nome_colaborador}")
+
+                    for nome_colaborador in nomes_colaboradores:
+                        insercoes.append({
+                            'nome': nome_colaborador,
+                            'arquivo': nome_arquivo,
+                            'encarregado': encarregado_input
+                        })
 
                 salvar_insercoes = st.form_submit_button("💾 Salvar Inserções", type="primary")
 
                 if salvar_insercoes:
-                    pendentes_sem_encarregado = [x['nome'] for x in insercoes if str(x.get('encarregado', '')).strip() == '']
+                    pendentes_sem_encarregado = sorted(set([
+                        x['arquivo'] for x in insercoes if str(x.get('encarregado', '')).strip() == ''
+                    ]))
 
                     if pendentes_sem_encarregado:
-                        st.error("Preencha o nome do encarregado para todos os colaboradores antes de salvar.")
+                        st.error(
+                            "Preencha o nome do encarregado para todas as planilhas antes de salvar. "
+                            f"Pendentes: {', '.join(pendentes_sem_encarregado)}"
+                        )
                     else:
                         # Dedup por nome limpo para evitar duplicidade no próximo processamento.
                         insercoes_unicas = {}
