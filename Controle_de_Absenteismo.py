@@ -2571,6 +2571,7 @@ if files_encarregado:
             if st.button("🤖 CONFIGURAR TUDO AUTOMATICAMENTE", type="primary", use_container_width=True):
                 progress_bar = st.progress(0)
                 status_text = st.empty()
+                erros_configuracao = []  # Rastreia planilhas com erro
                 
                 for i, file_obj in enumerate(files_encarregado):
                     status_text.text(f"Processando [{i + 1}/{len(files_encarregado)}] - {file_obj.name}...")
@@ -2599,12 +2600,26 @@ if files_encarregado:
                                 'nome_encarregado': ""
                             }
                     except Exception as e:
-                        st.error(f"Erro ao processar [{i + 1}] {file_obj.name}: {e}")
+                        # Rastreia o erro para mostrar ao final
+                        erros_configuracao.append({
+                            'indice': i + 1,
+                            'nome': file_obj.name,
+                            'erro': str(e)
+                        })
                     
                     # Atualiza progresso
                     progress_bar.progress((i + 1) / len(files_encarregado))
                 
                 status_text.text("✅ Configuração automática concluída!")
+                
+                # Mostra planilhas com erro ao final
+                if erros_configuracao:
+                    st.warning("⚠️ **Algunas planilhas não foram configuradas automaticamente:**")
+                    for erro in erros_configuracao:
+                        st.write(f"  • **[{erro['indice']}]** {erro['nome']}")
+                        st.caption(f"  Motivo: {erro['erro']}", unsafe_allow_html=False)
+                    st.info("👉 Configure estas planilhas **manualmente** usando o botão de navegação acima.")
+                
                 st.balloons()
                 st.rerun()
 
