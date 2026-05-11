@@ -592,18 +592,18 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 for sem in semanas_lista:
                     # Linha Separadora de Semana
                     lista_ofensores_fi.append({
-                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas": "", "Faltas Injustificadas": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
+                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Dias das Faltas": "", "Faltas Injustificadas": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
                     })
                     lista_ofensores_fa.append({
-                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas": "", "Faltas por Atestado": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
+                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Dias das Faltas": "", "Faltas por Atestado": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
                     })
                     lista_ofensores_pendentes.append({
-                        "Nome": sem["nome"], "Gestor": "", "Dias das Faltas (FA)": "", "Datas de Retorno (P)": "", "Quantidade de Faltas": None, "Desligamento": ""
+                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Dias das Faltas (FA)": "", "Datas de Retorno (P)": "", "Quantidade de Faltas": None, "Desligamento": ""
                     })
                     
-                    pessoas_fi = []
-                    pessoas_fa = []
-                    pessoas_pendentes = []
+                    pessoas_fi = {}
+                    pessoas_fa = {}
+                    pessoas_pendentes = {}
                     
                     for nome, rec in sorted(absencias.items()):
                         # Filtrar os afastados e demitidos da base CSV
@@ -612,6 +612,11 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             
                         gestor_nome = buscar_info_aproximada(nome, gestores_dict)
                         gestor_final = gestor_nome if gestor_nome else "Sem Gestor Mapeado"
+                        supervisor_final = "Sem Supervisor Mapeado"
+                        if gestor_nome:
+                            supervisor_nome = buscar_info_aproximada(gestor_nome, gestores_dict)
+                            if supervisor_nome:
+                                supervisor_final = supervisor_nome
                         
                         fi_na_semana = [d for d in rec['FI'] if (isinstance(d, datetime.date) and pd.notna(d) and d in sem["dias"]) or (not sem["dias"])]
                         fa_na_semana = [d for d in rec['FA'] if (isinstance(d, datetime.date) and pd.notna(d) and d in sem["dias"]) or (not sem["dias"])]
@@ -636,9 +641,9 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 texto_entrevista_fi = "Não possui"
                                 texto_motivo_fi = "N/A"
                                 
-                            pessoas_fi.append({
-                                "Nome": nome, "Gestor": gestor_final, "Dias das Faltas": dias_fi_str, "Faltas Injustificadas": qtd_fi, "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
-                            })
+                            pessoas_fi[nome] = {
+                                "Nome": nome, "Gestor": gestor_final, "Supervisor": supervisor_final, "Dias das Faltas": dias_fi_str, "Faltas Injustificadas": qtd_fi, "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
+                            }
                             
                         # Se teve ATESTADO na semana, coloca na aba de Semanais FA
                         if qtd_fa > 0:
@@ -651,9 +656,9 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 texto_entrevista = "Não possui"
                                 texto_motivo = "N/A"
                                 
-                            pessoas_fa.append({
-                                "Nome": nome, "Gestor": gestor_final, "Dias das Faltas": dias_fa_str, "Faltas por Atestado": qtd_fa, "Entrevista de Absenteísmo": texto_entrevista, "Motivo": texto_motivo, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
-                            })
+                            pessoas_fa[nome] = {
+                                "Nome": nome, "Gestor": gestor_final, "Supervisor": supervisor_final, "Dias das Faltas": dias_fa_str, "Faltas por Atestado": qtd_fa, "Entrevista de Absenteísmo": texto_entrevista, "Motivo": texto_motivo, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
+                            }
 
                         # Pendentes Semanais Logic
                         entrevista_motivo = buscar_info_aproximada(nome, entrevistas_fa_dict)
@@ -681,25 +686,23 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             if week_fa_pendentes:
                                 dias_str = ", ".join([df.strftime('%d/%m') if isinstance(df, datetime.date) and pd.notna(df) else str(df) for df in week_fa_pendentes])
                                 retornos_str = ", ".join(week_retornos)
-                                pessoas_pendentes.append({
+                                pessoas_pendentes[nome] = {
                                     "Nome": nome,
                                     "Gestor": gestor_final,
+                                    "Supervisor": supervisor_final,
                                     "Dias das Faltas (FA)": dias_str,
                                     "Datas de Retorno (P)": retornos_str,
                                     "Quantidade de Faltas": len(week_fa_pendentes),
                                     "Desligamento": texto_dem
-                                })
+                                }
 
                     # Ordenar ofensores
                     if pessoas_fi:
-                        pessoas_fi.sort(key=lambda x: x["Faltas Injustificadas"], reverse=True)
-                        lista_ofensores_fi.extend(pessoas_fi)
+                        lista_ofensores_fi.extend(sorted(pessoas_fi.values(), key=lambda x: x["Faltas Injustificadas"], reverse=True))
                     if pessoas_fa:
-                        pessoas_fa.sort(key=lambda x: x["Faltas por Atestado"], reverse=True)
-                        lista_ofensores_fa.extend(pessoas_fa)
+                        lista_ofensores_fa.extend(sorted(pessoas_fa.values(), key=lambda x: x["Faltas por Atestado"], reverse=True))
                     if pessoas_pendentes:
-                        pessoas_pendentes.sort(key=lambda x: x["Quantidade de Faltas"], reverse=True)
-                        lista_ofensores_pendentes.extend(pessoas_pendentes)
+                        lista_ofensores_pendentes.extend(sorted(pessoas_pendentes.values(), key=lambda x: x["Quantidade de Faltas"], reverse=True))
 
                 df_of_fi = pd.DataFrame(lista_ofensores_fi)
                 df_of_fa = pd.DataFrame(lista_ofensores_fa)
