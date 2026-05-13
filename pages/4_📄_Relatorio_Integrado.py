@@ -23,13 +23,13 @@ st.divider()
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    f_abs = st.file_uploader("1️⃣ Planilha de Absenteísmo (Aba 'Dados')", type=["xlsx", "xls"])
-    f_med = st.file_uploader("2️⃣ Planilha de Medida Disciplinar", type=["xlsx", "xls"])
+    f_abs = st.file_uploader("1️⃣ Planilha de Absenteísmo (Aba 'Dados')", type=["xlsx", "xls", "xlsm"])
+    f_med = st.file_uploader("2️⃣ Planilha de Medida Disciplinar", type=["xlsx", "xls", "xlsm"])
 with col2:
-    f_dem = st.file_uploader("3️⃣ Planilha de Demissões", type=["xlsx", "xls"])
-    f_ent = st.file_uploader("4️⃣ Planilha de Entrevista", type=["xlsx", "xls"])
+    f_dem = st.file_uploader("3️⃣ Planilha de Demissões", type=["xlsx", "xls", "xlsm"])
+    f_ent = st.file_uploader("4️⃣ Planilha de Entrevista", type=["xlsx", "xls", "xlsm"])
 with col3:
-    f_gest = st.file_uploader("5️⃣ Base OCI/Gestor (CSV de Colaboradores)", type=["csv", "xlsx", "xls"])
+    f_gest = st.file_uploader("5️⃣ Base OCI/Gestor (CSV de Colaboradores)", type=["csv", "xlsx", "xls", "xlsm"])
     st.markdown("### 📅 Filtrar Período")
     filtrar_periodo = st.checkbox("Habilitar Filtro por Datas")
     if filtrar_periodo:

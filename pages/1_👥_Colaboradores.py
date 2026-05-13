@@ -33,7 +33,7 @@ st.divider()
 # Upload do CSV
 uploaded_file = st.file_uploader(
     "📤 Faça upload do CSV com dados de colaboradores",
-    type=["csv", "xlsx"],
+    type=["csv", "xlsx", "xlsm"],
     key="colaboradores_uploader"
 )
 

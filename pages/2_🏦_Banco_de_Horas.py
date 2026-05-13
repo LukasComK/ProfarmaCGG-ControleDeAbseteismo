@@ -27,7 +27,7 @@ with col1:
     st.write("**Arquivo de Banco de Horas**")
     file_banco_horas = st.file_uploader(
         "Arquivo XLSX com banco de horas",
-        type=["xlsx"],
+        type=["xlsx", "xlsm"],
         key="banco_horas"
     )
 

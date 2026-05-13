@@ -17,7 +17,7 @@ Esta página processa o arquivo Excel (XLSX) para gerar uma tabela de **Justific
      - **Célula**: Justificativa (Coluna P)
 """)
 
-uploaded_file = st.file_uploader("1. Carregue o arquivo Excel de Absenteísmo", type=["xlsx"])
+uploaded_file = st.file_uploader("1. Carregue o arquivo Excel de Absenteísmo", type=["xlsx", "xlsm"])
 uploaded_csv_gestores = st.file_uploader("2. Carregue o arquivo CSV de Gestores (Base Ativos)", type=["csv"])
 
 if uploaded_file is not None and uploaded_csv_gestores is not None:

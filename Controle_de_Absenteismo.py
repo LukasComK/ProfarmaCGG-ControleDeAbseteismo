@@ -2459,9 +2459,9 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.header("Upload")
-    file_mestra = st.file_uploader("Planilha MESTRA", type=["xlsx"])
-    file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking)", type=["csv", "xlsx"])
-    files_encarregado = st.file_uploader("Planilhas ENCARREGADO (múltiplas permitidas)", type=["xlsx"], accept_multiple_files=True)
+    file_mestra = st.file_uploader("Planilha MESTRA", type=["xlsx", "xlsm"])
+    file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking)", type=["csv", "xlsx", "xlsm"])
+    files_encarregado = st.file_uploader("Planilhas ENCARREGADO (múltiplas permitidas)", type=["xlsx", "xlsm"], accept_multiple_files=True)
 
 with col2:
     st.header("Config")
