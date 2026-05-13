@@ -2438,6 +2438,8 @@ if 'mostrar_insercao_mestra' not in st.session_state:
     st.session_state.mostrar_insercao_mestra = False
 if 'insercoes_mestra_pendentes' not in st.session_state:
     st.session_state.insercoes_mestra_pendentes = []
+if 'erros_configuracao_automatica' not in st.session_state:
+    st.session_state.erros_configuracao_automatica = []
 
 st.title("🤖 Lançamento de Absenteísmo")
 st.write("VERSÃO 1.0")
@@ -2467,6 +2469,31 @@ with col2:
     st.header("Config")
     ano = st.number_input("Ano", 2020, 2050, datetime.date.today().year)
     mes = st.number_input("Mês", 1, 12, datetime.date.today().month)
+
+# Rastreia quantos arquivos foram carregados para limpar erros antigos ao fazer novo upload
+if 'ultimos_arquivos_count' not in st.session_state:
+    st.session_state.ultimos_arquivos_count = 0
+
+if len(files_encarregado) > st.session_state.ultimos_arquivos_count:
+    # Novos arquivos foram carregados, limpa erros antigos
+    st.session_state.erros_configuracao_automatica = []
+st.session_state.ultimos_arquivos_count = len(files_encarregado)
+
+# Exibe alerta permanente com planilhas que falharam na configuração automática
+if st.session_state.erros_configuracao_automatica:
+    st.divider()
+    st.warning("⚠️ **Planilhas não configuradas automaticamente (configure manualmente abaixo):**")
+    for erro in st.session_state.erros_configuracao_automatica:
+        col_idx, col_nome = st.columns([0.3, 3])
+        with col_idx:
+            st.write(f"**[{erro['indice']}]**")
+        with col_nome:
+            st.write(f"**{erro['nome']}**")
+    st.divider()
+    # Botão para limpar a lista de erros
+    if st.button("🗑️ Limpar lista de erros", help="Clica aqui depois de configurar manualmente as planilhas"):
+        st.session_state.erros_configuracao_automatica = []
+        st.rerun()
 
 # Valida arquivos de encarregado
 arquivos_invalidos = []
@@ -2611,6 +2638,9 @@ if files_encarregado:
                     progress_bar.progress((i + 1) / len(files_encarregado))
                 
                 status_text.text("✅ Configuração automática concluída!")
+                
+                # Salva erros no session_state para persistir após rerun
+                st.session_state.erros_configuracao_automatica = erros_configuracao
                 
                 # Mostra planilhas com erro ao final
                 if erros_configuracao:
