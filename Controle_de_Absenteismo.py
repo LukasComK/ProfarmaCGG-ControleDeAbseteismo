@@ -3079,15 +3079,40 @@ with col_btn_processar:
                             if file_colaboradores.name.endswith('.xlsx'):
                                 df_csv_base = pd.read_excel(file_colaboradores, header=None)
                             else:
-                                # CSV: tenta diferentes encodings
+                                # CSV: a base de ativos costuma ter uma linha-título antes do cabeçalho
+                                # e usa ';' como separador.
                                 encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+                                tentativas = [
+                                    {'sep': ';', 'skiprows': 1},
+                                    {'sep': None, 'skiprows': 1, 'engine': 'python'},
+                                    {'sep': ',', 'skiprows': 1},
+                                    {'sep': '\t', 'skiprows': 1},
+                                    {'sep': '|', 'skiprows': 1},
+                                ]
                                 for enc in encodings:
-                                    try:
-                                        file_colaboradores.seek(0)
-                                        df_csv_base = pd.read_csv(file_colaboradores, encoding=enc, header=None)
+                                    for tentativa in tentativas:
+                                        try:
+                                            file_colaboradores.seek(0)
+                                            params = {
+                                                'encoding': enc,
+                                                'header': None,
+                                                'skiprows': tentativa['skiprows']
+                                            }
+                                            if tentativa.get('engine') is not None:
+                                                params['engine'] = tentativa['engine']
+                                            params['sep'] = tentativa['sep']
+
+                                            df_csv_base = pd.read_csv(file_colaboradores, **params)
+
+                                            # Só aceita leituras que realmente formem colunas suficientes
+                                            if len(df_csv_base.columns) > 3:
+                                                break
+                                            df_csv_base = None
+                                        except:
+                                            df_csv_base = None
+                                            continue
+                                    if df_csv_base is not None:
                                         break
-                                    except:
-                                        continue
                         except Exception as e:
                             pass  # Se falhar, continua sem CSV
 
