@@ -204,24 +204,47 @@ def mapear_linhas_por_nome(workbook):
 
     return mapa_linhas
 
+def detectar_coluna_colaborador(df_csv):
+    """Detecta a coluna de colaborador com fallback para a 4a coluna (indice 3)."""
+    if df_csv is None or df_csv.empty:
+        return None
+
+    for col in df_csv.columns:
+        col_norm = normalizar_coluna(col)
+        if col_norm == 'COLABORADOR':
+            return col
+
+    for col in df_csv.columns:
+        col_norm = normalizar_coluna(col)
+        if 'COLAB' in col_norm or col_norm == 'NOME':
+            return col
+
+    if len(df_csv.columns) > 3:
+        return df_csv.columns[3]
+
+    return None
+
+def encontrar_linhas_compativeis(nome_csv, mapa_linhas):
+    """Busca linhas na mestra por nome exato ou compatível."""
+    nome_alvo = limpar_nome(nome_csv)
+    if not nome_alvo:
+        return []
+
+    if nome_alvo in mapa_linhas:
+        return mapa_linhas[nome_alvo]
+
+    for nome_mestra, linhas in mapa_linhas.items():
+        if nomes_compatíveis(nome_mestra, nome_alvo):
+            return linhas
+
+    return []
+
 def extrair_nomes_detectados_csv(df_csv, coluna_principal='COLABORADOR'):
     """Extrai os nomes únicos detectados em um CSV/XLSX a partir da coluna principal."""
     if df_csv is None or df_csv.empty:
         return [], None
 
-    coluna_encontrada = None
-    for col in df_csv.columns:
-        col_norm = normalizar_coluna(col)
-        if coluna_principal == 'COLABORADOR' and col_norm == 'COLABORADOR':
-            coluna_encontrada = col
-            break
-
-    if coluna_encontrada is None:
-        for col in df_csv.columns:
-            col_norm = normalizar_coluna(col)
-            if coluna_principal in col_norm:
-                coluna_encontrada = col
-                break
+    coluna_encontrada = detectar_coluna_colaborador(df_csv)
 
     if coluna_encontrada is None:
         return [], None
@@ -321,18 +344,16 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
     if df_ferias is None or df_ferias.empty or not mapa_datas:
         return 0
 
-    col_nome = None
+    col_nome = detectar_coluna_colaborador(df_ferias)
     col_status = None
     col_inicio = None
     col_fim = None
 
     for col in df_ferias.columns:
         col_norm = normalizar_coluna(col)
-        if col_nome is None and col_norm == 'COLABORADOR':
-            col_nome = col
-        elif col_status is None and col_norm == 'STATUS':
+        if col_status is None and 'STATUS' in col_norm:
             col_status = col
-        elif col_inicio is None and ('INICIO' in col_norm and 'GOZO' in col_norm):
+        elif col_inicio is None and ('GOZO' in col_norm and ('INICIO' in col_norm or 'INIC' in col_norm)):
             col_inicio = col
         elif col_fim is None and ('FIM' in col_norm and 'GOZO' in col_norm):
             col_fim = col
@@ -353,33 +374,13 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
         return 0
 
     ws = workbook['Dados']
-    header = [cell.value for cell in ws[1]]
-    try:
-        col_nome_excel = header.index('NOME') + 1
-    except ValueError:
-        try:
-            col_nome_excel = header.index('Nome') + 1
-        except ValueError:
-            return 0
 
-    colunas_datas = []
-    for idx, col_name in enumerate(header, 1):
-        data_obj = None
-        if col_name in mapa_datas:
-            data_obj = mapa_datas[col_name]
-        elif col_name in mapa_datas.values():
-            for chave_data, valor_coluna in mapa_datas.items():
-                if valor_coluna == col_name:
-                    data_obj = chave_data
-                    break
-
-        if isinstance(data_obj, datetime.datetime):
-            data_obj = data_obj.date()
-        if isinstance(data_obj, datetime.date):
-            colunas_datas.append((idx, data_obj))
+    colunas_datas = identificar_colunas_datas_workbook(workbook, mapa_datas)
 
     if not colunas_datas:
         return 0
+
+    mapa_linhas = mapear_linhas_por_nome(workbook)
 
     # Usa o primeiro registro válido por colaborador, caso existam duplicados.
     df_aux = df_aux.sort_values(by=[col_nome, col_inicio, col_fim])
@@ -390,11 +391,8 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
         data_inicio = row[col_inicio].date()
         data_fim = row[col_fim].date()
 
-        for row_idx in range(2, ws.max_row + 1):
-            nome_linha = limpar_nome(ws.cell(row=row_idx, column=col_nome_excel).value)
-            if nome_linha != nome_excel:
-                continue
-
+        linhas_compativeis = encontrar_linhas_compativeis(nome_excel, mapa_linhas)
+        for row_idx in linhas_compativeis:
             for col_idx, data_coluna in colunas_datas:
                 if data_inicio <= data_coluna <= data_fim:
                     cell = ws.cell(row=row_idx, column=col_idx)
@@ -404,7 +402,6 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
                     cell.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
                     cell.font = Font(color='FFFFFFFF')
                     aplicados += 1
-            break
 
     return aplicados
 
@@ -416,15 +413,20 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
     if df_demitidos is None or df_demitidos.empty or not mapa_datas:
         return 0
 
-    col_nome = None
+    col_nome = detectar_coluna_colaborador(df_demitidos)
     col_data_rescisao = None
 
     for col in df_demitidos.columns:
         col_norm = normalizar_coluna(col)
-        if col_nome is None and col_norm == 'COLABORADOR':
-            col_nome = col
-        elif col_data_rescisao is None and ('RECISAO' in col_norm or 'RESCISAO' in col_norm):
+        if col_data_rescisao is None and (('RECISAO' in col_norm or 'RESCISAO' in col_norm) and 'DATA' in col_norm):
             col_data_rescisao = col
+
+    if col_data_rescisao is None:
+        for col in df_demitidos.columns:
+            col_norm = normalizar_coluna(col)
+            if 'RECISAO' in col_norm or 'RESCISAO' in col_norm:
+                col_data_rescisao = col
+                break
 
     if col_nome is None or col_data_rescisao is None:
         return 0
@@ -446,15 +448,7 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
     )
 
     ws = workbook['Dados']
-    header = [cell.value for cell in ws[1]]
-    try:
-        col_nome_excel = header.index('NOME') + 1
-    except ValueError:
-        mapa_linhas = mapear_linhas_por_nome(workbook)
-        try:
-            col_nome_excel = header.index('Nome') + 1
-        except ValueError:
-            return 0
+    mapa_linhas = mapear_linhas_por_nome(workbook)
 
     colunas_datas = identificar_colunas_datas_workbook(workbook, mapa_datas)
 
@@ -462,19 +456,20 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
         return 0
 
     aplicados = 0
-    for row_idx in range(2, ws.max_row + 1):
-        nome_excel = limpar_nome(ws.cell(row=row_idx, column=col_nome_excel).value)
-        if not nome_excel or nome_excel not in mapa_demitidos:
+    for nome_csv, data_rescisao_ts in mapa_demitidos.items():
+        linhas_compativeis = encontrar_linhas_compativeis(nome_csv, mapa_linhas)
+        if not linhas_compativeis:
             continue
 
-        data_rescisao = mapa_demitidos[nome_excel].date()
-        for col_idx, data_coluna in colunas_datas:
-            if isinstance(data_coluna, datetime.date) and data_coluna >= data_rescisao:
-                cell = ws.cell(row=row_idx, column=col_idx)
-                cell.value = 'DESLIGADO'
-                cell.fill = PatternFill(start_color=MAPA_CORES['DESLIGADO'], end_color=MAPA_CORES['DESLIGADO'], fill_type='solid')
-                cell.font = Font(color='FFFFFFFF')
-                aplicados += 1
+        data_rescisao = data_rescisao_ts.date()
+        for row_idx in linhas_compativeis:
+            for col_idx, data_coluna in colunas_datas:
+                if isinstance(data_coluna, datetime.date) and data_coluna >= data_rescisao:
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    cell.value = 'DESLIGADO'
+                    cell.fill = PatternFill(start_color=MAPA_CORES['DESLIGADO'], end_color=MAPA_CORES['DESLIGADO'], fill_type='solid')
+                    cell.font = Font(color='FFFFFFFF')
+                    aplicados += 1
 
     return aplicados
 
