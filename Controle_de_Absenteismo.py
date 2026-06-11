@@ -114,6 +114,236 @@ def limpar_nome(nome):
         return unidecode(nome).upper().strip()
     return ""
 
+def normalizar_coluna(nome_coluna):
+    texto = unidecode(str(nome_coluna)).upper()
+    return re.sub(r'[^A-Z0-9]', '', texto)
+
+def carregar_csv_demitidos(arquivo_demitidos):
+    """
+    Carrega o arquivo de demitidos tentando diferentes encodings e separadores.
+    Aceita CSV/XLSX e tenta lidar com uma linha inicial de título.
+    """
+    if arquivo_demitidos is None:
+        return None
+
+    try:
+        arquivo_demitidos.seek(0)
+        if arquivo_demitidos.name.endswith('.xlsx'):
+            return pd.read_excel(arquivo_demitidos)
+
+        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+        tentativas = [
+            {'sep': ';', 'skiprows': 0},
+            {'sep': ';', 'skiprows': 1},
+            {'sep': None, 'skiprows': 0, 'engine': 'python'},
+            {'sep': None, 'skiprows': 1, 'engine': 'python'},
+            {'sep': ',', 'skiprows': 0},
+            {'sep': ',', 'skiprows': 1},
+            {'sep': '\t', 'skiprows': 0},
+            {'sep': '\t', 'skiprows': 1},
+            {'sep': '|', 'skiprows': 0},
+            {'sep': '|', 'skiprows': 1},
+        ]
+
+        for enc in encodings:
+            for tentativa in tentativas:
+                try:
+                    arquivo_demitidos.seek(0)
+                    params = {
+                        'encoding': enc,
+                        'header': 0,
+                        'skiprows': tentativa['skiprows']
+                    }
+                    if tentativa.get('engine') is not None:
+                        params['engine'] = tentativa['engine']
+                    params['sep'] = tentativa['sep']
+
+                    df_demitidos = pd.read_csv(arquivo_demitidos, **params)
+                    if len(df_demitidos.columns) > 1:
+                        return df_demitidos
+                except Exception:
+                    continue
+    except Exception:
+        return None
+
+    return None
+
+def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
+    """
+    Marca FÉRIAS-BH na sheet Dados para o período de gozo informado no CSV.
+    Apenas as datas existentes no mês carregado são pintadas.
+    Retorna a quantidade de células aplicadas.
+    """
+    if df_ferias is None or df_ferias.empty or not mapa_datas:
+        return 0
+
+    col_nome = None
+    col_status = None
+    col_inicio = None
+    col_fim = None
+
+    for col in df_ferias.columns:
+        col_norm = normalizar_coluna(col)
+        if col_nome is None and col_norm == 'COLABORADOR':
+            col_nome = col
+        elif col_status is None and col_norm == 'STATUS':
+            col_status = col
+        elif col_inicio is None and col_norm in {'INICIODOPERIODODEGOZO', 'INICIOPERIODODEGOZO', 'INICIODOPERIODODEGOZO'}:
+            col_inicio = col
+        elif col_fim is None and col_norm in {'FIMDOPERIODODEGOZO', 'FIMPERIODODEGOZO'}:
+            col_fim = col
+
+    if col_nome is None or col_status is None or col_inicio is None or col_fim is None:
+        return 0
+
+    df_aux = df_ferias[[col_nome, col_status, col_inicio, col_fim]].copy()
+    df_aux[col_nome] = df_aux[col_nome].astype(str).apply(limpar_nome)
+    df_aux[col_status] = df_aux[col_status].astype(str).apply(lambda x: unidecode(x).strip().upper())
+    df_aux[col_inicio] = pd.to_datetime(df_aux[col_inicio], dayfirst=True, errors='coerce')
+    df_aux[col_fim] = pd.to_datetime(df_aux[col_fim], dayfirst=True, errors='coerce')
+    df_aux = df_aux.dropna(subset=[col_nome, col_inicio, col_fim])
+    df_aux = df_aux[df_aux[col_nome] != '']
+    df_aux = df_aux[df_aux[col_status].str.contains('EM FERIAS', na=False)]
+
+    if df_aux.empty:
+        return 0
+
+    ws = workbook['Dados']
+    header = [cell.value for cell in ws[1]]
+    try:
+        col_nome_excel = header.index('NOME') + 1
+    except ValueError:
+        try:
+            col_nome_excel = header.index('Nome') + 1
+        except ValueError:
+            return 0
+
+    colunas_datas = []
+    for idx, col_name in enumerate(header, 1):
+        data_obj = None
+        if col_name in mapa_datas:
+            data_obj = mapa_datas[col_name]
+        elif col_name in mapa_datas.values():
+            for chave_data, valor_coluna in mapa_datas.items():
+                if valor_coluna == col_name:
+                    data_obj = chave_data
+                    break
+
+        if isinstance(data_obj, datetime.datetime):
+            data_obj = data_obj.date()
+        if isinstance(data_obj, datetime.date):
+            colunas_datas.append((idx, data_obj))
+
+    if not colunas_datas:
+        return 0
+
+    # Usa o primeiro registro válido por colaborador, caso existam duplicados.
+    df_aux = df_aux.sort_values(by=[col_nome, col_inicio, col_fim])
+    aplicados = 0
+
+    for _, row in df_aux.iterrows():
+        nome_excel = row[col_nome]
+        data_inicio = row[col_inicio].date()
+        data_fim = row[col_fim].date()
+
+        for row_idx in range(2, ws.max_row + 1):
+            nome_linha = limpar_nome(ws.cell(row=row_idx, column=col_nome_excel).value)
+            if nome_linha != nome_excel:
+                continue
+
+            for col_idx, data_coluna in colunas_datas:
+                if data_inicio <= data_coluna <= data_fim:
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    if str(cell.value).strip().upper() == 'DESLIGADO':
+                        continue
+                    cell.value = 'FÉRIAS-BH'
+                    cell.fill = PatternFill(start_color=MAPA_CORES['FÉRIAS-BH'], end_color=MAPA_CORES['FÉRIAS-BH'], fill_type='solid')
+                    cell.font = Font(color='FFFFFFFF')
+                    aplicados += 1
+            break
+
+    return aplicados
+
+def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
+    """
+    Marca DESLIGADO na sheet Dados a partir da data de rescisão para cada colaborador.
+    Retorna a quantidade de registros aplicados.
+    """
+    if df_demitidos is None or df_demitidos.empty or not mapa_datas:
+        return 0
+
+    col_nome = None
+    col_data_rescisao = None
+
+    for col in df_demitidos.columns:
+        col_norm = normalizar_coluna(col)
+        if col_nome is None and col_norm == 'COLABORADOR':
+            col_nome = col
+        elif col_data_rescisao is None and col_norm in {'DATADERECISAO', 'DATADERESCISAO', 'RECISAO', 'RESCISAO', 'DATADERECISAO', 'DATADERESCISAO'}:
+            col_data_rescisao = col
+
+    if col_nome is None or col_data_rescisao is None:
+        return 0
+
+    df_aux = df_demitidos[[col_nome, col_data_rescisao]].copy()
+    df_aux[col_nome] = df_aux[col_nome].astype(str).apply(limpar_nome)
+    df_aux[col_data_rescisao] = pd.to_datetime(df_aux[col_data_rescisao], dayfirst=True, errors='coerce')
+    df_aux = df_aux.dropna(subset=[col_nome, col_data_rescisao])
+    df_aux = df_aux[df_aux[col_nome] != '']
+
+    if df_aux.empty:
+        return 0
+
+    # Usa a menor data de rescisão por colaborador, caso haja mais de um registro.
+    mapa_demitidos = (
+        df_aux.groupby(col_nome)[col_data_rescisao]
+        .min()
+        .to_dict()
+    )
+
+    ws = workbook['Dados']
+    header = [cell.value for cell in ws[1]]
+    try:
+        col_nome_excel = header.index('NOME') + 1
+    except ValueError:
+        try:
+            col_nome_excel = header.index('Nome') + 1
+        except ValueError:
+            return 0
+
+    colunas_datas = []
+    for idx, col_name in enumerate(header, 1):
+        if col_name in mapa_datas.values() or col_name in mapa_datas.keys():
+            colunas_datas.append((idx, col_name))
+
+    if not colunas_datas:
+        return 0
+
+    aplicados = 0
+    for row_idx in range(2, ws.max_row + 1):
+        nome_excel = limpar_nome(ws.cell(row=row_idx, column=col_nome_excel).value)
+        if not nome_excel or nome_excel not in mapa_demitidos:
+            continue
+
+        data_rescisao = mapa_demitidos[nome_excel].date()
+        for col_idx, col_name in colunas_datas:
+            data_coluna = None
+            if col_name in mapa_datas:
+                data_coluna = mapa_datas[col_name]
+            else:
+                data_coluna = col_name
+
+            if isinstance(data_coluna, datetime.datetime):
+                data_coluna = data_coluna.date()
+            if isinstance(data_coluna, datetime.date) and data_coluna >= data_rescisao:
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.value = 'DESLIGADO'
+                cell.fill = PatternFill(start_color=MAPA_CORES['DESLIGADO'], end_color=MAPA_CORES['DESLIGADO'], fill_type='solid')
+                cell.font = Font(color='FFFFFFFF')
+                aplicados += 1
+
+    return aplicados
+
 def extrair_dia_do_cabecalho(label_dia, mes, ano):
     """
     Extrai a data do cabeçalho da coluna, detectando automaticamente o formato.
@@ -1175,6 +1405,7 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
 
         # Iterar sobre os grupos (Setores Unificados)
         for nome_setor, df_grupo in sorted(grupos):
+            linha_inicio_setor = linha_atual
             
             hc_total = len(df_grupo)
             if hc_total == 0: continue
@@ -1374,6 +1605,21 @@ def criar_sheet_ofensores_por_setor(df_mest, w, df_colab_csv=None, mapa_datas=No
             
             # Espaço entre setores
             linha_atual += 1
+
+            # Reforça o blackout em toda a faixa do bloco do setor.
+            # Isso garante que domingos e feriados preencham todas as linhas
+            # do bloco, mesmo se alguma célula tiver sido sobrescrita depois.
+            for i, d in enumerate(colunas_datas_ordenadas):
+                if not eh_feriado_ou_domingo(d):
+                    continue
+
+                col_idx = 2 + i
+                for row_idx in range(linha_inicio_setor, linha_atual):
+                    celula = ws.cell(row=row_idx, column=col_idx)
+                    celula.fill = fill_blackout
+                    celula.font = font_white_bold
+                    celula.alignment = Alignment(horizontal='center', vertical='center')
+                    celula.border = thin_border
 
 
             
@@ -2463,6 +2709,8 @@ with col1:
     st.header("Upload")
     file_mestra = st.file_uploader("Planilha MESTRA", type=["xlsx", "xlsm"])
     file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking)", type=["csv", "xlsx", "xlsm"])
+    file_demitidos = st.file_uploader("CSV de Demitidos (opcional)", type=["csv", "xlsx", "xlsm"])
+    file_ferias = st.file_uploader("CSV de Férias (opcional)", type=["csv", "xlsx", "xlsm"])
     files_encarregado = st.file_uploader("Planilhas ENCARREGADO (múltiplas permitidas)", type=["xlsx", "xlsm"], accept_multiple_files=True)
 
 with col2:
@@ -2626,6 +2874,12 @@ if files_encarregado:
                                 'guia': guia,
                                 'nome_encarregado': ""
                             }
+                        else:
+                            erros_configuracao.append({
+                                'indice': i + 1,
+                                'nome': file_obj.name,
+                                'erro': 'Não foi possível detectar automaticamente a linha/coluna de lançamento.'
+                            })
                     except Exception as e:
                         # Rastreia o erro para mostrar ao final
                         erros_configuracao.append({
@@ -2647,7 +2901,7 @@ if files_encarregado:
                     st.warning("⚠️ **Algunas planilhas não foram configuradas automaticamente:**")
                     for erro in erros_configuracao:
                         st.write(f"  • **[{erro['indice']}]** {erro['nome']}")
-                        st.caption(f"  Motivo: {erro['erro']}", unsafe_allow_html=False)
+                        st.caption(f"  Motivo: {erro.get('erro', 'Erro não informado')}", unsafe_allow_html=False)
                     st.info("👉 Configure estas planilhas **manualmente** usando o botão de navegação acima.")
                 
                 st.balloons()
@@ -2898,6 +3152,11 @@ with col_btn_processar:
     nomes_arquivos_upload = [f.name for f in files_encarregado] if files_encarregado else []
     configs_salvas = list(st.session_state.get('config_arquivos', {}).keys())
     todos_configurados = len(nomes_arquivos_upload) > 0 and all(nome in configs_salvas for nome in nomes_arquivos_upload)
+
+    if files_encarregado:
+        faltando_config = [nome for nome in nomes_arquivos_upload if nome not in configs_salvas]
+        if faltando_config:
+            st.warning("⚠️ Algumas planilhas de encarregado ainda não foram configuradas automaticamente.")
     
     if st.button("🚀 Processar TODOS os Arquivos", disabled=not todos_configurados):
         if file_mestra and files_encarregado and todos_configurados:
@@ -4077,6 +4336,33 @@ with col_btn_processar:
                     status_text.info("📌 Marcando afastamentos...")
                     progress_bar.progress(50)
                     marcar_afastamentos_na_workbook(w.book, MAPA_CORES, afastamentos, df_mest_com_feriados, mapa_datas)
+
+                    # ===== CARREGAR E MARCAR DEMITIDOS =====
+                    status_text.info("📤 Aplicando desligamentos...")
+                    progress_bar.progress(55)
+                    if file_demitidos is not None:
+                        df_demitidos = carregar_csv_demitidos(file_demitidos)
+                    else:
+                        df_demitidos = None
+
+                    if df_demitidos is not None:
+                        aplicados_desligado = aplicar_desligados_na_workbook(w.book, df_demitidos, mapa_datas)
+                        if aplicados_desligado == 0:
+                            st.warning("⚠️ O CSV de demitidos foi carregado, mas nenhuma linha foi aplicada. Confira os nomes e a coluna de data de rescisão.")
+                    elif file_demitidos is not None:
+                        st.warning("⚠️ Não foi possível ler o CSV de demitidos. O relatório seguirá sem aplicar DESLIGADO.")
+
+                    # ===== CARREGAR E MARCAR FÉRIAS =====
+                    status_text.info("🌴 Aplicando férias...")
+                    progress_bar.progress(58)
+                    if file_ferias is not None:
+                        df_ferias = carregar_csv_demitidos(file_ferias)
+                        if df_ferias is not None:
+                            aplicados_ferias = aplicar_ferias_na_workbook(w.book, df_ferias, mapa_datas)
+                            if aplicados_ferias == 0:
+                                st.warning("⚠️ O CSV de férias foi carregado, mas nenhuma célula foi aplicada. Confira os nomes, status e datas de gozo.")
+                        else:
+                            st.warning("⚠️ Não foi possível ler o CSV de férias. O relatório seguirá sem aplicar FÉRIAS-BH.")
                     
                     # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM MARCAÇÕES) =====
                     status_text.info("📖 Lendo dados finais...")
