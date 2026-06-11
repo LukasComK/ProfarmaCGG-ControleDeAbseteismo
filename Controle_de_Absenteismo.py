@@ -251,8 +251,7 @@ def extrair_nomes_detectados_csv(df_csv, coluna_principal='COLABORADOR'):
 
     nomes = (
         df_csv[coluna_encontrada]
-        .astype(str)
-        .map(lambda x: x.strip())
+        .map(lambda x: str(x).strip())
         .replace({'': None, 'nan': None, 'None': None, '<NA>': None})
         .dropna()
         .drop_duplicates()
@@ -1813,14 +1812,14 @@ def criar_sheet_ofensores_semanais(df_mest, w, mapa_datas, df_colaboradores=None
             from difflib import SequenceMatcher
             
             def similarity_ratio(a, b):
-                return SequenceMatcher(None, a.upper().strip(), b.upper().strip()).ratio()
+                return SequenceMatcher(None, str(a).upper().strip(), str(b).upper().strip()).ratio()
             
             # Procura pela coluna de colaborador
             col_nome_csv = None
             col_data_adm = None
             
             for col in df_colab.columns:
-                col_upper = col.upper().strip()
+                col_upper = str(col).upper().strip()
                 if col_upper == 'COLABORADOR':
                     col_nome_csv = col
                 if 'DATA ADMISS' in col_upper:
@@ -2498,7 +2497,7 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     
     def similarity_ratio(a, b):
         """Calcula o índice de similaridade entre duas strings (0 a 1)"""
-        return SequenceMatcher(None, a.upper().strip(), b.upper().strip()).ratio()
+        return SequenceMatcher(None, str(a).upper().strip(), str(b).upper().strip()).ratio()
     
     # Fazer merge dos DataFrames
     df_fa_enriquecido = top_10_fa.copy()
@@ -2513,7 +2512,7 @@ def enriquecer_ranking_com_dados_csv(top_10_fa, top_10_fi, df_colaboradores):
     
     # Tenta encontrar by exact match na lista de colunas
     for i, col in enumerate(df_colaboradores.columns):
-        col_upper = col.upper().strip()
+        col_upper = str(col).upper().strip()
         
         # Coluna de Colaborador
         if col_upper == 'COLABORADOR':
