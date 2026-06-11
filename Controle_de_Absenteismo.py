@@ -118,55 +118,165 @@ def normalizar_coluna(nome_coluna):
     texto = unidecode(str(nome_coluna)).upper()
     return re.sub(r'[^A-Z0-9]', '', texto)
 
+def identificar_colunas_datas_workbook(workbook, mapa_datas):
+    """
+    Identifica as colunas de data da aba Dados comparando os cabeçalhos já
+    formatados do workbook com as datas conhecidas em mapa_datas.
+    """
+    if workbook is None or not mapa_datas:
+        return []
+
+    ws = workbook['Dados']
+    header = [cell.value for cell in ws[1]]
+
+    mapa_chaves_data = {}
+    for data_obj, nome_coluna in mapa_datas.items():
+        candidatos = {
+            normalizar_coluna(nome_coluna),
+            normalizar_coluna(data_obj.strftime('%d/%m')),
+            normalizar_coluna(data_obj.strftime('%d/%m/%Y')),
+            normalizar_coluna(data_obj.strftime('%Y-%m-%d')),
+        }
+        for candidato in candidatos:
+            mapa_chaves_data[candidato] = data_obj
+
+    colunas_datas = []
+    for idx, col_name in enumerate(header, 1):
+        chave = normalizar_coluna(col_name)
+        data_obj = mapa_chaves_data.get(chave)
+        if isinstance(data_obj, datetime.datetime):
+            data_obj = data_obj.date()
+        if isinstance(data_obj, datetime.date):
+            colunas_datas.append((idx, data_obj))
+
+    return colunas_datas
+
+def nomes_compatíveis(nome_a, nome_b):
+    """Compara nomes ignorando acentos, pontuação e pequenas variações de escrita."""
+    texto_a = limpar_nome(nome_a)
+    texto_b = limpar_nome(nome_b)
+    if not texto_a or not texto_b:
+        return False
+
+    if texto_a == texto_b:
+        return True
+
+    if texto_a in texto_b or texto_b in texto_a:
+        return True
+
+    texto_a_compacto = re.sub(r'\s+', '', texto_a)
+    texto_b_compacto = re.sub(r'\s+', '', texto_b)
+    if texto_a_compacto == texto_b_compacto:
+        return True
+
+    if SequenceMatcher(None, texto_a, texto_b).ratio() >= 0.92:
+        return True
+
+    tokens_a = {token for token in texto_a.split() if token}
+    tokens_b = {token for token in texto_b.split() if token}
+    if tokens_a and tokens_b:
+        comuns = tokens_a.intersection(tokens_b)
+        if len(comuns) >= 2:
+            return True
+
+    return False
+
+def mapear_linhas_por_nome(workbook):
+    """Cria um mapa de nomes normalizados para as linhas da aba Dados."""
+    if workbook is None or 'Dados' not in workbook.sheetnames:
+        return {}
+
+    ws = workbook['Dados']
+    header = [cell.value for cell in ws[1]]
+    try:
+        col_nome = header.index('NOME') + 1
+    except ValueError:
+        try:
+            col_nome = header.index('Nome') + 1
+        except ValueError:
+            col_nome = 1
+
+    mapa_linhas = {}
+    for row_idx in range(2, ws.max_row + 1):
+        nome_linha = limpar_nome(ws.cell(row=row_idx, column=col_nome).value)
+        if nome_linha:
+            mapa_linhas.setdefault(nome_linha, []).append(row_idx)
+
+    return mapa_linhas
+
+def ler_tabela_robusta(arquivo):
+    """
+    Lê CSV/XLSX tentando diferentes separadores, encodings e linhas de cabeçalho.
+    """
+    if arquivo is None:
+        return None
+
+    try:
+        arquivo.seek(0)
+        if arquivo.name.endswith('.xlsx'):
+            return pd.read_excel(arquivo)
+
+        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+        separadores = [';', ',', '\t', '|']
+        melhor_df = None
+        melhor_pontuacao = -1
+
+        for enc in encodings:
+            for sep in separadores:
+                for skiprows in [0, 1]:
+                    try:
+                        arquivo.seek(0)
+                        df = pd.read_csv(
+                            arquivo,
+                            encoding=enc,
+                            sep=sep,
+                            header=0,
+                            skiprows=skiprows,
+                            engine='python' if sep in ['\t', '|'] else 'c'
+                        )
+                        if len(df.columns) <= 1:
+                            continue
+
+                        colunas_norm = {normalizar_coluna(col) for col in df.columns}
+                        pontuacao = 0
+                        if 'COLABORADOR' in colunas_norm:
+                            pontuacao += 3
+                        if any('RESCISAO' in col or 'RECISAO' in col for col in colunas_norm):
+                            pontuacao += 3
+                        if 'STATUS' in colunas_norm:
+                            pontuacao += 1
+                        if any('GOZO' in col for col in colunas_norm):
+                            pontuacao += 1
+
+                        if pontuacao > melhor_pontuacao:
+                            melhor_pontuacao = pontuacao
+                            melhor_df = df
+                    except Exception:
+                        continue
+    except Exception:
+        return None
+
+    return melhor_df
+
+def encontrar_linha_nome(ws, nome_procurado, col_nome_excel=1):
+    """Encontra a linha de um colaborador na aba Dados usando nome normalizado."""
+    nome_norm = limpar_nome(nome_procurado)
+    if not nome_norm:
+        return None
+
+    for row_idx in range(2, ws.max_row + 1):
+        nome_linha = limpar_nome(ws.cell(row=row_idx, column=col_nome_excel).value)
+        if nome_linha == nome_norm:
+            return row_idx
+
+    return None
+
 def carregar_csv_demitidos(arquivo_demitidos):
     """
     Carrega o arquivo de demitidos tentando diferentes encodings e separadores.
     Aceita CSV/XLSX e tenta lidar com uma linha inicial de título.
     """
-    if arquivo_demitidos is None:
-        return None
-
-    try:
-        arquivo_demitidos.seek(0)
-        if arquivo_demitidos.name.endswith('.xlsx'):
-            return pd.read_excel(arquivo_demitidos)
-
-        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
-        tentativas = [
-            {'sep': ';', 'skiprows': 0},
-            {'sep': ';', 'skiprows': 1},
-            {'sep': None, 'skiprows': 0, 'engine': 'python'},
-            {'sep': None, 'skiprows': 1, 'engine': 'python'},
-            {'sep': ',', 'skiprows': 0},
-            {'sep': ',', 'skiprows': 1},
-            {'sep': '\t', 'skiprows': 0},
-            {'sep': '\t', 'skiprows': 1},
-            {'sep': '|', 'skiprows': 0},
-            {'sep': '|', 'skiprows': 1},
-        ]
-
-        for enc in encodings:
-            for tentativa in tentativas:
-                try:
-                    arquivo_demitidos.seek(0)
-                    params = {
-                        'encoding': enc,
-                        'header': 0,
-                        'skiprows': tentativa['skiprows']
-                    }
-                    if tentativa.get('engine') is not None:
-                        params['engine'] = tentativa['engine']
-                    params['sep'] = tentativa['sep']
-
-                    df_demitidos = pd.read_csv(arquivo_demitidos, **params)
-                    if len(df_demitidos.columns) > 1:
-                        return df_demitidos
-                except Exception:
-                    continue
-    except Exception:
-        return None
-
-    return None
+    return ler_tabela_robusta(arquivo_demitidos)
 
 def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
     """
@@ -188,9 +298,9 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
             col_nome = col
         elif col_status is None and col_norm == 'STATUS':
             col_status = col
-        elif col_inicio is None and col_norm in {'INICIODOPERIODODEGOZO', 'INICIOPERIODODEGOZO', 'INICIODOPERIODODEGOZO'}:
+        elif col_inicio is None and ('INICIO' in col_norm and 'GOZO' in col_norm):
             col_inicio = col
-        elif col_fim is None and col_norm in {'FIMDOPERIODODEGOZO', 'FIMPERIODODEGOZO'}:
+        elif col_fim is None and ('FIM' in col_norm and 'GOZO' in col_norm):
             col_fim = col
 
     if col_nome is None or col_status is None or col_inicio is None or col_fim is None:
@@ -198,12 +308,12 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
 
     df_aux = df_ferias[[col_nome, col_status, col_inicio, col_fim]].copy()
     df_aux[col_nome] = df_aux[col_nome].astype(str).apply(limpar_nome)
-    df_aux[col_status] = df_aux[col_status].astype(str).apply(lambda x: unidecode(x).strip().upper())
+    df_aux[col_status] = df_aux[col_status].astype(str).apply(normalizar_coluna)
     df_aux[col_inicio] = pd.to_datetime(df_aux[col_inicio], dayfirst=True, errors='coerce')
     df_aux[col_fim] = pd.to_datetime(df_aux[col_fim], dayfirst=True, errors='coerce')
     df_aux = df_aux.dropna(subset=[col_nome, col_inicio, col_fim])
     df_aux = df_aux[df_aux[col_nome] != '']
-    df_aux = df_aux[df_aux[col_status].str.contains('EM FERIAS', na=False)]
+    df_aux = df_aux[df_aux[col_status].str.contains('FERI', na=False) | df_aux[col_status].str.contains('FRI', na=False)]
 
     if df_aux.empty:
         return 0
@@ -279,7 +389,7 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
         col_norm = normalizar_coluna(col)
         if col_nome is None and col_norm == 'COLABORADOR':
             col_nome = col
-        elif col_data_rescisao is None and col_norm in {'DATADERECISAO', 'DATADERESCISAO', 'RECISAO', 'RESCISAO', 'DATADERECISAO', 'DATADERESCISAO'}:
+        elif col_data_rescisao is None and ('RECISAO' in col_norm or 'RESCISAO' in col_norm):
             col_data_rescisao = col
 
     if col_nome is None or col_data_rescisao is None:
@@ -306,15 +416,13 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
     try:
         col_nome_excel = header.index('NOME') + 1
     except ValueError:
+        mapa_linhas = mapear_linhas_por_nome(workbook)
         try:
             col_nome_excel = header.index('Nome') + 1
         except ValueError:
             return 0
 
-    colunas_datas = []
-    for idx, col_name in enumerate(header, 1):
-        if col_name in mapa_datas.values() or col_name in mapa_datas.keys():
-            colunas_datas.append((idx, col_name))
+    colunas_datas = identificar_colunas_datas_workbook(workbook, mapa_datas)
 
     if not colunas_datas:
         return 0
@@ -326,15 +434,7 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
             continue
 
         data_rescisao = mapa_demitidos[nome_excel].date()
-        for col_idx, col_name in colunas_datas:
-            data_coluna = None
-            if col_name in mapa_datas:
-                data_coluna = mapa_datas[col_name]
-            else:
-                data_coluna = col_name
-
-            if isinstance(data_coluna, datetime.datetime):
-                data_coluna = data_coluna.date()
+        for col_idx, data_coluna in colunas_datas:
             if isinstance(data_coluna, datetime.date) and data_coluna >= data_rescisao:
                 cell = ws.cell(row=row_idx, column=col_idx)
                 cell.value = 'DESLIGADO'
