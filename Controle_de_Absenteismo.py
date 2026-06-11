@@ -204,6 +204,40 @@ def mapear_linhas_por_nome(workbook):
 
     return mapa_linhas
 
+def extrair_nomes_detectados_csv(df_csv, coluna_principal='COLABORADOR'):
+    """Extrai os nomes únicos detectados em um CSV/XLSX a partir da coluna principal."""
+    if df_csv is None or df_csv.empty:
+        return [], None
+
+    coluna_encontrada = None
+    for col in df_csv.columns:
+        col_norm = normalizar_coluna(col)
+        if coluna_principal == 'COLABORADOR' and col_norm == 'COLABORADOR':
+            coluna_encontrada = col
+            break
+
+    if coluna_encontrada is None:
+        for col in df_csv.columns:
+            col_norm = normalizar_coluna(col)
+            if coluna_principal in col_norm:
+                coluna_encontrada = col
+                break
+
+    if coluna_encontrada is None:
+        return [], None
+
+    nomes = (
+        df_csv[coluna_encontrada]
+        .astype(str)
+        .map(lambda x: x.strip())
+        .replace({'': None, 'nan': None, 'None': None, '<NA>': None})
+        .dropna()
+        .drop_duplicates()
+        .tolist()
+    )
+
+    return nomes, coluna_encontrada
+
 def ler_tabela_robusta(arquivo):
     """
     Lê CSV/XLSX tentando diferentes separadores, encodings e linhas de cabeçalho.
@@ -4446,6 +4480,16 @@ with col_btn_processar:
                         df_demitidos = None
 
                     if df_demitidos is not None:
+                        nomes_demitidos, col_demitidos = extrair_nomes_detectados_csv(df_demitidos)
+                        with st.expander(f"🔎 Debug Demitidos - {len(nomes_demitidos)} nome(s) detectado(s)"):
+                            st.write(f"**Coluna usada:** {col_demitidos if col_demitidos else 'não identificada'}")
+                            if nomes_demitidos:
+                                for idx_nome, nome in enumerate(nomes_demitidos, 1):
+                                    st.write(f"[{idx_nome}] {nome}")
+                            else:
+                                st.info("Nenhum colaborador foi detectado nesta planilha de demitidos.")
+
+                    if df_demitidos is not None:
                         aplicados_desligado = aplicar_desligados_na_workbook(w.book, df_demitidos, mapa_datas)
                         if aplicados_desligado == 0:
                             st.warning("⚠️ O CSV de demitidos foi carregado, mas nenhuma linha foi aplicada. Confira os nomes e a coluna de data de rescisão.")
@@ -4458,6 +4502,15 @@ with col_btn_processar:
                     if file_ferias is not None:
                         df_ferias = carregar_csv_demitidos(file_ferias)
                         if df_ferias is not None:
+                            nomes_ferias, col_ferias = extrair_nomes_detectados_csv(df_ferias)
+                            with st.expander(f"🔎 Debug Férias - {len(nomes_ferias)} nome(s) detectado(s)"):
+                                st.write(f"**Coluna usada:** {col_ferias if col_ferias else 'não identificada'}")
+                                if nomes_ferias:
+                                    for idx_nome, nome in enumerate(nomes_ferias, 1):
+                                        st.write(f"[{idx_nome}] {nome}")
+                                else:
+                                    st.info("Nenhum colaborador foi detectado nesta planilha de férias.")
+
                             aplicados_ferias = aplicar_ferias_na_workbook(w.book, df_ferias, mapa_datas)
                             if aplicados_ferias == 0:
                                 st.warning("⚠️ O CSV de férias foi carregado, mas nenhuma célula foi aplicada. Confira os nomes, status e datas de gozo.")
