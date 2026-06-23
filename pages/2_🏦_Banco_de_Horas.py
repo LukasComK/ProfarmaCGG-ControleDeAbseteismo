@@ -279,10 +279,12 @@ if file_banco_horas and file_csv_colaboradores:
                     
                     center_alignment = Alignment(horizontal="center", vertical="center")
                     left_alignment = Alignment(horizontal="left", vertical="center")
-                    
-                    # Calcula totais
-                    total_positivo = df_resumo['POSITIVO_num'].sum()
-                    total_negativo = df_resumo['NEGATIVO_num'].sum()
+                    time_format = '[h]:mm:ss'
+
+                    def horas_para_excel(horas):
+                        if pd.isna(horas):
+                            return 0
+                        return float(horas) / 24
                     
                     # ===== SEÇÃO 1: RÓTULOS E SOMA DE SALDO (Colunas B-C) =====
                     # Linha 2: Headers
@@ -309,11 +311,12 @@ if file_banco_horas and file_csv_colaboradores:
                     ws1.cell(row=3, column=2).alignment = left_alignment
                     ws1.cell(row=3, column=2).border = border
                     
-                    ws1.cell(row=3, column=3, value=horas_para_tempo(total_positivo))
+                    ws1.cell(row=3, column=3, value=f"=SUM(F2:F{len(df_resumo) + 1})")
                     ws1.cell(row=3, column=3).fill = white_fill
                     ws1.cell(row=3, column=3).font = black_font
                     ws1.cell(row=3, column=3).alignment = center_alignment
                     ws1.cell(row=3, column=3).border = border
+                    ws1.cell(row=3, column=3).number_format = time_format
                     
                     # Linha 4: NEGATIVO
                     ws1.cell(row=4, column=2, value="NEGATIVO")
@@ -322,25 +325,26 @@ if file_banco_horas and file_csv_colaboradores:
                     ws1.cell(row=4, column=2).alignment = left_alignment
                     ws1.cell(row=4, column=2).border = border
                     
-                    ws1.cell(row=4, column=3, value=horas_para_tempo(total_negativo))
+                    ws1.cell(row=4, column=3, value=f"=SUM(G2:G{len(df_resumo) + 1})")
                     ws1.cell(row=4, column=3).fill = white_fill
                     ws1.cell(row=4, column=3).font = black_font
                     ws1.cell(row=4, column=3).alignment = center_alignment
                     ws1.cell(row=4, column=3).border = border
+                    ws1.cell(row=4, column=3).number_format = time_format
                     
                     # Linha 5: Total Geral
-                    total_geral = total_positivo + abs(total_negativo)
                     ws1.cell(row=5, column=2, value="Total Geral")
                     ws1.cell(row=5, column=2).fill = header_fill_principal
                     ws1.cell(row=5, column=2).font = header_font_principal
                     ws1.cell(row=5, column=2).alignment = left_alignment
                     ws1.cell(row=5, column=2).border = border
                     
-                    ws1.cell(row=5, column=3, value=horas_para_tempo(total_geral))
+                    ws1.cell(row=5, column=3, value="=SUM(C3:C4)")
                     ws1.cell(row=5, column=3).fill = header_fill_horas
                     ws1.cell(row=5, column=3).font = header_font_horas
                     ws1.cell(row=5, column=3).alignment = center_alignment
                     ws1.cell(row=5, column=3).border = border
+                    ws1.cell(row=5, column=3).number_format = time_format
                     
                     # Headers
                     headers = ['Centro de Custo', 'POSITIVO', 'NEGATIVO']
@@ -360,10 +364,10 @@ if file_banco_horas and file_csv_colaboradores:
                     # Dados consolidação
                     for row_idx, (_, row) in enumerate(df_resumo.iterrows(), 2):
                         ws1.cell(row=row_idx, column=5, value=row['Centro de Custo'])
-                        ws1.cell(row=row_idx, column=6, value=row['POSITIVO'])
+                        ws1.cell(row=row_idx, column=6, value=horas_para_excel(row['POSITIVO_num']))
                         
                         if row['NEGATIVO_num'] > 0:
-                            ws1.cell(row=row_idx, column=7, value=row['NEGATIVO'])
+                            ws1.cell(row=row_idx, column=7, value=horas_para_excel(row['NEGATIVO_num']))
                         else:
                             ws1.cell(row=row_idx, column=7, value='')
                         
@@ -374,6 +378,8 @@ if file_banco_horas and file_csv_colaboradores:
                                 cell.alignment = left_alignment
                             else:
                                 cell.alignment = center_alignment
+                                if col in [6, 7] and cell.value != '':
+                                    cell.number_format = time_format
                     
                     # Linha de total (lado direito nas colunas E-G)
                     total_row = len(df_resumo) + 2
@@ -391,18 +397,20 @@ if file_banco_horas and file_csv_colaboradores:
                     ws1.cell(row=total_row, column=5).border = border
                     
                     # Coluna F: Horas Positivas Totais
-                    ws1.cell(row=total_row, column=6, value=horas_para_tempo(total_positivo))
+                    ws1.cell(row=total_row, column=6, value=f"=SUM(F2:F{total_row - 1})")
                     ws1.cell(row=total_row, column=6).fill = total_fill_horas
                     ws1.cell(row=total_row, column=6).font = total_font_horas
                     ws1.cell(row=total_row, column=6).alignment = center_alignment
                     ws1.cell(row=total_row, column=6).border = border
+                    ws1.cell(row=total_row, column=6).number_format = time_format
                     
                     # Coluna G: Horas Negativas Totais
-                    ws1.cell(row=total_row, column=7, value=horas_para_tempo(total_negativo))
+                    ws1.cell(row=total_row, column=7, value=f"=SUM(G2:G{total_row - 1})")
                     ws1.cell(row=total_row, column=7).fill = total_fill_horas
                     ws1.cell(row=total_row, column=7).font = total_font_horas
                     ws1.cell(row=total_row, column=7).alignment = center_alignment
                     ws1.cell(row=total_row, column=7).border = border
+                    ws1.cell(row=total_row, column=7).number_format = time_format
                     
                     ws1.column_dimensions['B'].width = 42
                     ws1.column_dimensions['C'].width = 18

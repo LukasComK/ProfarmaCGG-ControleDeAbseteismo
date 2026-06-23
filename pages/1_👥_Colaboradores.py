@@ -44,46 +44,62 @@ if uploaded_file is not None:
             df = pd.read_excel(uploaded_file)
         else:
             # Tenta diferentes encodings e separadores
+            import csv as csv_module
+            import io as io_module
+            
             encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-16']
             separators = [',', ';', '\t', '|']
             df = None
             encoding_usado = None
             separador_usado = None
+            skiprows_usado = None
             
-            for enc in encodings:
-                for sep in separators:
-                    try:
-                        # Tenta com skiprows (caso tenha título)
-                        df = pd.read_csv(uploaded_file, encoding=enc, sep=sep, skiprows=1)
-                        if len(df.columns) > 1:  # Válido se tem mais de uma coluna
-                            encoding_usado = enc
-                            separador_usado = sep
-                            st.info(f"✅ Arquivo lido com encoding: {enc}, separador: '{sep}'")
-                            break
-                        df = None
-                    except:
-                        uploaded_file.seek(0)
-                        try:
-                            # Tenta sem skiprows
-                            df = pd.read_csv(uploaded_file, encoding=enc, sep=sep)
-                            if len(df.columns) > 1:
-                                encoding_usado = enc
-                                separador_usado = sep
-                                st.info(f"✅ Arquivo lido com encoding: {enc}, separador: '{sep}'")
-                                break
-                            df = None
-                        except:
-                            uploaded_file.seek(0)
-                            continue
-                if df is not None:
-                    break
+            # Lê o arquivo como bytes uma única vez
+            uploaded_file.seek(0)
+            file_bytes = uploaded_file.read()
             
-            if df is None:
-                raise ValueError("Não foi possível ler o arquivo com nenhum encoding/separador suportado")
+            # Detecta se há linha de título "Colaboradores"
+            primeira_linha = file_bytes[:200].decode('latin-1', errors='ignore')
+            tem_titulo = 'colaborador' in primeira_linha.lower()[:100]
+            
+            st.write(f"🔍 **Debug:** Primeiros caracteres: `{primeira_linha[:100]}`")
+            st.write(f"🔍 **Debug:** Título detectado: {'Sim' if tem_titulo else 'Não'}")
+            
+            # MÉTODO ÚNICO: Leitura direta com os parâmetros corretos para este arquivo
+            st.write("🔄 **Lendo arquivo CSV...**")
+            try:
+                uploaded_file.seek(0)
+                # Este arquivo usa: encoding latin-1, separador ;, e tem linha de título "Colaboradores"
+                df = pd.read_csv(uploaded_file, sep=';', encoding='latin-1', skiprows=1,
+                                engine='python', on_bad_lines='skip')
+                
+                if len(df.columns) > 3:
+                    encoding_usado = 'latin-1'
+                    separador_usado = ';'
+                    skiprows_usado = 1
+                    st.success(f"✅ Arquivo lido com sucesso!")
+                    st.write(f"   - Encoding: `latin-1`")
+                    st.write(f"   - Separador: `;`")
+                    st.write(f"   - Skip rows: `1`")
+                    st.write(f"   - Colunas encontradas: `{len(df.columns)}`")
+                else:
+                    st.error(f"❌ Arquivo lido mas com apenas {len(df.columns)} colunas (esperado > 3)")
+                    df = None
+            except Exception as e:
+                st.error(f"❌ Erro ao ler arquivo: {str(e)}")
+                import traceback
+                st.write(traceback.format_exc())
+                df = None
         
         st.success(f"✅ Arquivo carregado: {uploaded_file.name}")
         st.write(f"Total de linhas: {len(df)}")
         st.write(f"Colunas encontradas: {len(df.columns)}")
+        
+        # Preview do arquivo carregado
+        with st.expander("📋 Preview do Arquivo Carregado (primeiras 10 linhas)", expanded=False):
+            st.dataframe(df.head(10), use_container_width=True)
+            st.write(f"**Dimensões:** {df.shape[0]} linhas × {df.shape[1]} colunas")
+            st.write(f"**Colunas:** {list(df.columns)}")
         
         # Valida o CSV
         é_válido, erros, colunas = validar_csv(df)

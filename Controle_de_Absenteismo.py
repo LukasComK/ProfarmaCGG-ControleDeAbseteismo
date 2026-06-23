@@ -1,4 +1,4 @@
-# Ferramenta de Lançamento de Absenteísmo com Busca LIKE
+ # Ferramenta de Lançamento de Absenteísmo com Busca LIKE
 import streamlit as st
 import pandas as pd
 from unidecode import unidecode
@@ -114,6 +114,12 @@ def limpar_nome(nome):
         return unidecode(nome).upper().strip()
     return ""
 
+def chave_nome(nome):
+    """Normaliza nome para comparação exata, colapsando espaços e removendo acentos."""
+    texto = unidecode(str(nome)).upper().strip()
+    texto = re.sub(r'\s+', ' ', texto)
+    return texto
+
 def normalizar_coluna(nome_coluna):
     texto = unidecode(str(nome_coluna)).upper()
     return re.sub(r'[^A-Z0-9]', '', texto)
@@ -152,34 +158,8 @@ def identificar_colunas_datas_workbook(workbook, mapa_datas):
     return colunas_datas
 
 def nomes_compatíveis(nome_a, nome_b):
-    """Compara nomes ignorando acentos, pontuação e pequenas variações de escrita."""
-    texto_a = limpar_nome(nome_a)
-    texto_b = limpar_nome(nome_b)
-    if not texto_a or not texto_b:
-        return False
-
-    if texto_a == texto_b:
-        return True
-
-    if texto_a in texto_b or texto_b in texto_a:
-        return True
-
-    texto_a_compacto = re.sub(r'\s+', '', texto_a)
-    texto_b_compacto = re.sub(r'\s+', '', texto_b)
-    if texto_a_compacto == texto_b_compacto:
-        return True
-
-    if SequenceMatcher(None, texto_a, texto_b).ratio() >= 0.92:
-        return True
-
-    tokens_a = {token for token in texto_a.split() if token}
-    tokens_b = {token for token in texto_b.split() if token}
-    if tokens_a and tokens_b:
-        comuns = tokens_a.intersection(tokens_b)
-        if len(comuns) >= 2:
-            return True
-
-    return False
+    """Compara nomes de forma exata após normalização canônica."""
+    return chave_nome(nome_a) == chave_nome(nome_b)
 
 def mapear_linhas_por_nome(workbook):
     """Cria um mapa de nomes normalizados para as linhas da aba Dados."""
@@ -198,7 +178,7 @@ def mapear_linhas_por_nome(workbook):
 
     mapa_linhas = {}
     for row_idx in range(2, ws.max_row + 1):
-        nome_linha = limpar_nome(ws.cell(row=row_idx, column=col_nome).value)
+        nome_linha = chave_nome(ws.cell(row=row_idx, column=col_nome).value)
         if nome_linha:
             mapa_linhas.setdefault(nome_linha, []).append(row_idx)
 
@@ -226,16 +206,12 @@ def detectar_coluna_colaborador(df_csv):
 
 def encontrar_linhas_compativeis(nome_csv, mapa_linhas):
     """Busca linhas na mestra por nome exato ou compatível."""
-    nome_alvo = limpar_nome(nome_csv)
+    nome_alvo = chave_nome(nome_csv)
     if not nome_alvo:
         return []
 
     if nome_alvo in mapa_linhas:
         return mapa_linhas[nome_alvo]
-
-    for nome_mestra, linhas in mapa_linhas.items():
-        if nomes_compatíveis(nome_mestra, nome_alvo):
-            return linhas
 
     return []
 
@@ -272,8 +248,8 @@ def ler_tabela_robusta(arquivo):
         if arquivo.name.endswith('.xlsx'):
             return pd.read_excel(arquivo)
 
-        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
-        separadores = [';', ',', '\t', '|']
+        encodings = ['latin-1', 'utf-8', 'iso-8859-1', 'cp1252']
+        separadores = [';', ',', '\t']
         melhor_df = None
         melhor_pontuacao = -1
 
@@ -314,6 +290,57 @@ def ler_tabela_robusta(arquivo):
 
     return melhor_df
 
+
+def carregar_csv_colaboradores_robusto(arquivo, min_colunas=4):
+    """
+    Lê CSV/XLSX de colaboradores/base de ativos com tolerância a encoding,
+    separador e linha-título extra.
+
+    Retorna:
+    - (df, erro)
+    """
+    if arquivo is None:
+        return None, None
+
+    try:
+        arquivo.seek(0)
+        if arquivo.name.endswith('.xlsx'):
+            return pd.read_excel(arquivo, header=None), None
+
+        encodings = ['latin-1', 'iso-8859-1', 'cp1252', 'utf-8-sig', 'utf-8']
+        tentativas = [
+            {'sep': ';', 'skiprows': 1},
+            {'sep': ';', 'skiprows': 0},
+            {'sep': ',', 'skiprows': 1},
+            {'sep': ',', 'skiprows': 0},
+            {'sep': '\t', 'skiprows': 1},
+            {'sep': '|', 'skiprows': 1},
+        ]
+
+        ultimo_erro = None
+        for enc in encodings:
+            for tentativa in tentativas:
+                try:
+                    arquivo.seek(0)
+                    df = pd.read_csv(
+                        arquivo,
+                        encoding=enc,
+                        sep=tentativa['sep'],
+                        skiprows=tentativa['skiprows'],
+                        header=0,
+                        engine='python',
+                        on_bad_lines='skip'
+                    )
+                    if df is not None and len(df.columns) >= min_colunas:
+                        return df, None
+                except Exception as e:
+                    ultimo_erro = f"Erro com encoding={enc}, sep={tentativa['sep']}: {str(e)}"
+                    continue
+
+        return None, ultimo_erro or 'Não foi possível ler o CSV de colaboradores.'
+    except Exception as e:
+        return None, str(e)
+
 def encontrar_linha_nome(ws, nome_procurado, col_nome_excel=1):
     """Encontra a linha de um colaborador na aba Dados usando nome normalizado."""
     nome_norm = limpar_nome(nome_procurado)
@@ -352,9 +379,9 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
         col_norm = normalizar_coluna(col)
         if col_status is None and 'STATUS' in col_norm:
             col_status = col
-        elif col_inicio is None and ('GOZO' in col_norm and ('INICIO' in col_norm or 'INIC' in col_norm)):
+        elif col_inicio is None and 'GOZO' in col_norm and ('INICIO' in col_norm or 'INIC' in col_norm or 'INCIO' in col_norm):
             col_inicio = col
-        elif col_fim is None and ('FIM' in col_norm and 'GOZO' in col_norm):
+        elif col_fim is None and 'GOZO' in col_norm and ('FIM' in col_norm or 'FINAL' in col_norm or 'TERM' in col_norm):
             col_fim = col
 
     if col_nome is None or col_status is None or col_inicio is None or col_fim is None:
@@ -367,7 +394,11 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
     df_aux[col_fim] = pd.to_datetime(df_aux[col_fim], dayfirst=True, errors='coerce')
     df_aux = df_aux.dropna(subset=[col_nome, col_inicio, col_fim])
     df_aux = df_aux[df_aux[col_nome] != '']
-    df_aux = df_aux[df_aux[col_status].str.contains('FERI', na=False) | df_aux[col_status].str.contains('FRI', na=False)]
+    df_aux = df_aux[
+        df_aux[col_status].str.contains('FERI', na=False)
+        | df_aux[col_status].str.contains('FRI', na=False)
+        | df_aux[col_status].str.contains('GOZ', na=False)
+    ]
 
     if df_aux.empty:
         return 0
@@ -379,6 +410,13 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
     if not colunas_datas:
         return 0
 
+    datas_mestra = [data_coluna for _, data_coluna in colunas_datas if isinstance(data_coluna, datetime.date)]
+    if not datas_mestra:
+        return 0
+
+    primeira_data_mestra = min(datas_mestra)
+    ultima_data_mestra = max(datas_mestra)
+
     mapa_linhas = mapear_linhas_por_nome(workbook)
 
     # Usa o primeiro registro válido por colaborador, caso existam duplicados.
@@ -386,9 +424,15 @@ def aplicar_ferias_na_workbook(workbook, df_ferias, mapa_datas):
     aplicados = 0
 
     for _, row in df_aux.iterrows():
-        nome_excel = row[col_nome]
+        nome_excel = chave_nome(row[col_nome])
         data_inicio = row[col_inicio].date()
         data_fim = row[col_fim].date()
+
+        if data_fim < primeira_data_mestra or data_inicio > ultima_data_mestra:
+            continue
+
+        data_inicio = max(data_inicio, primeira_data_mestra)
+        data_fim = min(data_fim, ultima_data_mestra)
 
         linhas_compativeis = encontrar_linhas_compativeis(nome_excel, mapa_linhas)
         for row_idx in linhas_compativeis:
@@ -430,11 +474,26 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
     if col_nome is None or col_data_rescisao is None:
         return 0
 
-    df_aux = df_demitidos[[col_nome, col_data_rescisao]].copy()
+    col_tipo_rescisao = None
+    for col in df_demitidos.columns:
+        col_norm = normalizar_coluna(col)
+        if 'TIPODERESCISAO' in col_norm or 'TIPORESCISAO' in col_norm:
+            col_tipo_rescisao = col
+            break
+
+    colunas_base = [col_nome, col_data_rescisao]
+    if col_tipo_rescisao is not None:
+        colunas_base.append(col_tipo_rescisao)
+
+    df_aux = df_demitidos[colunas_base].copy()
     df_aux[col_nome] = df_aux[col_nome].astype(str).apply(limpar_nome)
     df_aux[col_data_rescisao] = pd.to_datetime(df_aux[col_data_rescisao], dayfirst=True, errors='coerce')
     df_aux = df_aux.dropna(subset=[col_nome, col_data_rescisao])
     df_aux = df_aux[df_aux[col_nome] != '']
+
+    if col_tipo_rescisao is not None:
+        df_aux[col_tipo_rescisao] = df_aux[col_tipo_rescisao].astype(str).apply(normalizar_coluna)
+        df_aux = df_aux[~df_aux[col_tipo_rescisao].str.contains('5TRANSFERENCIASEMONUS', na=False)]
 
     if df_aux.empty:
         return 0
@@ -454,6 +513,13 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
     if not colunas_datas:
         return 0
 
+    datas_mestra = [data_coluna for _, data_coluna in colunas_datas if isinstance(data_coluna, datetime.date)]
+    if not datas_mestra:
+        return 0
+
+    primeira_data_mestra = min(datas_mestra)
+    ultima_data_mestra = max(datas_mestra)
+
     aplicados = 0
     for nome_csv, data_rescisao_ts in mapa_demitidos.items():
         linhas_compativeis = encontrar_linhas_compativeis(nome_csv, mapa_linhas)
@@ -461,9 +527,13 @@ def aplicar_desligados_na_workbook(workbook, df_demitidos, mapa_datas):
             continue
 
         data_rescisao = data_rescisao_ts.date()
+        if data_rescisao > ultima_data_mestra:
+            continue
+
+        data_inicio_aplicacao = max(data_rescisao, primeira_data_mestra)
         for row_idx in linhas_compativeis:
             for col_idx, data_coluna in colunas_datas:
-                if isinstance(data_coluna, datetime.date) and data_coluna >= data_rescisao:
+                if isinstance(data_coluna, datetime.date) and data_inicio_aplicacao <= data_coluna <= ultima_data_mestra:
                     cell = ws.cell(row=row_idx, column=col_idx)
                     cell.value = 'DESLIGADO'
                     cell.fill = PatternFill(start_color=MAPA_CORES['DESLIGADO'], end_color=MAPA_CORES['DESLIGADO'], fill_type='solid')
@@ -2836,9 +2906,10 @@ col1, col2 = st.columns(2)
 with col1:
     st.header("Upload")
     file_mestra = st.file_uploader("Planilha MESTRA", type=["xlsx", "xlsm"])
-    file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking)", type=["csv", "xlsx", "xlsm"])
+    file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking e atualizar Situação)", type=["csv", "xlsx", "xlsm"])
     file_demitidos = st.file_uploader("CSV de Demitidos (opcional)", type=["csv", "xlsx", "xlsm"])
-    file_ferias = st.file_uploader("CSV de Férias (opcional)", type=["csv", "xlsx", "xlsm"])
+    file_ferias_1 = st.file_uploader("CSV de Férias 1 (opcional)", type=["csv", "xlsx", "xlsm"])
+    file_ferias_2 = st.file_uploader("CSV de Férias 2 (opcional)", type=["csv", "xlsx", "xlsm"])
     files_encarregado = st.file_uploader("Planilhas ENCARREGADO (múltiplas permitidas)", type=["xlsx", "xlsm"], accept_multiple_files=True)
 
 with col2:
@@ -3212,6 +3283,30 @@ if files_encarregado:
     st.write("**👤 Informações do Encarregado:**")
     nome_encarregado = st.text_input("Nome do Encarregado:", placeholder="Digite o nome do encarregado", key=f"encarregado_{idx_arquivo_atual}")
     st.session_state.nome_encarregado = nome_encarregado
+    
+    # Filtro de Centro de Custo para Porcentagens ABS
+    st.write("**🏢 Centro de Custo (Filtro para Porcentagens ABS):**")
+    centro_custo_opcoes = [
+        "Todos",
+        "D&E LCFA | CD-RJ",
+        "CRDK D&E LCFA | CD-RJ",
+        "CRDK D&E|CD-RJ HB",
+        "CRDK FOB LCFA | CD-RJ",
+        "CRDK LCFA | CD-RJ",
+        "M&A | LOCAFARMA CD-RJ",
+        "PROJETO INTERPRISE - MOVIMENTACAO E ARMAZENAGEM",
+        "MOVIMENTACAO E ARMAZENAGEM",
+        "BLOQ",
+        "CD-RJ | FOB"
+    ]
+    centro_custo_selecionado = st.selectbox(
+        "Selecione o Centro de Custo:",
+        centro_custo_opcoes,
+        index=0,
+        key=f"centro_custo_{idx_arquivo_atual}",
+        help="Filtra as porcentagens ABS por centro de custo específico"
+    )
+    st.session_state.centro_custo_selecionado = centro_custo_selecionado
 
     # Salva configuração deste arquivo
     nome_arquivo = file_encarregado.name
@@ -3462,46 +3557,10 @@ with col_btn_processar:
                     df_csv_base = None
                     if file_colaboradores is not None:
                         try:
-                            file_colaboradores.seek(0)
-                            if file_colaboradores.name.endswith('.xlsx'):
-                                df_csv_base = pd.read_excel(file_colaboradores, header=None)
-                            else:
-                                # CSV: a base de ativos costuma ter uma linha-título antes do cabeçalho
-                                # e usa ';' como separador.
-                                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
-                                tentativas = [
-                                    {'sep': ';', 'skiprows': 1},
-                                    {'sep': None, 'skiprows': 1, 'engine': 'python'},
-                                    {'sep': ',', 'skiprows': 1},
-                                    {'sep': '\t', 'skiprows': 1},
-                                    {'sep': '|', 'skiprows': 1},
-                                ]
-                                for enc in encodings:
-                                    for tentativa in tentativas:
-                                        try:
-                                            file_colaboradores.seek(0)
-                                            params = {
-                                                'encoding': enc,
-                                                'header': None,
-                                                'skiprows': tentativa['skiprows']
-                                            }
-                                            if tentativa.get('engine') is not None:
-                                                params['engine'] = tentativa['engine']
-                                            params['sep'] = tentativa['sep']
-
-                                            df_csv_base = pd.read_csv(file_colaboradores, **params)
-
-                                            # Só aceita leituras que realmente formem colunas suficientes
-                                            if len(df_csv_base.columns) > 3:
-                                                break
-                                            df_csv_base = None
-                                        except:
-                                            df_csv_base = None
-                                            continue
-                                    if df_csv_base is not None:
-                                        break
+                            df_csv_base, erro_leitura_csv_base = carregar_csv_colaboradores_robusto(file_colaboradores)
                         except Exception as e:
-                            pass  # Se falhar, continua sem CSV
+                            df_csv_base = None  # Se falhar, continua sem CSV
+                            erro_leitura_csv_base = str(e)
 
                     for item in st.session_state.insercoes_mestra_pendentes:
                         nome_novo = str(item.get('nome', '')).strip()
@@ -3551,6 +3610,134 @@ with col_btn_processar:
                             f"⚠️ {inseridos_sem_modelo} nome(s) não foram encontrados no CSV de base de ativos. "
                             "Nesses casos, os campos de função/área/turno podem ficar em branco."
                         )
+                
+                # ===== ATUALIZAR SITUAÇÃO A PARTIR DO CSV DE COLABORADORES =====
+                if file_colaboradores is not None:
+                    try:
+                        st.info("📊 Atualizando situação dos colaboradores a partir do CSV de Colaboradores...")
+                        df_colab_ativos, erro_leitura = carregar_csv_colaboradores_robusto(file_colaboradores)
+                        
+                        # DEBUG: Mostra informações do CSV
+                        with st.expander("🔍 DEBUG - Informações do CSV de Colaboradores"):
+                            st.write(f"**Arquivo:** {file_colaboradores.name}")
+                            st.write(f"**Tipo:** {'XLSX' if file_colaboradores.name.endswith('.xlsx') else 'CSV'}")
+                            
+                            if erro_leitura:
+                                st.error(f"**Erro na leitura:** {erro_leitura}")
+                            
+                            if df_colab_ativos is not None:
+                                st.write(f"**Total de linhas:** {len(df_colab_ativos)}")
+                                st.write(f"**Total de colunas:** {len(df_colab_ativos.columns)}")
+                                st.write(f"**Nomes das colunas (primeiras 10):** {list(df_colab_ativos.columns[:10])}")
+                                
+                                # Mostra as primeiras 5 linhas
+                                st.write("**Primeiras 5 linhas do CSV:**")
+                                df_preview = df_colab_ativos.head(5).copy()
+                                st.dataframe(df_preview, width='stretch')
+                                
+                                # Tenta identificar coluna de colaborador (índice 3 = D)
+                                if len(df_colab_ativos.columns) > 3:
+                                    col_colab_idx = 3
+                                    st.write(f"**Coluna D (índice 3) - Possível Colaborador:**")
+                                    st.write(df_colab_ativos.iloc[:5, col_colab_idx].tolist())
+                                
+                                # Tenta identificar coluna de situação (índice 8 = I)
+                                if len(df_colab_ativos.columns) > 8:
+                                    col_sit_idx = 8
+                                    st.write(f"**Coluna I (índice 8) - Possível Situação:**")
+                                    st.write(df_colab_ativos.iloc[:5, col_sit_idx].tolist())
+                                
+                                # Busca por colunas com "situacao" no nome
+                                st.write("**Buscando colunas com 'SITUACAO' no nome:**")
+                                encontrou_situacao = False
+                                for idx, col in enumerate(df_colab_ativos.columns):
+                                    col_norm = normalizar_coluna(str(col))
+                                    if 'SITUACAO' in col_norm or 'SITUAÇÃO' in col_norm:
+                                        st.write(f"  - Índice {idx}: {col}")
+                                        st.write(f"    Valores: {df_colab_ativos.iloc[:5, idx].tolist()}")
+                                        encontrou_situacao = True
+                                if not encontrou_situacao:
+                                    st.warning("  Nenhuma coluna com 'SITUACAO' encontrada")
+                            else:
+                                st.error("❌ DataFrame não pôde ser carregado")
+                                st.warning("**Possíveis causas:**")
+                                st.write("- Arquivo não é um CSV válido")
+                                st.write("- Encoding não suportado (tente UTF-8 ou Latin-1)")
+                                st.write("- Separador não identificado (tente ; ou ,)")
+                                st.write("- Arquivo corrompido ou vazio")
+                        
+                        if df_colab_ativos is not None and len(df_colab_ativos.columns) > 3:
+                            # Detecta coluna de colaborador (índice 3 = coluna D)
+                            col_colaborador_csv = df_colab_ativos.columns[3] if len(df_colab_ativos.columns) > 3 else None
+                            
+                            # Detecta coluna de situação (índice 8 = coluna I, "Descrição Situação")
+                            col_situacao_csv = None
+                            for idx, col in enumerate(df_colab_ativos.columns):
+                                if idx == 8:  # Coluna I (índice 8)
+                                    col_situacao_csv = col
+                                    break
+                            
+                            # Se não encontrou pelo índice, busca por nome
+                            if col_situacao_csv is None:
+                                for col in df_colab_ativos.columns:
+                                    col_norm = normalizar_coluna(str(col))
+                                    if 'SITUACAO' in col_norm or 'SITUAÇÃO' in col_norm:
+                                        col_situacao_csv = col
+                                        break
+                            
+                            st.write(f"🔎 **Coluna Colaborador detectada:** {col_colaborador_csv}")
+                            st.write(f"🔎 **Coluna Situação detectada:** {col_situacao_csv}")
+                            
+                            if col_colaborador_csv and col_situacao_csv:
+                                # Cria dicionário {nome_limpo: situacao}
+                                mapa_situacoes = {}
+                                for idx, row in df_colab_ativos.iterrows():
+                                    nome_colab = str(row[col_colaborador_csv]).strip() if pd.notna(row[col_colaborador_csv]) else ''
+                                    situacao_colab = str(row[col_situacao_csv]).strip() if pd.notna(row[col_situacao_csv]) else ''
+                                    
+                                    if nome_colab:
+                                        nome_limpo = limpar_nome(nome_colab)
+                                        mapa_situacoes[nome_limpo] = situacao_colab
+                                
+                                # Mostra os 5 primeiros mapeamentos
+                                with st.expander("📋 DEBUG - Primeiros 5 mapeamentos (Nome → Situação)"):
+                                    contador = 0
+                                    for nome, sit in mapa_situacoes.items():
+                                        if contador < 5:
+                                            st.write(f"• {nome} → {sit}")
+                                            contador += 1
+                                        else:
+                                            break
+                                    st.write(f"**Total de mapeamentos:** {len(mapa_situacoes)}")
+                                
+                                # Atualiza coluna SITUAÇÃO na planilha mestra
+                                atualizados = 0
+                                nao_encontrados = []
+                                for idx_mest in df_mest.index:
+                                    nome_mest = str(df_mest.at[idx_mest, 'NOME']).strip() if pd.notna(df_mest.at[idx_mest, 'NOME']) else ''
+                                    if nome_mest:
+                                        nome_limpo_mest = limpar_nome(nome_mest)
+                                        if nome_limpo_mest in mapa_situacoes:
+                                            nova_situacao = mapa_situacoes[nome_limpo_mest]
+                                            # Atualiza apenas se for diferente
+                                            situacao_atual = str(df_mest.at[idx_mest, 'SITUAÇÃO']) if 'SITUAÇÃO' in df_mest.columns else ''
+                                            if situacao_atual != nova_situacao:
+                                                df_mest.at[idx_mest, 'SITUAÇÃO'] = nova_situacao
+                                                atualizados += 1
+                                
+                                st.success(f"✅ Situação atualizada para {atualizados} colaboradores!")
+                            else:
+                                st.warning("⚠️ Não foi possível detectar as colunas de colaborador e situação no CSV de Colaboradores.")
+                                st.error(f"   Coluna Colaborador: {col_colaborador_csv}")
+                                st.error(f"   Coluna Situação: {col_situacao_csv}")
+                        else:
+                            st.warning("⚠️ CSV de Colaboradores não pôde ser lido ou não tem colunas suficientes.")
+                            if df_colab_ativos is not None:
+                                st.error(f"   Total de colunas encontradas: {len(df_colab_ativos.columns)}")
+                    except Exception as e:
+                        st.warning(f"⚠️ Erro ao processar CSV de Colaboradores: {str(e)}")
+                        import traceback
+                        st.error(traceback.format_exc())
                 
                 df_mest['NOME_LIMPO'] = df_mest['NOME'].apply(limpar_nome)
                 
@@ -3955,6 +4142,7 @@ with col_btn_processar:
                                 f'=SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
                                 f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))*1)'
                                 f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK FOB LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
+                                f'+SUMPRODUCT(ISNUMBER(SEARCH("D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
                                 f'+SUMPRODUCT(ISNUMBER(SEARCH("CRDK LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))*1)'
                             )
                             cell_hc_crdk.value = hc_crdk_formula
@@ -3975,7 +4163,7 @@ with col_btn_processar:
                     cell_total_hc_value.font = Font(bold=True)
                     cell_total_hc_value.alignment = Alignment(horizontal='center', vertical='center')
                     
-                    # Linha 8: Headers com datas para porcentagens - TODOS os dias do mês
+                    # Linha 7: Headers com datas para porcentagens - TODOS os dias do mês
                     ws_porcentagens.cell(row=8, column=1, value='Área')
                     
                     # Gera todos os dias do mês
@@ -4068,6 +4256,7 @@ with col_btn_processar:
                                             f'(ISNUMBER(SEARCH("CRDK D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))'
                                             f'+ISNUMBER(SEARCH("CRDK D&E|CD-RJ HB",Dados!{area_col_letter}:${area_col_letter}))'
                                             f'+ISNUMBER(SEARCH("CRDK FOB LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))'
+                                            f'+ISNUMBER(SEARCH("D&E LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter}))'
                                             f'+ISNUMBER(SEARCH("CRDK LCFA | CD-RJ",Dados!{area_col_letter}:${area_col_letter})))*'
                                             f'((Dados!{data_col_letter}:${data_col_letter}="FI")+(Dados!{data_col_letter}:${data_col_letter}="FA")))'
                                         )
@@ -4098,7 +4287,12 @@ with col_btn_processar:
                                         hc_cell = 'B4'  # HC está em B4
                                     else:  # CRDK / D&E - %
                                         contagem_row = row_pct - 1  # Linha anterior (CRDK / D&E)
-                                        hc_cell = 'B5'  # HC está em B5
+                                        # Verifica se deve usar HC filtrado de D&E LCFA | CD-RJ (linha 7)
+                                        centro_custo_filtro = st.session_state.get('centro_custo_selecionado', 'Todos')
+                                        if centro_custo_filtro == 'D&E LCFA | CD-RJ':
+                                            hc_cell = 'B7'  # Usa HC específico de D&E LCFA | CD-RJ
+                                        else:
+                                            hc_cell = 'B5'  # Usa HC total de CRDK / D&E
                                     
                                     col_letter = get_column_letter(col_idx)
                                     formula_pct = f'=ROUND(IFERROR(({col_letter}{contagem_row}/{hc_cell})*100, 0), 2)'
@@ -4474,16 +4668,6 @@ with col_btn_processar:
                         df_demitidos = None
 
                     if df_demitidos is not None:
-                        nomes_demitidos, col_demitidos = extrair_nomes_detectados_csv(df_demitidos)
-                        with st.expander(f"🔎 Debug Demitidos - {len(nomes_demitidos)} nome(s) detectado(s)"):
-                            st.write(f"**Coluna usada:** {col_demitidos if col_demitidos else 'não identificada'}")
-                            if nomes_demitidos:
-                                for idx_nome, nome in enumerate(nomes_demitidos, 1):
-                                    st.write(f"[{idx_nome}] {nome}")
-                            else:
-                                st.info("Nenhum colaborador foi detectado nesta planilha de demitidos.")
-
-                    if df_demitidos is not None:
                         aplicados_desligado = aplicar_desligados_na_workbook(w.book, df_demitidos, mapa_datas)
                         if aplicados_desligado == 0:
                             st.warning("⚠️ O CSV de demitidos foi carregado, mas nenhuma linha foi aplicada. Confira os nomes e a coluna de data de rescisão.")
@@ -4493,23 +4677,19 @@ with col_btn_processar:
                     # ===== CARREGAR E MARCAR FÉRIAS =====
                     status_text.info("🌴 Aplicando férias...")
                     progress_bar.progress(58)
-                    if file_ferias is not None:
-                        df_ferias = carregar_csv_demitidos(file_ferias)
-                        if df_ferias is not None:
-                            nomes_ferias, col_ferias = extrair_nomes_detectados_csv(df_ferias)
-                            with st.expander(f"🔎 Debug Férias - {len(nomes_ferias)} nome(s) detectado(s)"):
-                                st.write(f"**Coluna usada:** {col_ferias if col_ferias else 'não identificada'}")
-                                if nomes_ferias:
-                                    for idx_nome, nome in enumerate(nomes_ferias, 1):
-                                        st.write(f"[{idx_nome}] {nome}")
-                                else:
-                                    st.info("Nenhum colaborador foi detectado nesta planilha de férias.")
+                    arquivos_ferias = [arquivo for arquivo in [file_ferias_1, file_ferias_2] if arquivo is not None]
+                    if arquivos_ferias:
+                        total_aplicados_ferias = 0
+                        for arquivo_ferias in arquivos_ferias:
+                            df_ferias = carregar_csv_demitidos(arquivo_ferias)
+                            if df_ferias is None:
+                                st.warning(f"⚠️ Não foi possível ler o arquivo de férias {arquivo_ferias.name}. O relatório seguirá sem aplicar FÉRIAS-BH nesse arquivo.")
+                                continue
 
-                            aplicados_ferias = aplicar_ferias_na_workbook(w.book, df_ferias, mapa_datas)
-                            if aplicados_ferias == 0:
-                                st.warning("⚠️ O CSV de férias foi carregado, mas nenhuma célula foi aplicada. Confira os nomes, status e datas de gozo.")
-                        else:
-                            st.warning("⚠️ Não foi possível ler o CSV de férias. O relatório seguirá sem aplicar FÉRIAS-BH.")
+                            total_aplicados_ferias += aplicar_ferias_na_workbook(w.book, df_ferias, mapa_datas)
+
+                        if total_aplicados_ferias == 0:
+                            st.warning("⚠️ Os CSVs de férias foram carregados, mas nenhuma célula foi aplicada. Confira os nomes, status e datas de gozo.")
                     
                     # ===== LER DATAFRAME ATUALIZADO DO WORKBOOK (COM MARCAÇÕES) =====
                     status_text.info("📖 Lendo dados finais...")
@@ -4524,25 +4704,11 @@ with col_btn_processar:
                     if file_colaboradores is not None:
                         try:
                             # Carrega CSV de colaboradores
-                            file_colaboradores.seek(0)
                             if file_colaboradores.name.endswith('.xlsx'):
+                                file_colaboradores.seek(0)
                                 df_colab_para_ranking = pd.read_excel(file_colaboradores)
                             else:
-                                # Tenta diferentes encodings e separadores para CSV
-                                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
-                                separadores = [',', ';', '\t', '|']
-                                
-                                for enc in encodings:
-                                    for sep in separadores:
-                                        try:
-                                            file_colaboradores.seek(0)
-                                            # Skip primeira linha se for só "Colaboradores"
-                                            df_colab_para_ranking = pd.read_csv(file_colaboradores, encoding=enc, sep=sep, skiprows=1)
-                                            break
-                                        except Exception as e:
-                                            continue
-                                    if df_colab_para_ranking is not None:
-                                        break
+                                df_colab_para_ranking, erro_leitura_ranking = carregar_csv_colaboradores_robusto(file_colaboradores)
                         except Exception as e:
                             st.warning(f"⚠️ Não foi possível carregar CSV de colaboradores: {str(e)}")
                     
