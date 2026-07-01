@@ -212,30 +212,35 @@ def processar_ocorrencia(
     termo_occ_norm = unidecode(termo_ocorrencia).strip().lower()
     termo_just_norm = unidecode(termo_justificativa).strip().lower()
     
+    # Escapa caracteres especiais de regex como <= e >
+    import re as regex_module
+    termo_occ_escape = regex_module.escape(termo_occ_norm)
+    termo_just_escape = regex_module.escape(termo_just_norm)
+    
     occ_norm = df[col_ocorrencia].apply(safe_unidecode)
     just_norm = df[col_justificativa].apply(safe_unidecode)
     
-    # Filtra pela ocorrência
+    # Filtra pela ocorrência (usa escape para caracteres especiais)
     mask_occ = occ_norm == termo_occ_norm
     if mask_occ.sum() == 0:
-        mask_occ = occ_norm.str.contains(termo_occ_norm, na=False)
+        mask_occ = occ_norm.str.contains(termo_occ_escape, na=False, regex=True)
     if mask_occ.sum() == 0:
         palavras = termo_occ_norm.split()
         for palavra in reversed(palavras):
             if len(palavra) > 3:
-                mask_occ = occ_norm.str.contains(palavra, na=False)
+                mask_occ = occ_norm.str.contains(regex_module.escape(palavra), na=False, regex=True)
                 if mask_occ.sum() > 0:
                     break
     
-    # Filtra pela justificativa
+    # Filtra pela justificativa (usa escape para caracteres especiais)
     mask_just = just_norm == termo_just_norm
     if mask_just.sum() == 0:
-        mask_just = just_norm.str.contains(termo_just_norm, na=False)
+        mask_just = just_norm.str.contains(termo_just_escape, na=False, regex=True)
     if mask_just.sum() == 0:
         palavras = termo_just_norm.split()
         for palavra in reversed(palavras):
             if len(palavra) > 3:
-                mask_just = just_norm.str.contains(palavra, na=False)
+                mask_just = just_norm.str.contains(regex_module.escape(palavra), na=False, regex=True)
                 if mask_just.sum() > 0:
                     break
     
