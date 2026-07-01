@@ -258,6 +258,15 @@ def processar_ocorrencia(
         df_ranking = pd.DataFrame(columns=['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências'])
         return df_detalhe, df_ranking
     
+    # DEBUG: mostra amostra dos dados filtrados
+    if len(df_filtrado) > 0:
+        st.session_state[termo_occ_norm] = {
+            'qtd_linhas': len(df_filtrado),
+            'colaboradores': df_filtrado[col_nome].nunique() if col_nome else 0,
+            'amostra_justificativa': df_filtrado[col_justificativa].iloc[0] if len(df_filtrado) > 0 and col_justificativa else 'N/A',
+            'amostra_data': df_filtrado[col_data].iloc[0] if len(df_filtrado) > 0 and col_data else 'N/A'
+        }
+    
     df_filtrado['Data_Formatada'] = df_filtrado[col_data].apply(formatar_data_br)
     df_filtrado['Tempo_Servico'] = df_filtrado[col_data_adm].apply(calcular_tempo_servico)
     
