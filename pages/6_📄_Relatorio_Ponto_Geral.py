@@ -334,20 +334,26 @@ def processar_ocorrencia(
         cols_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
     except:
         pass
-    # Reordena colunas apenas se todas existirem
-    cols_ordenadas = cols_fixas_no_df + cols_datas
-    cols_existentes = [c for c in cols_ordenadas if c in df_detalhe.columns]
-    df_detalhe = df_detalhe[cols_existentes]
-    
-    # Ranking (sumarizado) - usa EXATAMENTE as colunas que existem no DataFrame
-    # cols_fixas_no_df já foi calculado dinamicamente e só contém colunas que existem
-    df_ranking = df_detalhe[cols_fixas_no_df].copy()
-    
-    # Conta quantas colunas de data têm conteúdo
+    # Adiciona colunas resumidas (Quantidade e Datas concatenadas) ANTES das colunas de data
     def contar_ocorrencias(row):
         return sum(1 for c in cols_datas if row[c] != '' and pd.notna(row[c]))
     
-    df_ranking['Quantidade Ocorrências'] = df_detalhe.apply(contar_ocorrencias, axis=1)
+    def concatenar_datas(row):
+        datas = [c for c in cols_datas if row[c] != '' and pd.notna(row[c])]
+        return ', '.join(sorted(datas))
+    
+    df_detalhe.insert(len(cols_fixas_no_df), 'Quantidade Ocorrências', df_detalhe.apply(contar_ocorrencias, axis=1))
+    df_detalhe.insert(len(cols_fixas_no_df) + 1, 'Datas das Ocorrências', df_detalhe.apply(concatenar_datas, axis=1))
+    
+    # Reordena colunas: fixas + Qtd + Datas concatenadas + colunas de data individuais
+    cols_ordenadas = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + cols_datas
+    cols_existentes = [c for c in cols_ordenadas if c in df_detalhe.columns]
+    df_detalhe = df_detalhe[cols_existentes]
+    
+    # Ranking (sumarizado) - pega colunas fixas + quantidade + datas concatenadas
+    cols_ranking = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências']
+    cols_ranking_existentes = [c for c in cols_ranking if c in df_detalhe.columns]
+    df_ranking = df_detalhe[cols_ranking_existentes].copy()
     df_ranking = df_ranking.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
     df_ranking.insert(0, 'Posição', range(1, len(df_ranking) + 1))
     
