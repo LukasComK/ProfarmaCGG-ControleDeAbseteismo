@@ -272,55 +272,65 @@ def processar_ocorrencia(
     colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
     colunas_fixas_existentes = [c for c in colunas_fixas if c in df_filtrado.columns]
     
-    # Pivot Table - usa _valor_pivot que foi criado ANTES do rename e SEMPRE existe
-    agg_func = lambda x: ' | '.join(sorted(set([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])))
+    # --- CONSTRUÇÃO MANUAL DO DETALHAMENTO (sem pivot) ---
+    # 1. Pega dados únicos de cada colaborador
+    # Cria um dict de agregação seguro
+    agg_dict = {}
+    for c in colunas_fixas_existentes:
+        if c != 'Colaborador':
+            agg_dict[c] = 'first'
+    agg_dict['Data_Formatada'] = lambda x: sorted(x.dropna().unique().tolist())
+    agg_dict['_valor_pivot'] = 'count'
     
+    df_agrupado = df_filtrado.groupby('Colaborador').agg(agg_dict).reset_index()
+    
+    # 2. Descobre todas as datas únicas no filtrado
+    todas_datas = sorted(df_filtrado['Data_Formatada'].dropna().unique().tolist())
     try:
-        df_detalhe = df_filtrado.pivot_table(
-            index=colunas_fixas_existentes,
-            columns='Data_Formatada',
-            values='_valor_pivot',
-            aggfunc=agg_func
-        ).fillna('')
-    except Exception as e:
-        st.warning(f"Erro no pivot: {e}. Gerando relatório vazio.")
-        df_detalhe = pd.DataFrame(columns=colunas_fixas_existentes)
-        df_ranking = pd.DataFrame(columns=['Posição'] + colunas_fixas_existentes + ['Quantidade Ocorrências'])
-        return df_detalhe, df_ranking
-    
-    df_detalhe = df_detalhe.replace('nan', '')
-    df_detalhe = df_detalhe.reset_index()
-    
-    # Separa colunas fixas e de data
-    cols_fixas_no_df = [c for c in colunas_fixas if c in df_detalhe.columns]
-    cols_datas = [c for c in df_detalhe.columns if c not in cols_fixas_no_df]
-    cols_datas = [c for c in cols_datas if c not in ['Quantidade Ocorrências', 'Datas das Ocorrências']]
-    try:
-        cols_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
+        todas_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
     except:
         pass
     
-    # Conta ocorrências do df_filtrado original
-    grupos_originais = df_filtrado.groupby('Colaborador')
-    qtd_por_colaborador = {}
-    datas_por_colaborador = {}
-    for nome_colab, grupo in grupos_originais:
-        datas_unicas = sorted(grupo['Data_Formatada'].dropna().unique().tolist())
-        qtd_por_colaborador[nome_colab] = len(grupo)
-        datas_por_colaborador[nome_colab] = ', '.join(datas_unicas) if datas_unicas else ''
+    # 3. Constrói o dicionário {colaborador: {data: valor}} para preencher as colunas
+    data_valores = {}
+    for _, row in df_filtrado.iterrows():
+        colab = str(row['Colaborador']).strip()
+        data = str(row['Data_Formatada']).strip()
+        valor = str(row['_valor_pivot']).strip()
+        if colab and data and valor and valor.lower() != 'nan':
+            if colab not in data_valores:
+                data_valores[colab] = {}
+            chave = f"{data}_{valor}"
+            if colab in data_valores and data in data_valores[colab]:
+                if valor not in data_valores[colab][data]:
+                    data_valores[colab][data] += f" | {valor}"
+            else:
+                data_valores[colab][data] = valor
     
-    col_nome_no_detalhe = 'Colaborador' if 'Colaborador' in df_detalhe.columns else df_detalhe.columns[0]
-    qtd_series = df_detalhe[col_nome_no_detalhe].map(lambda x: qtd_por_colaborador.get(str(x).strip(), 0))
-    datas_series = df_detalhe[col_nome_no_detalhe].map(lambda x: datas_por_colaborador.get(str(x).strip(), ''))
-    qtd_series = qtd_series.fillna(0).astype(int)
-    datas_series = datas_series.fillna('')
+    # 4. Monta o DataFrame final
+    linhas = []
+    for _, row in df_agrupado.iterrows():
+        colab = str(row['Colaborador']).strip()
+        linha = {}
+        for c in colunas_fixas_existentes:
+            linha[c] = row[c]
+        
+        datas_colab = data_valores.get(colab, {})
+        linha['Quantidade Ocorrências'] = len(row['Data_Formatada'])
+        linha['Datas das Ocorrências'] = ', '.join(row['Data_Formatada'])
+        
+        for data in todas_datas:
+            linha[data] = datas_colab.get(data, '')
+        
+        linhas.append(linha)
     
-    df_detalhe.insert(len(cols_fixas_no_df), 'Quantidade Ocorrências', qtd_series)
-    df_detalhe.insert(len(cols_fixas_no_df) + 1, 'Datas das Ocorrências', datas_series)
+    cols_fixas_no_df = colunas_fixas_existentes
+    cols_datas = todas_datas
     
-    cols_ordenadas = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + cols_datas
-    cols_existentes = [c for c in cols_ordenadas if c in df_detalhe.columns]
-    df_detalhe = df_detalhe[cols_existentes]
+    df_detalhe = pd.DataFrame(linhas)
+    
+    # Ordena por quantidade decrescente
+    df_detalhe = df_detalhe.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
     
     # Ranking
     cols_ranking = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências']
