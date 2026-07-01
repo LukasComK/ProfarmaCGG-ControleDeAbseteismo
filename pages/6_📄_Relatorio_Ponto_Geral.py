@@ -94,7 +94,6 @@ def formatar_data_br(data_str: str) -> str:
 
 
 def safe_unidecode(valor):
-    """Aplica unidecode com segurança tratando NaN e valores vazios."""
     if pd.isna(valor) or str(valor).strip() == '':
         return ''
     try:
@@ -103,18 +102,8 @@ def safe_unidecode(valor):
         return str(valor).strip().lower()
 
 
-def processar_csv_gestores(
-    csv_file
-) -> Tuple[Dict[str, Dict], Dict[str, str]]:
-    """
-    Processa o CSV de base ativos e retorna:
-    - mapa_colaboradores: {nome_norm: {'gestor': str, 'jornada': str, 'turno': str}}
-    - mapa_supervisores: {gestor_norm: supervisor_nome}
-    """
-    # Tenta ler o CSV
+def processar_csv_gestores(csv_file) -> Tuple[Dict[str, Dict], Dict[str, str]]:
     df_csv = None
-    erros_tentativa = []
-    
     tentativas = [
         {'sep': ';', 'encoding': 'latin-1', 'skiprows': 1},
         {'sep': ';', 'encoding': 'utf-8', 'skiprows': 1},
@@ -128,68 +117,51 @@ def processar_csv_gestores(
             df_csv = pd.read_csv(csv_file, **params, engine='python')
             if len(df_csv.columns) >= 30:
                 break
-        except Exception as e:
-            erros_tentativa.append(str(e))
+        except:
             df_csv = None
     
     if df_csv is None or len(df_csv.columns) < 30:
         st.error(f"Não foi possível ler o CSV. Colunas encontradas: {len(df_csv.columns) if df_csv is not None else 0}")
         return {}, {}
     
-    # Identifica colunas: Colaborador (D=3), Nome Gestor (Z=25), Jornada (AR=43?)
-    # Usa o nome exato se possível, ou índice
     col_colaborador = df_csv.columns[3] if len(df_csv.columns) > 3 else None
     col_gestor = df_csv.columns[25] if len(df_csv.columns) > 25 else None
     
-    # Jornada - tenta encontrar pelo nome, senão usa índice
     col_jornada = None
     for nome_possivel in ['Jornada', 'JORNADA', 'Codigo Jornada']:
         if nome_possivel in df_csv.columns:
             col_jornada = nome_possivel
             break
     if col_jornada is None and len(df_csv.columns) > 43:
-        col_jornada = df_csv.columns[43]  # Posição próxima da Jornada
+        col_jornada = df_csv.columns[43]
     
     if col_colaborador is None or col_gestor is None:
-        st.error("CSV não tem colunas suficientes (precisa de Colaborador e Gestor).")
+        st.error("CSV não tem colunas suficientes.")
         return {}, {}
     
-    st.success(f"CSV carregado! {len(df_csv)} colaboradores, {len(df_csv.columns)} colunas.")
-    if col_jornada:
-        st.caption(f"Colunas usadas: Colaborador={col_colaborador}, Gestor={col_gestor}, Jornada={col_jornada}")
-    else:
-        st.caption(f"Colunas usadas: Colaborador={col_colaborador}, Gestor={col_gestor}, Jornada=não encontrada")
+    st.success(f"CSV carregado! {len(df_csv)} colaboradores.")
     
-    # Constrói mapa de colaboradores
     mapa_colaboradores = {}
     for idx, row in df_csv.iterrows():
         nome = str(row[col_colaborador]).strip() if pd.notna(row[col_colaborador]) else ''
         if not nome:
             continue
         nome_norm = safe_unidecode(nome)
-        
         gestor = str(row[col_gestor]).strip() if pd.notna(row[col_gestor]) else ''
-        
         jornada = ''
         turno = 'Indeterminado'
         if col_jornada and pd.notna(row.get(col_jornada, np.nan)):
             jornada = str(row[col_jornada]).strip()
             turno = determinar_turno(jornada)
-        
         mapa_colaboradores[nome_norm] = {
-            'nome_original': nome,
-            'gestor': gestor,
-            'jornada': jornada,
-            'turno': turno
+            'nome_original': nome, 'gestor': gestor, 'jornada': jornada, 'turno': turno
         }
     
-    # Constrói mapa de supervisores (gestor do gestor)
     mapa_supervisores = {}
     for nome_norm, info in mapa_colaboradores.items():
         gestor_norm = safe_unidecode(info['gestor'])
         if gestor_norm and gestor_norm in mapa_colaboradores:
-            supervisor_info = mapa_colaboradores[gestor_norm]
-            mapa_supervisores[gestor_norm] = supervisor_info['gestor']
+            mapa_supervisores[gestor_norm] = mapa_colaboradores[gestor_norm]['gestor']
     
     return mapa_colaboradores, mapa_supervisores
 
@@ -198,13 +170,8 @@ def processar_ocorrencia(
     df: pd.DataFrame,
     termo_ocorrencia: str,
     termo_justificativa: str,
-    col_nome: str,
-    col_cargo: str,
-    col_depto: str,
-    col_data_adm: str,
-    col_ocorrencia: str,
-    col_justificativa: str,
-    col_data: str,
+    col_nome: str, col_cargo: str, col_depto: str, col_data_adm: str,
+    col_ocorrencia: str, col_justificativa: str, col_data: str,
     mapa_colaboradores: Dict[str, Dict] = None,
     mapa_supervisores: Dict[str, str] = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -212,7 +179,6 @@ def processar_ocorrencia(
     termo_occ_norm = unidecode(termo_ocorrencia).strip().lower()
     termo_just_norm = unidecode(termo_justificativa).strip().lower()
     
-    # Escapa caracteres especiais de regex como <= e >
     import re as regex_module
     termo_occ_escape = regex_module.escape(termo_occ_norm)
     termo_just_escape = regex_module.escape(termo_just_norm)
@@ -220,7 +186,7 @@ def processar_ocorrencia(
     occ_norm = df[col_ocorrencia].apply(safe_unidecode)
     just_norm = df[col_justificativa].apply(safe_unidecode)
     
-    # Filtra pela ocorrência (usa escape para caracteres especiais)
+    # Filtra pela ocorrência
     mask_occ = occ_norm == termo_occ_norm
     if mask_occ.sum() == 0:
         mask_occ = occ_norm.str.contains(termo_occ_escape, na=False, regex=True)
@@ -232,7 +198,7 @@ def processar_ocorrencia(
                 if mask_occ.sum() > 0:
                     break
     
-    # Filtra pela justificativa (usa escape para caracteres especiais)
+    # Filtra pela justificativa
     mask_just = just_norm == termo_just_norm
     if mask_just.sum() == 0:
         mask_just = just_norm.str.contains(termo_just_escape, na=False, regex=True)
@@ -258,19 +224,11 @@ def processar_ocorrencia(
         df_ranking = pd.DataFrame(columns=['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências'])
         return df_detalhe, df_ranking
     
-    # DEBUG: mostra amostra dos dados filtrados
-    if len(df_filtrado) > 0:
-        st.session_state[termo_occ_norm] = {
-            'qtd_linhas': len(df_filtrado),
-            'colaboradores': df_filtrado[col_nome].nunique() if col_nome else 0,
-            'amostra_justificativa': df_filtrado[col_justificativa].iloc[0] if len(df_filtrado) > 0 and col_justificativa else 'N/A',
-            'amostra_data': df_filtrado[col_data].iloc[0] if len(df_filtrado) > 0 and col_data else 'N/A'
-        }
-    
+    # Prepara dados
     df_filtrado['Data_Formatada'] = df_filtrado[col_data].apply(formatar_data_br)
     df_filtrado['Tempo_Servico'] = df_filtrado[col_data_adm].apply(calcular_tempo_servico)
     
-    # Função para buscar info do colaborador no mapa
+    # Função info colaborador
     def get_info_colaborador(nome):
         if mapa_colaboradores is None:
             return {'gestor': '', 'turno': '', 'supervisor': ''}
@@ -278,86 +236,78 @@ def processar_ocorrencia(
         info = mapa_colaboradores.get(nome_norm, {})
         gestor = info.get('gestor', '')
         turno = info.get('turno', 'Indeterminado')
-        
         supervisor = ''
         if mapa_supervisores and gestor:
             gestor_norm = safe_unidecode(gestor)
             supervisor = mapa_supervisores.get(gestor_norm, '')
-        
         return {'gestor': gestor, 'turno': turno, 'supervisor': supervisor}
     
-    # Adiciona colunas fixas ao DataFrame filtrado
     df_filtrado['Gestor'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['gestor'])
     df_filtrado['Supervisor'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['supervisor'])
     df_filtrado['Turno'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['turno'])
     
-    # Ordena por data para o pivot ficar cronológico
     try:
         df_filtrado['Data_Dt'] = pd.to_datetime(df_filtrado[col_data], dayfirst=False, errors='coerce')
         df_filtrado = df_filtrado.sort_values('Data_Dt')
     except:
         pass
     
-    # Cria colunas de índice fixas para o pivot
-    colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
-    
-    # Renomeia colunas para nomes padronizados (apenas se os nomes forem diferentes)
+    # Renomeia colunas para nomes padronizados
     rename_map = {}
     for col_orig, col_novo in [
-        (col_nome, 'Colaborador'),
-        (col_cargo, 'Cargo'),
-        (col_depto, 'Departamento'),
-        (col_data_adm, 'Data Admissão')
+        (col_nome, 'Colaborador'), (col_cargo, 'Cargo'), (col_depto, 'Departamento'), (col_data_adm, 'Data Admissão')
     ]:
         if col_orig != col_novo and col_orig in df_filtrado.columns:
             rename_map[col_orig] = col_novo
-    
-    # Renomeia Tempo_Servico para Tempo de Serviço
     if 'Tempo_Servico' in df_filtrado.columns:
         rename_map['Tempo_Servico'] = 'Tempo de Serviço'
-    
     if rename_map:
         df_filtrado = df_filtrado.rename(columns=rename_map)
     
-    # Garante que todas as colunas fixas existem no DataFrame
+    # Salva o nome original da coluna de justificativa ANTES de perder a referência
+    nome_col_justificativa_no_df = col_justificativa
+    if col_justificativa in rename_map:
+        nome_col_justificativa_no_df = rename_map[col_justificativa]
+    
+    # Garante que 'Colaborador' existe
+    if 'Colaborador' not in df_filtrado.columns:
+        df_filtrado['Colaborador'] = df_filtrado[col_nome]
+    
+    colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
     colunas_fixas_existentes = [c for c in colunas_fixas if c in df_filtrado.columns]
     
-    # Pivot Table: linhas = info do colaborador, colunas = datas, valores = justificativa
-    # Mostra o nome da ocorrência/justificativa na célula
+    # Pivot Table
     agg_func = lambda x: ' | '.join(sorted(set([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])))
     
     try:
+        # Usa o nome correto da coluna de justificativa (pode ter sido renomeado)
+        valor_pivot = nome_col_justificativa_no_df if nome_col_justificativa_no_df in df_filtrado.columns else col_justificativa
+        
         df_detalhe = df_filtrado.pivot_table(
             index=colunas_fixas_existentes,
             columns='Data_Formatada',
-            values=col_justificativa,
+            values=valor_pivot,
             aggfunc=agg_func
         ).fillna('')
     except Exception as e:
-        # Se o pivot falhar, cria um DataFrame vazio com as colunas esperadas
-        st.warning(f"Erro ao criar pivot table: {e}. Gerando relatório vazio.")
+        st.warning(f"Erro no pivot: {e}. Gerando relatório vazio.")
         df_detalhe = pd.DataFrame(columns=colunas_fixas_existentes)
-        df_ranking = pd.DataFrame(columns=['Posição', 'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências'])
+        df_ranking = pd.DataFrame(columns=['Posição'] + colunas_fixas_existentes + ['Quantidade Ocorrências'])
         return df_detalhe, df_ranking
     
-    # Garante que células vazias fiquem como string vazia
     df_detalhe = df_detalhe.replace('nan', '')
-    
-    # Reset index para as colunas fixas virarem colunas normais
     df_detalhe = df_detalhe.reset_index()
     
-    # Recalcula cols_datas com BASE no DataFrame atual (após reset_index)
+    # Separa colunas fixas e de data
     cols_fixas_no_df = [c for c in colunas_fixas if c in df_detalhe.columns]
     cols_datas = [c for c in df_detalhe.columns if c not in cols_fixas_no_df]
     cols_datas = [c for c in cols_datas if c not in ['Quantidade Ocorrências', 'Datas das Ocorrências']]
-    
     try:
         cols_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
     except:
         pass
     
-    # Conta ocorrências DIRETAMENTE do df_filtrado original agrupando por colaborador
-    # Isso é muito mais confiável do que contar células vazias no pivot
+    # Conta ocorrências do df_filtrado original
     grupos_originais = df_filtrado.groupby('Colaborador')
     qtd_por_colaborador = {}
     datas_por_colaborador = {}
@@ -366,27 +316,20 @@ def processar_ocorrencia(
         qtd_por_colaborador[nome_colab] = len(grupo)
         datas_por_colaborador[nome_colab] = ', '.join(datas_unicas) if datas_unicas else ''
     
-    # Aplica contagem baseada no nome do colaborador no df_detalhe
-    # Precisamos saber qual coluna contém o nome do colaborador em df_detalhe
     col_nome_no_detalhe = 'Colaborador' if 'Colaborador' in df_detalhe.columns else df_detalhe.columns[0]
-    
     qtd_series = df_detalhe[col_nome_no_detalhe].map(lambda x: qtd_por_colaborador.get(str(x).strip(), 0))
     datas_series = df_detalhe[col_nome_no_detalhe].map(lambda x: datas_por_colaborador.get(str(x).strip(), ''))
-    
-    # Preenche NaN com 0 e string vazia
     qtd_series = qtd_series.fillna(0).astype(int)
     datas_series = datas_series.fillna('')
     
-    # Insere colunas resumidas DEPOIS das colunas fixas
     df_detalhe.insert(len(cols_fixas_no_df), 'Quantidade Ocorrências', qtd_series)
     df_detalhe.insert(len(cols_fixas_no_df) + 1, 'Datas das Ocorrências', datas_series)
     
-    # Reordena colunas: fixas + Qtd + Datas concatenadas + colunas de data individuais
     cols_ordenadas = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + cols_datas
     cols_existentes = [c for c in cols_ordenadas if c in df_detalhe.columns]
     df_detalhe = df_detalhe[cols_existentes]
     
-    # Ranking (sumarizado) - usa os dados já calculados
+    # Ranking
     cols_ranking = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências']
     cols_ranking_existentes = [c for c in cols_ranking if c in df_detalhe.columns]
     df_ranking = df_detalhe[cols_ranking_existentes].copy()
@@ -397,12 +340,9 @@ def processar_ocorrencia(
 
 
 def gerar_planilha_ocorrencia(
-    df_detalhe: pd.DataFrame,
-    df_ranking: pd.DataFrame,
-    nome_aba_detalhe: str,
-    writer: pd.ExcelWriter
+    df_detalhe: pd.DataFrame, df_ranking: pd.DataFrame,
+    nome_aba_detalhe: str, writer: pd.ExcelWriter
 ):
-    """Escreve as duas abas de uma ocorrência no Excel writer."""
     workbook = writer.book
     
     header_fmt = workbook.add_format({
@@ -419,40 +359,12 @@ def gerar_planilha_ocorrencia(
         'text_wrap': True, 'valign': 'vcenter', 'align': 'center'
     })
     
-    cell_fmt = workbook.add_format({
-        'font_size': 10, 'border': 1,
-        'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter'
-    })
-    
-    cell_alt_fmt = workbook.add_format({
-        'font_size': 10, 'border': 1,
-        'border_color': '#BFBFBF', 'bg_color': COR_CINZA_CLARO,
-        'text_wrap': True, 'valign': 'vcenter'
-    })
-    
-    cell_qtd_fmt = workbook.add_format({
-        'font_size': 11, 'bold': True, 'font_color': COR_PRETO,
-        'border': 1, 'border_color': '#BFBFBF',
-        'text_wrap': True, 'valign': 'vcenter', 'align': 'center'
-    })
-    
-    cell_qtd_alt_fmt = workbook.add_format({
-        'font_size': 11, 'bold': True, 'font_color': COR_PRETO,
-        'border': 1, 'border_color': '#BFBFBF', 'bg_color': COR_CINZA_CLARO,
-        'text_wrap': True, 'valign': 'vcenter', 'align': 'center'
-    })
-    
-    cell_alta_fmt = workbook.add_format({
-        'font_size': 11, 'bold': True, 'font_color': COR_VERMELHO,
-        'border': 1, 'border_color': '#BFBFBF', 'bg_color': '#FFF0F0',
-        'text_wrap': True, 'valign': 'vcenter', 'align': 'center'
-    })
-    
-    cell_media_fmt = workbook.add_format({
-        'font_size': 11, 'bold': True, 'font_color': COR_LARANJA,
-        'border': 1, 'border_color': '#BFBFBF', 'bg_color': '#FFF8E7',
-        'text_wrap': True, 'valign': 'vcenter', 'align': 'center'
-    })
+    cell_fmt = workbook.add_format({'font_size': 10, 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter'})
+    cell_alt_fmt = workbook.add_format({'font_size': 10, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': COR_CINZA_CLARO, 'text_wrap': True, 'valign': 'vcenter'})
+    cell_qtd_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_PRETO, 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
+    cell_qtd_alt_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_PRETO, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': COR_CINZA_CLARO, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
+    cell_alta_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_VERMELHO, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': '#FFF0F0', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
+    cell_media_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_LARANJA, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': '#FFF8E7', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
     
     posicoes_format = {
         1: workbook.add_format({'font_size': 12, 'bold': True, 'font_color': COR_BRANCO, 'bg_color': '#D4A017', 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'}),
@@ -460,47 +372,40 @@ def gerar_planilha_ocorrencia(
         3: workbook.add_format({'font_size': 12, 'bold': True, 'font_color': COR_BRANCO, 'bg_color': '#CD7F32', 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
     }
     
-    # --- ABA 1: DETALHAMENTO ---
-    sheet_name = nome_aba_detalhe[:31]
-    df_detalhe.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
-    ws = writer.sheets[sheet_name]
-    
-    for col_num, value in enumerate(df_detalhe.columns.values):
-        ws.write(0, col_num, value, header_fmt)
-    
-    # Larguras dinâmicas baseadas nas colunas
     col_widths = {
         'Colaborador': 36, 'Cargo': 20, 'Departamento': 28, 'Gestor': 30,
         'Supervisor': 30, 'Turno': 14, 'Data Admissão': 16, 'Tempo de Serviço': 16,
         'Quantidade Ocorrências': 20, 'Datas das Ocorrências': 50
     }
+    col_widths_rank = {
+        'Posição': 8, 'Colaborador': 36, 'Cargo': 20, 'Departamento': 28,
+        'Gestor': 30, 'Supervisor': 30, 'Turno': 14, 'Data Admissão': 16,
+        'Tempo de Serviço': 16, 'Quantidade Ocorrências': 20
+    }
+    
+    # --- ABA 1: DETALHAMENTO ---
+    sheet_name = nome_aba_detalhe[:31]
+    df_detalhe.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
+    ws = writer.sheets[sheet_name]
+    for col_num, value in enumerate(df_detalhe.columns.values):
+        ws.write(0, col_num, value, header_fmt)
     for col_num, col_name in enumerate(df_detalhe.columns):
-        width = col_widths.get(col_name, 18)
-        ws.set_column(col_num, col_num, width)
+        ws.set_column(col_num, col_num, col_widths.get(col_name, 18))
     
-    # Índice da coluna Quantidade Ocorrências
     qtd_col_idx = list(df_detalhe.columns).index('Quantidade Ocorrências') if 'Quantidade Ocorrências' in df_detalhe.columns else -1
-    
     for row_num in range(1, len(df_detalhe) + 1):
         is_alt = row_num % 2 == 0
         for col_num in range(len(df_detalhe.columns)):
             valor = df_detalhe.iloc[row_num - 1, col_num]
             if col_num == qtd_col_idx:
                 qtd = valor
-                if qtd >= 5:
-                    fmt = cell_alta_fmt
-                elif qtd >= 3:
-                    fmt = cell_media_fmt
-                elif is_alt:
-                    fmt = cell_qtd_alt_fmt
-                else:
-                    fmt = cell_qtd_fmt
-            elif is_alt:
-                fmt = cell_alt_fmt
-            else:
-                fmt = cell_fmt
+                if qtd >= 5: fmt = cell_alta_fmt
+                elif qtd >= 3: fmt = cell_media_fmt
+                elif is_alt: fmt = cell_qtd_alt_fmt
+                else: fmt = cell_qtd_fmt
+            elif is_alt: fmt = cell_alt_fmt
+            else: fmt = cell_fmt
             ws.write(row_num, col_num, valor, fmt)
-    
     ws.freeze_panes(1, 0)
     ws.autofilter(0, 0, len(df_detalhe), len(df_detalhe.columns) - 1)
     
@@ -510,49 +415,30 @@ def gerar_planilha_ocorrencia(
         sheet_name_rank = 'Ofensores 2'
     df_ranking.to_excel(writer, sheet_name=sheet_name_rank[:31], index=False, startrow=0)
     ws_rank = writer.sheets[sheet_name_rank[:31]]
-    
     for col_num, value in enumerate(df_ranking.columns.values):
         ws_rank.write(0, col_num, value, header_ranking_fmt)
-    
-    # Larguras ranking
-    col_widths_rank = {
-        'Posição': 8, 'Colaborador': 36, 'Cargo': 20, 'Departamento': 28,
-        'Gestor': 30, 'Supervisor': 30, 'Turno': 14, 'Data Admissão': 16,
-        'Tempo de Serviço': 16, 'Quantidade Ocorrências': 20
-    }
-    qtd_col_idx_rank = list(df_ranking.columns).index('Quantidade Ocorrências') if 'Quantidade Ocorrências' in df_ranking.columns else -1
-    posicao_col_idx = 0
-    
     for col_num, col_name in enumerate(df_ranking.columns):
-        width = col_widths_rank.get(col_name, 18)
-        ws_rank.set_column(col_num, col_num, width)
+        ws_rank.set_column(col_num, col_num, col_widths_rank.get(col_name, 18))
     
+    qtd_col_idx_rank = list(df_ranking.columns).index('Quantidade Ocorrências') if 'Quantidade Ocorrências' in df_ranking.columns else -1
     for row_num in range(1, len(df_ranking) + 1):
         is_alt = row_num % 2 == 0
-        posicao = df_ranking.iloc[row_num - 1, posicao_col_idx]
+        posicao = df_ranking.iloc[row_num - 1, 0]
         for col_num in range(len(df_ranking.columns)):
             valor = df_ranking.iloc[row_num - 1, col_num]
-            if col_num == posicao_col_idx and posicao in posicoes_format:
+            if col_num == 0 and posicao in posicoes_format:
                 fmt = posicoes_format[posicao]
             elif col_num == qtd_col_idx_rank:
                 qtd = valor
-                if qtd >= 5:
-                    fmt = cell_alta_fmt
-                elif qtd >= 3:
-                    fmt = cell_media_fmt
-                elif is_alt:
-                    fmt = cell_qtd_alt_fmt
-                else:
-                    fmt = cell_qtd_fmt
-            elif is_alt:
-                fmt = cell_alt_fmt
-            else:
-                fmt = cell_fmt
+                if qtd >= 5: fmt = cell_alta_fmt
+                elif qtd >= 3: fmt = cell_media_fmt
+                elif is_alt: fmt = cell_qtd_alt_fmt
+                else: fmt = cell_qtd_fmt
+            elif is_alt: fmt = cell_alt_fmt
+            else: fmt = cell_fmt
             ws_rank.write(row_num, col_num, valor, fmt)
-    
     ws_rank.freeze_panes(1, 0)
     ws_rank.autofilter(0, 0, len(df_ranking), len(df_ranking.columns) - 1)
-    
     ws.set_row(0, 30)
     ws_rank.set_row(0, 30)
 
@@ -570,8 +456,7 @@ def sanitizar_nome_arquivo(nome: str) -> str:
 # ============================================================
 OCORRENCIAS_CONFIG = [
     {
-        'tipo': 'multiplas_pasta_unica',
-        'nome': 'Afastamentos/Atestados',
+        'tipo': 'multiplas_pasta_unica', 'nome': 'Afastamentos/Atestados',
         'pasta': 'Afastamentos_Atestados',
         'itens': [
             {'nome': 'Afast Acid Trab <= 15 Dias', 'ocorrencia': 'Afast Acid Trab <= 15 Dias', 'justificativa': 'Afast Acid Trab <= 15 Dias', 'arquivo': 'Afast_Acid_Trab_15d'},
@@ -584,8 +469,7 @@ OCORRENCIAS_CONFIG = [
     },
     {'tipo': 'unica', 'nome': 'Ferias Normais', 'ocorrencia': 'Ferias Normais', 'justificativa': 'Ferias Normais', 'arquivo': 'Ferias_Normais'},
     {
-        'tipo': 'multiplas_pasta_unica',
-        'nome': 'Sem marcações',
+        'tipo': 'multiplas_pasta_unica', 'nome': 'Sem marcações',
         'pasta': 'Sem_Marcacoes',
         'itens': [
             {'nome': 'Sem marcacao de entrada', 'ocorrencia': 'Sem marcação de entrada', 'justificativa': 'Sem marcação de entrada', 'arquivo': 'Sem_Marcacao_Entrada'},
@@ -593,23 +477,20 @@ OCORRENCIAS_CONFIG = [
         ]
     },
     {
-        'tipo': 'multiplas',
-        'nome': 'Entrada em atraso',
+        'tipo': 'multiplas', 'nome': 'Entrada em atraso',
         'ocorrencia': 'Entrada em atraso',
         'justificativas': [
             'Banco de Horas - Fechamento Semestral (Fev/Ago)',
             'Banco de Horas - Fechamento Semestral (Fev/Ago) S/D',
             'Banco de Horas - Fechamento Trimestral Fev/Maio/Ago/Nov S/D',
             'Banco de Horas Distribuição - Fechamento Trimestral (Fev/Mai/Ago/Nov) S/D',
-            'Declaração de Horas',
-            'Liberação Empresa - Horas',
+            'Declaração de Horas', 'Liberação Empresa - Horas',
             'Parte Ou Testemunha de Processo Judicial',
         ],
         'pasta': 'Entrada_em_Atraso'
     },
     {
-        'tipo': 'multiplas',
-        'nome': 'Falta',
+        'tipo': 'multiplas', 'nome': 'Falta',
         'ocorrencia': 'Falta',
         'justificativas': [
             'Amamentação', 'Aniversário - Dia Livre',
@@ -625,8 +506,7 @@ OCORRENCIAS_CONFIG = [
 
 
 def gerar_excel_ocorrencia(
-    df: pd.DataFrame,
-    config: Dict,
+    df: pd.DataFrame, config: Dict,
     col_nome: str, col_cargo: str, col_depto: str, col_data_adm: str,
     col_ocorrencia: str, col_justificativa: str, col_data: str,
     mapa_colaboradores: Dict = None, mapa_supervisores: Dict = None
@@ -637,14 +517,11 @@ def gerar_excel_ocorrencia(
         col_ocorrencia, col_justificativa, col_data,
         mapa_colaboradores, mapa_supervisores
     )
-    
     if len(df_detalhe) == 0:
         return None, config.get('arquivo', '') + '.xlsx', 0
-    
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
         gerar_planilha_ocorrencia(df_detalhe, df_ranking, config['nome'], writer)
-    
     nome_arquivo = f"{config['arquivo']}.xlsx"
     return excel_buffer.getvalue(), nome_arquivo, len(df_detalhe)
 
@@ -658,7 +535,6 @@ def gerar_pasta_ocorrencia(
     pasta = config['pasta']
     arquivos = {}
     total_colaboradores = 0
-    
     for justificativa in config['justificativas']:
         config_unica = {
             'ocorrencia': config['ocorrencia'],
@@ -675,7 +551,6 @@ def gerar_pasta_ocorrencia(
         if excel_bytes is not None:
             arquivos[nome_arquivo] = excel_bytes
             total_colaboradores += qtd
-    
     return arquivos, pasta, total_colaboradores
 
 
@@ -688,27 +563,17 @@ st.subheader("1. Carregue os arquivos")
 col1, col2 = st.columns(2)
 
 with col1:
-    uploaded_file = st.file_uploader(
-        "Arquivo Excel de Ponto (XLSX)",
-        type=["xlsx", "xlsm"],
-        help="Arquivo com as colunas D, H, I, L, Q, X, Z, AB, AM"
-    )
+    uploaded_file = st.file_uploader("Arquivo Excel de Ponto (XLSX)", type=["xlsx", "xlsm"])
 
 with col2:
-    uploaded_csv = st.file_uploader(
-        "Arquivo CSV de Base Ativos",
-        type=["csv"],
-        help="Arquivo CSV com Colaborador (D), Nome Gestor (Z) e Jornada (~AR)"
-    )
+    uploaded_csv = st.file_uploader("Arquivo CSV de Base Ativos", type=["csv"])
 
-# Processa CSV se carregado
 mapa_colaboradores = {}
 mapa_supervisores = {}
 
 if uploaded_csv is not None:
     with st.spinner("Processando CSV de gestores..."):
         mapa_colaboradores, mapa_supervisores = processar_csv_gestores(uploaded_csv)
-    
     if mapa_colaboradores:
         st.success(f"✅ {len(mapa_colaboradores)} colaboradores mapeados no CSV")
 
@@ -722,7 +587,6 @@ if uploaded_file is not None:
     
     if len(df.columns) < 39:
         st.error(f"O arquivo precisa ter pelo menos 39 colunas (até AM). Encontradas: {len(df.columns)}")
-        st.write("Primeiras colunas encontradas:", list(df.columns[:20]))
         st.stop()
     
     col_nome = df.columns[3]
@@ -735,30 +599,12 @@ if uploaded_file is not None:
     col_justificativa = df.columns[27]
     col_data = df.columns[38]
     
-    st.info(f"""
-    **Colunas detectadas no Ponto:**
-    - Colaborador (D): {col_nome}
-    - Cargo (H): {col_cargo}
-    - Departamento (I): {col_depto}
-    - Data Admissão (Q): {col_data_adm}
-    - Ocorrência (Z): {col_ocorrencia}
-    - Justificativa (AB): {col_justificativa}
-    - Data (AM): {col_data}
-    """)
+    st.info(f"Colaborador (D): {col_nome} | Cargo (H): {col_cargo} | Depto (I): {col_depto} | Data Adm (Q): {col_data_adm} | Ocorrência (Z): {col_ocorrencia} | Justificativa (AB): {col_justificativa} | Data (AM): {col_data}")
     
-    with st.expander("🔍 Preview dos dados", expanded=False):
-        preview_cols = [col_nome, col_cargo, col_depto, col_ocorrencia, col_justificativa, col_data]
-        st.dataframe(df[preview_cols].head(20), use_container_width=True)
-    
-    with st.expander("📊 Ocorrências disponíveis no arquivo", expanded=False):
+    with st.expander("📊 Ocorrências disponíveis", expanded=False):
         ocorrencias_count = df[col_ocorrencia].value_counts().reset_index()
         ocorrencias_count.columns = ['Ocorrência', 'Quantidade']
         st.dataframe(ocorrencias_count, use_container_width=True)
-        
-        st.write("**Valores únicos em Justificativa (AB):**")
-        justificativas_count = df[col_justificativa].value_counts().reset_index()
-        justificativas_count.columns = ['Justificativa', 'Quantidade']
-        st.dataframe(justificativas_count, use_container_width=True)
     
     st.subheader("2. Selecione os tipos de ocorrência para gerar")
     
@@ -771,16 +617,11 @@ if uploaded_file is not None:
         else:
             opcoes.append(f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)")
     
-    selecionados = st.multiselect(
-        "Selecione os tipos de ocorrência:",
-        options=opcoes,
-        default=opcoes,
-        help="Tipos com múltiplas justificativas geram uma pasta com várias planilhas"
-    )
+    selecionados = st.multiselect("Selecione:", options=opcoes, default=opcoes)
     
     if st.button("🚀 Gerar Relatórios", type="primary", use_container_width=True):
         if not selecionados:
-            st.warning("Selecione pelo menos um tipo de ocorrência.")
+            st.warning("Selecione pelo menos um tipo.")
         else:
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -865,80 +706,35 @@ if uploaded_file is not None:
                             zf.writestr(caminho, excel_bytes)
                     progress_bar.progress((i + 1) / (total + 1) + 0.05)
             
-            status_text.text("✅ Relatórios gerados com sucesso!")
+            status_text.text("✅ Relatórios gerados!")
             
             if len(zip_buffer.getvalue()) > 0:
                 st.download_button(
-                    label="📥 Baixar ZIP com todas as planilhas",
+                    label="📥 Baixar ZIP",
                     data=zip_buffer.getvalue(),
                     file_name="Relatorio_Ponto_Geral.zip",
                     mime="application/zip",
                     use_container_width=True
                 )
-            else:
-                st.warning("Nenhum relatório foi gerado (nenhum registro encontrado).")
             
-            st.subheader("📋 Resumo dos Relatórios Gerados")
+            st.subheader("📋 Resumo")
             resumo_data = []
-            total_com_registros = 0
             for resultado in resultados_processados:
                 if resultado['tipo'] == 'unica':
-                    tem_registros = resultado['qtd'] > 0
-                    if tem_registros:
-                        total_com_registros += 1
+                    tem = resultado['qtd'] > 0
                     resumo_data.append({
                         'Ocorrência': resultado['config']['nome'],
                         'Colaboradores': resultado['qtd'],
-                        'Arquivo': resultado['nome_arquivo'] if tem_registros else '—',
-                        'Status': '✅' if tem_registros else '⚠️'
+                        'Status': '✅' if tem else '⚠️'
                     })
                 else:
-                    qtd_arquivos = len(resultado['arquivos'])
-                    tem_registros = resultado['total_colab'] > 0
-                    if tem_registros:
-                        total_com_registros += 1
+                    tem = resultado['total_colab'] > 0
                     resumo_data.append({
                         'Ocorrência': f"📁 {resultado['config']['nome']}",
                         'Colaboradores': resultado['total_colab'],
-                        'Arquivo': f"{qtd_arquivos} planilhas" if tem_registros else '—',
-                        'Status': '✅' if tem_registros else '⚠️'
+                        'Status': '✅' if tem else '⚠️'
                     })
-            
-            df_resumo = pd.DataFrame(resumo_data)
-            st.dataframe(df_resumo, use_container_width=True, hide_index=True)
-            
-            if total_com_registros == 0:
-                st.warning("Nenhum registro encontrado para os tipos selecionados.")
+            st.dataframe(pd.DataFrame(resumo_data), use_container_width=True, hide_index=True)
 
 else:
-    st.info("👆 Carregue os arquivos para começar.")
-    
-    st.markdown("""
-    ### Arquivos necessários
-    
-    **1. Excel de Ponto (XLSX)** - Controle de ponto com as colunas:
-    - D=Colaborador, H=Cargo, I=Departamento, L=Escala, Q=Data Admissão
-    - X=Maracões, Z=Ocorrência, AB=Justificativa, AM=Data
-    
-    **2. CSV de Base Ativos** (opcional, mas recomendado) - Para enriquecer com:
-    - **Gestor** (coluna "Nome Gestor")
-    - **Supervisor** (gestor do gestor)
-    - **Turno** (calculado pela jornada)
-    
-    ### Layout das planilhas geradas
-    
-    **Aba 1 - Detalhamento (Matriz):**
-    - Cada **data vira uma coluna** no formato DD/MM/AAAA
-    - Você pode usar o **filtro automático** do Excel para filtrar por período
-    - Perfeito para criar **Tabelas Dinâmicas** no Excel
-    
-    **Aba 2 - Ranking Ofensores:**
-    - Sumarizado: Posição, Colaborador, Cargo, Depto, **Gestor, Supervisor, Turno**, Data Adm, Tempo de Serviço, Quantidade
-    
-    **Colunas adicionais (via CSV):**
-    | Coluna | Origem |
-    |--------|--------|
-    | Gestor | CSV → "Nome Gestor" |
-    | Supervisor | CSV → Gestor do Gestor |
-    | Turno | CSV → Jornada (TURNO 1/2/3) |
-    """)
+    st.info(" Carregue os arquivos para começar.")
