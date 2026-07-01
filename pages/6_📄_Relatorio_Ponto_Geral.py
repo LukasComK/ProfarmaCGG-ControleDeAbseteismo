@@ -265,7 +265,6 @@ def processar_ocorrencia(
         gestor = info.get('gestor', '')
         turno = info.get('turno', 'Indeterminado')
         
-        # Busca supervisor
         supervisor = ''
         if mapa_supervisores and gestor:
             gestor_norm = safe_unidecode(gestor)
@@ -273,38 +272,64 @@ def processar_ocorrencia(
         
         return {'gestor': gestor, 'turno': turno, 'supervisor': supervisor}
     
-    grupos = df_filtrado.groupby(col_nome)
+    # Adiciona colunas fixas ao DataFrame filtrado
+    df_filtrado['Gestor'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['gestor'])
+    df_filtrado['Supervisor'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['supervisor'])
+    df_filtrado['Turno'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['turno'])
     
-    dados_detalhe = []
-    for nome, grupo in grupos:
-        primeiro = grupo.iloc[0]
-        datas = sorted(grupo['Data_Formatada'].dropna().unique().tolist())
-        datas_str = ', '.join(datas) if datas else ''
-        
-        info = get_info_colaborador(nome)
-        
-        dados_detalhe.append({
-            'Colaborador': nome,
-            'Cargo': primeiro[col_cargo] if col_cargo in grupo.columns else '',
-            'Departamento': primeiro[col_depto] if col_depto in grupo.columns else '',
-            'Gestor': info['gestor'],
-            'Supervisor': info['supervisor'],
-            'Turno': info['turno'],
-            'Data Admissão': primeiro[col_data_adm] if col_data_adm in grupo.columns else '',
-            'Tempo de Serviço': primeiro['Tempo_Servico'],
-            'Quantidade Ocorrências': len(grupo),
-            'Datas das Ocorrências': datas_str
-        })
+    # Ordena por data para o pivot ficar cronológico
+    try:
+        df_filtrado['Data_Dt'] = pd.to_datetime(df_filtrado[col_data], dayfirst=False, errors='coerce')
+        df_filtrado = df_filtrado.sort_values('Data_Dt')
+    except:
+        pass
     
-    df_detalhe = pd.DataFrame(dados_detalhe)
-    df_detalhe = df_detalhe.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
+    # Cria colunas de índice fixas para o pivot
+    colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
     
-    # Ranking
-    cols_ranking = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências']
-    df_ranking = df_detalhe[cols_ranking].copy()
+    # Renomeia colunas para nomes padronizados
+    df_filtrado = df_filtrado.rename(columns={
+        col_nome: 'Colaborador',
+        col_cargo: 'Cargo',
+        col_depto: 'Departamento',
+        col_data_adm: 'Data Admissão'
+    })
+    
+    # Pivot Table: linhas = info do colaborador, colunas = datas, valores = justificativa
+    agg_func = lambda x: ' | '.join(sorted(set([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])))
+    
+    df_detalhe = df_filtrado.pivot_table(
+        index=colunas_fixas,
+        columns='Data_Formatada',
+        values=col_justificativa,
+        aggfunc=agg_func
+    ).fillna('')
+    
+    # Garante que células vazias fiquem como string vazia
+    df_detalhe = df_detalhe.replace('nan', '')
+    
+    # Reset index para as colunas fixas virarem colunas normais
+    df_detalhe = df_detalhe.reset_index()
+    
+    # Ordena colunas: fixas primeiro, depois datas em ordem cronológica
+    cols_datas = [c for c in df_detalhe.columns if c not in colunas_fixas]
+    try:
+        cols_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
+    except:
+        pass
+    df_detalhe = df_detalhe[colunas_fixas + cols_datas]
+    
+    # Ranking (sumarizado, sem as colunas de data)
+    df_ranking = df_detalhe[colunas_fixas].copy()
+    
+    # Conta quantas colunas de data têm conteúdo
+    def contar_ocorrencias(row):
+        return sum(1 for c in cols_datas if row[c] != '' and pd.notna(row[c]))
+    
+    df_ranking['Quantidade Ocorrências'] = df_detalhe.apply(contar_ocorrencias, axis=1)
     df_ranking = df_ranking.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
     df_ranking['Posição'] = range(1, len(df_ranking) + 1)
-    df_ranking = df_ranking[['Posição'] + cols_ranking]
+    df_ranking = df_ranking[['Posição', 'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências']]
     
     return df_detalhe, df_ranking
 
@@ -838,9 +863,17 @@ else:
     - **Supervisor** (gestor do gestor)
     - **Turno** (calculado pela jornada)
     
-    ### Colunas adicionadas nas planilhas
+    ### Layout das planilhas geradas
     
-    Todas as planilhas geradas agora incluem:
+    **Aba 1 - Detalhamento (Matriz):**
+    - Cada **data vira uma coluna** no formato DD/MM/AAAA
+    - Você pode usar o **filtro automático** do Excel para filtrar por período
+    - Perfeito para criar **Tabelas Dinâmicas** no Excel
+    
+    **Aba 2 - Ranking Ofensores:**
+    - Sumarizado: Posição, Colaborador, Cargo, Depto, **Gestor, Supervisor, Turno**, Data Adm, Tempo de Serviço, Quantidade
+    
+    **Colunas adicionais (via CSV):**
     | Coluna | Origem |
     |--------|--------|
     | Gestor | CSV → "Nome Gestor" |
