@@ -12,14 +12,7 @@ from funcoes_processamento_csv import determinar_turno
 st.set_page_config(page_title="Relatório de Ponto Geral", layout="wide")
 
 st.title("📄 Relatório de Ponto Geral")
-st.markdown("""
-Esta página gera relatórios de ocorrências por tipo, agrupando colaboradores e gerando rankings.
-Os relatórios são enriquecidos com **Gestor, Supervisor e Turno** a partir do CSV de base ativos.
-""")
 
-# ============================================================
-# CORES CORPORATIVAS
-# ============================================================
 COR_VERDE_CLARO = '#8CC83C'
 COR_VERDE_MEDIO = '#008A4B'
 COR_VERDE_ESCURO = '#006450'
@@ -110,7 +103,6 @@ def processar_csv_gestores(csv_file) -> Tuple[Dict[str, Dict], Dict[str, str]]:
         {'sep': ',', 'encoding': 'utf-8', 'skiprows': 0},
         {'sep': ';', 'encoding': 'latin-1', 'skiprows': 0},
     ]
-    
     for params in tentativas:
         try:
             csv_file.seek(0)
@@ -119,28 +111,22 @@ def processar_csv_gestores(csv_file) -> Tuple[Dict[str, Dict], Dict[str, str]]:
                 break
         except:
             df_csv = None
-    
     if df_csv is None or len(df_csv.columns) < 30:
-        st.error(f"Não foi possível ler o CSV. Colunas encontradas: {len(df_csv.columns) if df_csv is not None else 0}")
+        st.error(f"Não foi possível ler o CSV. Colunas: {len(df_csv.columns) if df_csv is not None else 0}")
         return {}, {}
-    
     col_colaborador = df_csv.columns[3] if len(df_csv.columns) > 3 else None
     col_gestor = df_csv.columns[25] if len(df_csv.columns) > 25 else None
-    
     col_jornada = None
-    for nome_possivel in ['Jornada', 'JORNADA', 'Codigo Jornada']:
-        if nome_possivel in df_csv.columns:
-            col_jornada = nome_possivel
+    for nome in ['Jornada', 'JORNADA', 'Codigo Jornada']:
+        if nome in df_csv.columns:
+            col_jornada = nome
             break
     if col_jornada is None and len(df_csv.columns) > 43:
         col_jornada = df_csv.columns[43]
-    
     if col_colaborador is None or col_gestor is None:
         st.error("CSV não tem colunas suficientes.")
         return {}, {}
-    
     st.success(f"CSV carregado! {len(df_csv)} colaboradores.")
-    
     mapa_colaboradores = {}
     for idx, row in df_csv.iterrows():
         nome = str(row[col_colaborador]).strip() if pd.notna(row[col_colaborador]) else ''
@@ -153,29 +139,23 @@ def processar_csv_gestores(csv_file) -> Tuple[Dict[str, Dict], Dict[str, str]]:
         if col_jornada and pd.notna(row.get(col_jornada, np.nan)):
             jornada = str(row[col_jornada]).strip()
             turno = determinar_turno(jornada)
-        mapa_colaboradores[nome_norm] = {
-            'nome_original': nome, 'gestor': gestor, 'jornada': jornada, 'turno': turno
-        }
-    
+        mapa_colaboradores[nome_norm] = {'nome_original': nome, 'gestor': gestor, 'jornada': jornada, 'turno': turno}
     mapa_supervisores = {}
     for nome_norm, info in mapa_colaboradores.items():
         gestor_norm = safe_unidecode(info['gestor'])
         if gestor_norm and gestor_norm in mapa_colaboradores:
             mapa_supervisores[gestor_norm] = mapa_colaboradores[gestor_norm]['gestor']
-    
     return mapa_colaboradores, mapa_supervisores
 
 
 def processar_ocorrencia(
     df: pd.DataFrame,
-    termo_ocorrencia: str,
-    termo_justificativa: str,
+    termo_ocorrencia: str, termo_justificativa: str,
     col_nome: str, col_cargo: str, col_depto: str, col_data_adm: str,
     col_ocorrencia: str, col_justificativa: str, col_data: str,
     mapa_colaboradores: Dict[str, Dict] = None,
     mapa_supervisores: Dict[str, str] = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Processa um filtro de ocorrência+justificativa e retorna (detalhe, ranking)."""
     termo_occ_norm = unidecode(termo_ocorrencia).strip().lower()
     termo_just_norm = unidecode(termo_justificativa).strip().lower()
     
@@ -186,7 +166,7 @@ def processar_ocorrencia(
     occ_norm = df[col_ocorrencia].apply(safe_unidecode)
     just_norm = df[col_justificativa].apply(safe_unidecode)
     
-    # Filtra pela ocorrência
+    # Filtra ocorrencia
     mask_occ = occ_norm == termo_occ_norm
     if mask_occ.sum() == 0:
         mask_occ = occ_norm.str.contains(termo_occ_escape, na=False, regex=True)
@@ -198,7 +178,7 @@ def processar_ocorrencia(
                 if mask_occ.sum() > 0:
                     break
     
-    # Filtra pela justificativa
+    # Filtra justificativa
     mask_just = just_norm == termo_just_norm
     if mask_just.sum() == 0:
         mask_just = just_norm.str.contains(termo_just_escape, na=False, regex=True)
@@ -209,27 +189,19 @@ def processar_ocorrencia(
                 mask_just = just_norm.str.contains(regex_module.escape(palavra), na=False, regex=True)
                 if mask_just.sum() > 0:
                     break
-    
     if mask_just.sum() == 0:
         mask_just = pd.Series([True] * len(df))
     
     df_filtrado = df[mask_occ & mask_just].copy()
     
     if len(df_filtrado) == 0:
-        colunas_detalhe = [
-            'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno',
-            'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências', 'Datas das Ocorrências'
-        ]
-        df_detalhe = pd.DataFrame(columns=colunas_detalhe)
-        df_ranking = pd.DataFrame(columns=['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências'])
-        return df_detalhe, df_ranking
+        colunas_detalhe = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências', 'Datas das Ocorrências']
+        return pd.DataFrame(columns=colunas_detalhe), pd.DataFrame(columns=['Posição', 'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências'])
     
-    # Prepara dados - ANTES de qualquer rename, salva uma cópia da justificativa para o pivot
-    df_filtrado['_valor_pivot'] = df_filtrado[col_justificativa].astype(str)
+    # Prepara dados
     df_filtrado['Data_Formatada'] = df_filtrado[col_data].apply(formatar_data_br)
     df_filtrado['Tempo_Servico'] = df_filtrado[col_data_adm].apply(calcular_tempo_servico)
     
-    # Função info colaborador
     def get_info_colaborador(nome):
         if mapa_colaboradores is None:
             return {'gestor': '', 'turno': '', 'supervisor': ''}
@@ -247,93 +219,89 @@ def processar_ocorrencia(
     df_filtrado['Supervisor'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['supervisor'])
     df_filtrado['Turno'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['turno'])
     
-    try:
-        df_filtrado['Data_Dt'] = pd.to_datetime(df_filtrado[col_data], dayfirst=False, errors='coerce')
-        df_filtrado = df_filtrado.sort_values('Data_Dt')
-    except:
-        pass
+    # Cria coluna de valor para pivot (evita problemas de nome)
+    df_filtrado['_VALOR'] = df_filtrado[col_justificativa].fillna('').astype(str)
+    # Remove 'nan' string
+    df_filtrado.loc[df_filtrado['_VALOR'].str.lower() == 'nan', '_VALOR'] = ''
     
-    # Renomeia colunas para nomes padronizados
+    # Renomeia colunas para padrao
     rename_map = {}
-    for col_orig, col_novo in [
-        (col_nome, 'Colaborador'), (col_cargo, 'Cargo'), (col_depto, 'Departamento'), (col_data_adm, 'Data Admissão')
-    ]:
+    for col_orig, col_novo in [(col_nome, 'Colaborador'), (col_cargo, 'Cargo'), (col_depto, 'Departamento'), (col_data_adm, 'Data Admissão')]:
         if col_orig != col_novo and col_orig in df_filtrado.columns:
             rename_map[col_orig] = col_novo
-    if 'Tempo_Servico' in df_filtrado.columns:
-        rename_map['Tempo_Servico'] = 'Tempo de Serviço'
-    if rename_map:
-        df_filtrado = df_filtrado.rename(columns=rename_map)
+    rename_map['Tempo_Servico'] = 'Tempo de Serviço'
+    df_filtrado = df_filtrado.rename(columns=rename_map)
     
-    # Garante que 'Colaborador' existe
     if 'Colaborador' not in df_filtrado.columns:
         df_filtrado['Colaborador'] = df_filtrado[col_nome]
     
-    colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
-    colunas_fixas_existentes = [c for c in colunas_fixas if c in df_filtrado.columns]
+    # ========================================================
+    # CONSTRUCAO DIRETA DO DETALHAMENTO (MAIS ROBUSTA)
+    # ========================================================
+    # Agrupa por Colaborador e Data, concatenando os valores
+    df_agg = df_filtrado.groupby(['Colaborador', 'Data_Formatada'], as_index=False)['_VALOR'].agg(
+        lambda x: ' | '.join(sorted(set(v for v in x if v.strip() != '')))
+    )
     
-    # --- CONSTRUÇÃO MANUAL DO DETALHAMENTO (sem pivot) ---
-    # 1. Pega dados únicos de cada colaborador
-    # Cria um dict de agregação seguro
-    agg_dict = {}
-    for c in colunas_fixas_existentes:
-        if c != 'Colaborador':
-            agg_dict[c] = 'first'
-    agg_dict['Data_Formatada'] = lambda x: sorted(x.dropna().unique().tolist())
-    agg_dict['_valor_pivot'] = 'count'
+    # Pega dados fixos de cada colaborador (primeira linha)
+    cols_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
+    df_fixas = df_filtrado[cols_fixas].drop_duplicates(subset=['Colaborador']).set_index('Colaborador')
     
-    df_agrupado = df_filtrado.groupby('Colaborador').agg(agg_dict).reset_index()
-    
-    # 2. Descobre todas as datas únicas no filtrado
-    todas_datas = sorted(df_filtrado['Data_Formatada'].dropna().unique().tolist())
+    # Cria a tabela pivotada manualmente para ter controle total
+    # 1. Lista todos os colaboradores unicos
+    colaboradores = df_agg['Colaborador'].unique()
+    # 2. Lista todas as datas unicas
+    todas_datas = sorted(df_agg['Data_Formatada'].unique().tolist())
     try:
         todas_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
     except:
         pass
-    
-    # 3. Constrói o dicionário {colaborador: {data: valor}} para preencher as colunas
-    data_valores = {}
-    for _, row in df_filtrado.iterrows():
+    # 3. Dicionario para acesso rapido: (colab, data) -> valor
+    lookup = {}
+    qtd_por_colab = {}
+    datas_por_colab = {}
+    for _, row in df_agg.iterrows():
         colab = str(row['Colaborador']).strip()
         data = str(row['Data_Formatada']).strip()
-        valor = str(row['_valor_pivot']).strip()
-        if colab and data and valor and valor.lower() != 'nan':
-            if colab not in data_valores:
-                data_valores[colab] = {}
-            chave = f"{data}_{valor}"
-            if colab in data_valores and data in data_valores[colab]:
-                if valor not in data_valores[colab][data]:
-                    data_valores[colab][data] += f" | {valor}"
-            else:
-                data_valores[colab][data] = valor
+        valor = str(row['_VALOR']).strip()
+        lookup[(colab, data)] = valor
+        if colab not in qtd_por_colab:
+            qtd_por_colab[colab] = 0
+            datas_por_colab[colab] = []
+        qtd_por_colab[colab] += 1
+        datas_por_colab[colab].append(data)
     
     # 4. Monta o DataFrame final
     linhas = []
-    for _, row in df_agrupado.iterrows():
-        colab = str(row['Colaborador']).strip()
+    for colab in colaboradores:
         linha = {}
-        for c in colunas_fixas_existentes:
-            linha[c] = row[c]
-        
-        datas_colab = data_valores.get(colab, {})
-        linha['Quantidade Ocorrências'] = len(row['Data_Formatada'])
-        linha['Datas das Ocorrências'] = ', '.join(row['Data_Formatada'])
-        
+        # Dados fixos
+        if colab in df_fixas.index:
+            for c in cols_fixas:
+                if c != 'Colaborador':
+                    linha[c] = df_fixas.loc[colab, c]
+        # Colaborador
+        linha['Colaborador'] = colab
+        # Quantidade e datas concatenadas
+        linha['Quantidade Ocorrências'] = qtd_por_colab.get(colab, 0)
+        linha['Datas das Ocorrências'] = ', '.join(sorted(datas_por_colab.get(colab, [])))
+        # Cada data vira uma coluna
         for data in todas_datas:
-            linha[data] = datas_colab.get(data, '')
-        
+            valor = lookup.get((colab, data), '')
+            # Se tiver valor, mostra o texto da justificativa
+            linha[data] = valor
         linhas.append(linha)
     
-    cols_fixas_no_df = colunas_fixas_existentes
-    cols_datas = todas_datas
-    
     df_detalhe = pd.DataFrame(linhas)
-    
-    # Ordena por quantidade decrescente
     df_detalhe = df_detalhe.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
     
+    # Colunas: fixas + qtd + datas concatenadas + colunas de data
+    cols_finais = cols_fixas + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + todas_datas
+    cols_existentes = [c for c in cols_finais if c in df_detalhe.columns]
+    df_detalhe = df_detalhe[cols_existentes]
+    
     # Ranking
-    cols_ranking = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências']
+    cols_ranking = cols_fixas + ['Quantidade Ocorrências', 'Datas das Ocorrências']
     cols_ranking_existentes = [c for c in cols_ranking if c in df_detalhe.columns]
     df_ranking = df_detalhe[cols_ranking_existentes].copy()
     df_ranking = df_ranking.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
@@ -342,51 +310,24 @@ def processar_ocorrencia(
     return df_detalhe, df_ranking
 
 
-def gerar_planilha_ocorrencia(
-    df_detalhe: pd.DataFrame, df_ranking: pd.DataFrame,
-    nome_aba_detalhe: str, writer: pd.ExcelWriter
-):
+def gerar_planilha_ocorrencia(df_detalhe: pd.DataFrame, df_ranking: pd.DataFrame, nome_aba_detalhe: str, writer: pd.ExcelWriter):
     workbook = writer.book
-    
-    header_fmt = workbook.add_format({
-        'bold': True, 'font_size': 11,
-        'font_color': COR_BRANCO, 'bg_color': COR_VERDE_ESCURO,
-        'border': 1, 'border_color': COR_VERDE_ESCURO,
-        'text_wrap': True, 'valign': 'vcenter', 'align': 'center'
-    })
-    
-    header_ranking_fmt = workbook.add_format({
-        'bold': True, 'font_size': 11,
-        'font_color': COR_BRANCO, 'bg_color': COR_VERDE_MEDIO,
-        'border': 1, 'border_color': COR_VERDE_MEDIO,
-        'text_wrap': True, 'valign': 'vcenter', 'align': 'center'
-    })
-    
+    header_fmt = workbook.add_format({'bold': True, 'font_size': 11, 'font_color': COR_BRANCO, 'bg_color': COR_VERDE_ESCURO, 'border': 1, 'border_color': COR_VERDE_ESCURO, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
+    header_ranking_fmt = workbook.add_format({'bold': True, 'font_size': 11, 'font_color': COR_BRANCO, 'bg_color': COR_VERDE_MEDIO, 'border': 1, 'border_color': COR_VERDE_MEDIO, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
     cell_fmt = workbook.add_format({'font_size': 10, 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter'})
     cell_alt_fmt = workbook.add_format({'font_size': 10, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': COR_CINZA_CLARO, 'text_wrap': True, 'valign': 'vcenter'})
     cell_qtd_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_PRETO, 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
     cell_qtd_alt_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_PRETO, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': COR_CINZA_CLARO, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
     cell_alta_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_VERMELHO, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': '#FFF0F0', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
     cell_media_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_LARANJA, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': '#FFF8E7', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
-    
     posicoes_format = {
         1: workbook.add_format({'font_size': 12, 'bold': True, 'font_color': COR_BRANCO, 'bg_color': '#D4A017', 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'}),
         2: workbook.add_format({'font_size': 12, 'bold': True, 'font_color': '#333333', 'bg_color': '#C0C0C0', 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'}),
         3: workbook.add_format({'font_size': 12, 'bold': True, 'font_color': COR_BRANCO, 'bg_color': '#CD7F32', 'border': 1, 'border_color': '#BFBFBF', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
     }
+    col_widths = {'Colaborador': 36, 'Cargo': 20, 'Departamento': 28, 'Gestor': 30, 'Supervisor': 30, 'Turno': 14, 'Data Admissão': 16, 'Tempo de Serviço': 16, 'Quantidade Ocorrências': 20, 'Datas das Ocorrências': 50}
+    col_widths_rank = {'Posição': 8, 'Colaborador': 36, 'Cargo': 20, 'Departamento': 28, 'Gestor': 30, 'Supervisor': 30, 'Turno': 14, 'Data Admissão': 16, 'Tempo de Serviço': 16, 'Quantidade Ocorrências': 20}
     
-    col_widths = {
-        'Colaborador': 36, 'Cargo': 20, 'Departamento': 28, 'Gestor': 30,
-        'Supervisor': 30, 'Turno': 14, 'Data Admissão': 16, 'Tempo de Serviço': 16,
-        'Quantidade Ocorrências': 20, 'Datas das Ocorrências': 50
-    }
-    col_widths_rank = {
-        'Posição': 8, 'Colaborador': 36, 'Cargo': 20, 'Departamento': 28,
-        'Gestor': 30, 'Supervisor': 30, 'Turno': 14, 'Data Admissão': 16,
-        'Tempo de Serviço': 16, 'Quantidade Ocorrências': 20
-    }
-    
-    # --- ABA 1: DETALHAMENTO ---
     sheet_name = nome_aba_detalhe[:31]
     df_detalhe.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
     ws = writer.sheets[sheet_name]
@@ -394,7 +335,6 @@ def gerar_planilha_ocorrencia(
         ws.write(0, col_num, value, header_fmt)
     for col_num, col_name in enumerate(df_detalhe.columns):
         ws.set_column(col_num, col_num, col_widths.get(col_name, 18))
-    
     qtd_col_idx = list(df_detalhe.columns).index('Quantidade Ocorrências') if 'Quantidade Ocorrências' in df_detalhe.columns else -1
     for row_num in range(1, len(df_detalhe) + 1):
         is_alt = row_num % 2 == 0
@@ -412,7 +352,6 @@ def gerar_planilha_ocorrencia(
     ws.freeze_panes(1, 0)
     ws.autofilter(0, 0, len(df_detalhe), len(df_detalhe.columns) - 1)
     
-    # --- ABA 2: RANKING ---
     sheet_name_rank = 'Ofensores'
     if sheet_name_rank in writer.sheets:
         sheet_name_rank = 'Ofensores 2'
@@ -422,15 +361,13 @@ def gerar_planilha_ocorrencia(
         ws_rank.write(0, col_num, value, header_ranking_fmt)
     for col_num, col_name in enumerate(df_ranking.columns):
         ws_rank.set_column(col_num, col_num, col_widths_rank.get(col_name, 18))
-    
     qtd_col_idx_rank = list(df_ranking.columns).index('Quantidade Ocorrências') if 'Quantidade Ocorrências' in df_ranking.columns else -1
     for row_num in range(1, len(df_ranking) + 1):
         is_alt = row_num % 2 == 0
         posicao = df_ranking.iloc[row_num - 1, 0]
         for col_num in range(len(df_ranking.columns)):
             valor = df_ranking.iloc[row_num - 1, col_num]
-            if col_num == 0 and posicao in posicoes_format:
-                fmt = posicoes_format[posicao]
+            if col_num == 0 and posicao in posicoes_format: fmt = posicoes_format[posicao]
             elif col_num == qtd_col_idx_rank:
                 qtd = valor
                 if qtd >= 5: fmt = cell_alta_fmt
@@ -454,103 +391,48 @@ def sanitizar_nome_arquivo(nome: str) -> str:
     return nome[:80]
 
 
-# ============================================================
-# CONFIGURAÇÃO DE TODAS AS OCORRÊNCIAS
-# ============================================================
 OCORRENCIAS_CONFIG = [
-    {
-        'tipo': 'multiplas_pasta_unica', 'nome': 'Afastamentos/Atestados',
-        'pasta': 'Afastamentos_Atestados',
-        'itens': [
-            {'nome': 'Afast Acid Trab <= 15 Dias', 'ocorrencia': 'Afast Acid Trab <= 15 Dias', 'justificativa': 'Afast Acid Trab <= 15 Dias', 'arquivo': 'Afast_Acid_Trab_15d'},
-            {'nome': 'Afast Acid Trab > 15 Dias', 'ocorrencia': 'Afast Acid Trab > 15 Dias', 'justificativa': 'Afast Acid Trab > 15 Dias', 'arquivo': 'Afast_Acid_Trab_15d+'},
-            {'nome': 'Afast Doenca <= 15 Dias', 'ocorrencia': 'Afast Doenca <= 15 Dias', 'justificativa': 'Afast Doenca <= 15 Dias', 'arquivo': 'Afast_Doenca_15d'},
-            {'nome': 'Afast Doenca > 15 Dias', 'ocorrencia': 'Afast Doenca > 15 Dias', 'justificativa': 'Afast Doenca > 15 Dias', 'arquivo': 'Afast_Doenca_15d+'},
-            {'nome': 'Afast Licenca Maternidade', 'ocorrencia': 'Afast Licenca Maternidade', 'justificativa': 'Afast Licenca Maternidade', 'arquivo': 'Afast_Licenca_Maternidade'},
-            {'nome': 'Outros tipos de afastamento', 'ocorrencia': 'Outros tipos de afastamento', 'justificativa': 'Outros tipos de afastamento', 'arquivo': 'Outros_Afastamentos'},
-        ]
-    },
+    {'tipo': 'multiplas_pasta_unica', 'nome': 'Afastamentos/Atestados', 'pasta': 'Afastamentos_Atestados',
+     'itens': [
+         {'nome': 'Afast Acid Trab <= 15 Dias', 'ocorrencia': 'Afast Acid Trab <= 15 Dias', 'justificativa': 'Afast Acid Trab <= 15 Dias', 'arquivo': 'Afast_Acid_Trab_15d'},
+         {'nome': 'Afast Acid Trab > 15 Dias', 'ocorrencia': 'Afast Acid Trab > 15 Dias', 'justificativa': 'Afast Acid Trab > 15 Dias', 'arquivo': 'Afast_Acid_Trab_15d+'},
+         {'nome': 'Afast Doenca <= 15 Dias', 'ocorrencia': 'Afast Doenca <= 15 Dias', 'justificativa': 'Afast Doenca <= 15 Dias', 'arquivo': 'Afast_Doenca_15d'},
+         {'nome': 'Afast Doenca > 15 Dias', 'ocorrencia': 'Afast Doenca > 15 Dias', 'justificativa': 'Afast Doenca > 15 Dias', 'arquivo': 'Afast_Doenca_15d+'},
+         {'nome': 'Afast Licenca Maternidade', 'ocorrencia': 'Afast Licenca Maternidade', 'justificativa': 'Afast Licenca Maternidade', 'arquivo': 'Afast_Licenca_Maternidade'},
+         {'nome': 'Outros tipos de afastamento', 'ocorrencia': 'Outros tipos de afastamento', 'justificativa': 'Outros tipos de afastamento', 'arquivo': 'Outros_Afastamentos'}
+     ]},
     {'tipo': 'unica', 'nome': 'Ferias Normais', 'ocorrencia': 'Ferias Normais', 'justificativa': 'Ferias Normais', 'arquivo': 'Ferias_Normais'},
-    {
-        'tipo': 'multiplas_pasta_unica', 'nome': 'Sem marcações',
-        'pasta': 'Sem_Marcacoes',
-        'itens': [
-            {'nome': 'Sem marcacao de entrada', 'ocorrencia': 'Sem marcação de entrada', 'justificativa': 'Sem marcação de entrada', 'arquivo': 'Sem_Marcacao_Entrada'},
-            {'nome': 'Sem marcacao de saida', 'ocorrencia': 'Sem marcação de saída', 'justificativa': 'Sem marcação de saída', 'arquivo': 'Sem_Marcacao_Saida'},
-        ]
-    },
-    {
-        'tipo': 'multiplas', 'nome': 'Entrada em atraso',
-        'ocorrencia': 'Entrada em atraso',
-        'justificativas': [
-            'Banco de Horas - Fechamento Semestral (Fev/Ago)',
-            'Banco de Horas - Fechamento Semestral (Fev/Ago) S/D',
-            'Banco de Horas - Fechamento Trimestral Fev/Maio/Ago/Nov S/D',
-            'Banco de Horas Distribuição - Fechamento Trimestral (Fev/Mai/Ago/Nov) S/D',
-            'Declaração de Horas', 'Liberação Empresa - Horas',
-            'Parte Ou Testemunha de Processo Judicial',
-        ],
-        'pasta': 'Entrada_em_Atraso'
-    },
-    {
-        'tipo': 'multiplas', 'nome': 'Falta',
-        'ocorrencia': 'Falta',
-        'justificativas': [
-            'Amamentação', 'Aniversário - Dia Livre',
-            'Banco de Horas - Fechamento Trimestral Fev/Maio/Ago/Nov S/D',
-            'Banco de Horas Distribuição - Fechamento Trimestral (Fev/Mai/Ago/Nov) S/D',
-            'Curso de Aprendizagem', 'Declaração de Horas', 'Falta', 'Folga',
-            'Folga Ouro da Casa', 'Integração', 'Liberação da Empresa - Dia',
-            'Obito de Familiar', 'Parte Ou Testemunha de Processo Judicial', 'Serviço Externo',
-        ],
-        'pasta': 'Falta'
-    },
+    {'tipo': 'multiplas_pasta_unica', 'nome': 'Sem marcações', 'pasta': 'Sem_Marcacoes',
+     'itens': [
+         {'nome': 'Sem marcacao de entrada', 'ocorrencia': 'Sem marcação de entrada', 'justificativa': 'Sem marcação de entrada', 'arquivo': 'Sem_Marcacao_Entrada'},
+         {'nome': 'Sem marcacao de saida', 'ocorrencia': 'Sem marcação de saída', 'justificativa': 'Sem marcação de saída', 'arquivo': 'Sem_Marcacao_Saida'}
+     ]},
+    {'tipo': 'multiplas', 'nome': 'Entrada em atraso', 'ocorrencia': 'Entrada em atraso',
+     'justificativas': ['Banco de Horas - Fechamento Semestral (Fev/Ago)', 'Banco de Horas - Fechamento Semestral (Fev/Ago) S/D', 'Banco de Horas - Fechamento Trimestral Fev/Maio/Ago/Nov S/D', 'Banco de Horas Distribuição - Fechamento Trimestral (Fev/Mai/Ago/Nov) S/D', 'Declaração de Horas', 'Liberação Empresa - Horas', 'Parte Ou Testemunha de Processo Judicial'],
+     'pasta': 'Entrada_em_Atraso'},
+    {'tipo': 'multiplas', 'nome': 'Falta', 'ocorrencia': 'Falta',
+     'justificativas': ['Amamentação', 'Aniversário - Dia Livre', 'Banco de Horas - Fechamento Trimestral Fev/Maio/Ago/Nov S/D', 'Banco de Horas Distribuição - Fechamento Trimestral (Fev/Mai/Ago/Nov) S/D', 'Curso de Aprendizagem', 'Declaração de Horas', 'Falta', 'Folga', 'Folga Ouro da Casa', 'Integração', 'Liberação da Empresa - Dia', 'Obito de Familiar', 'Parte Ou Testemunha de Processo Judicial', 'Serviço Externo'],
+     'pasta': 'Falta'}
 ]
 
 
-def gerar_excel_ocorrencia(
-    df: pd.DataFrame, config: Dict,
-    col_nome: str, col_cargo: str, col_depto: str, col_data_adm: str,
-    col_ocorrencia: str, col_justificativa: str, col_data: str,
-    mapa_colaboradores: Dict = None, mapa_supervisores: Dict = None
-) -> Tuple[bytes, str, int]:
-    df_detalhe, df_ranking = processar_ocorrencia(
-        df, config['ocorrencia'], config['justificativa'],
-        col_nome, col_cargo, col_depto, col_data_adm,
-        col_ocorrencia, col_justificativa, col_data,
-        mapa_colaboradores, mapa_supervisores
-    )
+def gerar_excel_ocorrencia(df: pd.DataFrame, config: Dict, col_nome: str, col_cargo: str, col_depto: str, col_data_adm: str, col_ocorrencia: str, col_justificativa: str, col_data: str, mapa_colaboradores: Dict = None, mapa_supervisores: Dict = None) -> Tuple[bytes, str, int]:
+    df_detalhe, df_ranking = processar_ocorrencia(df, config['ocorrencia'], config['justificativa'], col_nome, col_cargo, col_depto, col_data_adm, col_ocorrencia, col_justificativa, col_data, mapa_colaboradores, mapa_supervisores)
     if len(df_detalhe) == 0:
         return None, config.get('arquivo', '') + '.xlsx', 0
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
         gerar_planilha_ocorrencia(df_detalhe, df_ranking, config['nome'], writer)
-    nome_arquivo = f"{config['arquivo']}.xlsx"
-    return excel_buffer.getvalue(), nome_arquivo, len(df_detalhe)
+    return excel_buffer.getvalue(), f"{config['arquivo']}.xlsx", len(df_detalhe)
 
 
-def gerar_pasta_ocorrencia(
-    df: pd.DataFrame, config: Dict,
-    col_nome: str, col_cargo: str, col_depto: str, col_data_adm: str,
-    col_ocorrencia: str, col_justificativa: str, col_data: str,
-    mapa_colaboradores: Dict = None, mapa_supervisores: Dict = None
-) -> Tuple[Dict[str, bytes], str, int]:
+def gerar_pasta_ocorrencia(df: pd.DataFrame, config: Dict, col_nome: str, col_cargo: str, col_depto: str, col_data_adm: str, col_ocorrencia: str, col_justificativa: str, col_data: str, mapa_colaboradores: Dict = None, mapa_supervisores: Dict = None) -> Tuple[Dict[str, bytes], str, int]:
     pasta = config['pasta']
     arquivos = {}
     total_colaboradores = 0
     for justificativa in config['justificativas']:
-        config_unica = {
-            'ocorrencia': config['ocorrencia'],
-            'justificativa': justificativa,
-            'nome': f"{config['nome']} - {justificativa}",
-            'arquivo': sanitizar_nome_arquivo(justificativa)
-        }
-        excel_bytes, nome_arquivo, qtd = gerar_excel_ocorrencia(
-            df, config_unica,
-            col_nome, col_cargo, col_depto, col_data_adm,
-            col_ocorrencia, col_justificativa, col_data,
-            mapa_colaboradores, mapa_supervisores
-        )
+        config_unica = {'ocorrencia': config['ocorrencia'], 'justificativa': justificativa, 'nome': f"{config['nome']} - {justificativa}", 'arquivo': sanitizar_nome_arquivo(justificativa)}
+        excel_bytes, nome_arquivo, qtd = gerar_excel_ocorrencia(df, config_unica, col_nome, col_cargo, col_depto, col_data_adm, col_ocorrencia, col_justificativa, col_data, mapa_colaboradores, mapa_supervisores)
         if excel_bytes is not None:
             arquivos[nome_arquivo] = excel_bytes
             total_colaboradores += qtd
@@ -558,16 +440,13 @@ def gerar_pasta_ocorrencia(
 
 
 # ============================================================
-# INTERFACE STREAMLIT
+# INTERFACE
 # ============================================================
 
 st.subheader("1. Carregue os arquivos")
-
 col1, col2 = st.columns(2)
-
 with col1:
     uploaded_file = st.file_uploader("Arquivo Excel de Ponto (XLSX)", type=["xlsx", "xlsm"])
-
 with col2:
     uploaded_csv = st.file_uploader("Arquivo CSV de Base Ativos", type=["csv"])
 
@@ -583,43 +462,32 @@ if uploaded_csv is not None:
 if uploaded_file is not None:
     try:
         df = pd.read_excel(uploaded_file)
-        st.success(f"Arquivo de ponto carregado! {len(df)} linhas, {len(df.columns)} colunas.")
+        st.success(f"Arquivo carregado! {len(df)} linhas, {len(df.columns)} colunas.")
     except Exception as e:
-        st.error(f"Erro ao ler o arquivo: {e}")
+        st.error(f"Erro: {e}")
         st.stop()
     
     if len(df.columns) < 39:
-        st.error(f"O arquivo precisa ter pelo menos 39 colunas (até AM). Encontradas: {len(df.columns)}")
+        st.error(f"Precisa de 39 colunas. Encontradas: {len(df.columns)}")
         st.stop()
     
-    col_nome = df.columns[3]
-    col_cargo = df.columns[7]
-    col_depto = df.columns[8]
-    col_escala = df.columns[11]
-    col_data_adm = df.columns[16]
-    col_marcacoes = df.columns[23]
-    col_ocorrencia = df.columns[25]
-    col_justificativa = df.columns[27]
-    col_data = df.columns[38]
+    col_nome = df.columns[3]; col_cargo = df.columns[7]; col_depto = df.columns[8]
+    col_escala = df.columns[11]; col_data_adm = df.columns[16]; col_marcacoes = df.columns[23]
+    col_ocorrencia = df.columns[25]; col_justificativa = df.columns[27]; col_data = df.columns[38]
     
-    st.info(f"Colaborador (D): {col_nome} | Cargo (H): {col_cargo} | Depto (I): {col_depto} | Data Adm (Q): {col_data_adm} | Ocorrência (Z): {col_ocorrencia} | Justificativa (AB): {col_justificativa} | Data (AM): {col_data}")
+    st.info(f"D={col_nome} | H={col_cargo} | I={col_depto} | Q={col_data_adm} | Z={col_ocorrencia} | AB={col_justificativa} | AM={col_data}")
     
     with st.expander("📊 Ocorrências disponíveis", expanded=False):
-        ocorrencias_count = df[col_ocorrencia].value_counts().reset_index()
-        ocorrencias_count.columns = ['Ocorrência', 'Quantidade']
-        st.dataframe(ocorrencias_count, use_container_width=True)
+        oc = df[col_ocorrencia].value_counts().reset_index()
+        oc.columns = ['Ocorrência', 'Quantidade']
+        st.dataframe(oc, use_container_width=True)
     
-    st.subheader("2. Selecione os tipos de ocorrência para gerar")
-    
+    st.subheader("2. Selecione os tipos")
     opcoes = []
     for config in OCORRENCIAS_CONFIG:
-        if config['tipo'] == 'unica':
-            opcoes.append(config['nome'])
-        elif config['tipo'] == 'multiplas_pasta_unica':
-            opcoes.append(f"📁 {config['nome']} ({len(config['itens'])} tipos)")
-        else:
-            opcoes.append(f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)")
-    
+        if config['tipo'] == 'unica': opcoes.append(config['nome'])
+        elif config['tipo'] == 'multiplas_pasta_unica': opcoes.append(f"📁 {config['nome']} ({len(config['itens'])} tipos)")
+        else: opcoes.append(f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)")
     selecionados = st.multiselect("Selecione:", options=opcoes, default=opcoes)
     
     if st.button("🚀 Gerar Relatórios", type="primary", use_container_width=True):
@@ -631,69 +499,34 @@ if uploaded_file is not None:
             
             configs_selecionadas = []
             for config in OCORRENCIAS_CONFIG:
-                if config['tipo'] == 'unica' and config['nome'] in selecionados:
-                    configs_selecionadas.append(config)
+                if config['tipo'] == 'unica' and config['nome'] in selecionados: configs_selecionadas.append(config)
                 elif config['tipo'] == 'multiplas':
                     label = f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)"
-                    if label in selecionados:
-                        configs_selecionadas.append(config)
+                    if label in selecionados: configs_selecionadas.append(config)
                 elif config['tipo'] == 'multiplas_pasta_unica':
                     label = f"📁 {config['nome']} ({len(config['itens'])} tipos)"
-                    if label in selecionados:
-                        configs_selecionadas.append(config)
+                    if label in selecionados: configs_selecionadas.append(config)
             
             total = len(configs_selecionadas)
             if total == 0:
-                st.warning("Nenhuma ocorrência selecionada.")
+                st.warning("Nenhuma selecionada.")
                 st.stop()
             
             resultados_processados = []
             for i, config in enumerate(configs_selecionadas):
                 status_text.text(f"Processando: {config['nome']}...")
-                
                 if config['tipo'] == 'unica':
-                    excel_bytes, nome_arquivo, qtd = gerar_excel_ocorrencia(
-                        df, config,
-                        col_nome, col_cargo, col_depto, col_data_adm,
-                        col_ocorrencia, col_justificativa, col_data,
-                        mapa_colaboradores, mapa_supervisores
-                    )
-                    resultados_processados.append({
-                        'config': config, 'excel_bytes': excel_bytes,
-                        'nome_arquivo': nome_arquivo, 'qtd': qtd, 'tipo': 'unica'
-                    })
-                
+                    eb, na, qtd = gerar_excel_ocorrencia(df, config, col_nome, col_cargo, col_depto, col_data_adm, col_ocorrencia, col_justificativa, col_data, mapa_colaboradores, mapa_supervisores)
+                    resultados_processados.append({'config': config, 'excel_bytes': eb, 'nome_arquivo': na, 'qtd': qtd, 'tipo': 'unica'})
                 elif config['tipo'] == 'multiplas_pasta_unica':
-                    pasta = config['pasta']
-                    arquivos = {}
-                    total_colab = 0
+                    arquivos = {}; total_colab = 0
                     for item in config['itens']:
-                        excel_bytes, nome_arquivo, qtd = gerar_excel_ocorrencia(
-                            df, item,
-                            col_nome, col_cargo, col_depto, col_data_adm,
-                            col_ocorrencia, col_justificativa, col_data,
-                            mapa_colaboradores, mapa_supervisores
-                        )
-                        if excel_bytes is not None:
-                            arquivos[nome_arquivo] = excel_bytes
-                            total_colab += qtd
-                    resultados_processados.append({
-                        'config': config, 'arquivos': arquivos,
-                        'pasta': pasta, 'total_colab': total_colab, 'tipo': 'multiplas'
-                    })
-                
+                        eb, na, qtd = gerar_excel_ocorrencia(df, item, col_nome, col_cargo, col_depto, col_data_adm, col_ocorrencia, col_justificativa, col_data, mapa_colaboradores, mapa_supervisores)
+                        if eb is not None: arquivos[na] = eb; total_colab += qtd
+                    resultados_processados.append({'config': config, 'arquivos': arquivos, 'pasta': config['pasta'], 'total_colab': total_colab, 'tipo': 'multiplas'})
                 else:
-                    arquivos, pasta, total_colab = gerar_pasta_ocorrencia(
-                        df, config,
-                        col_nome, col_cargo, col_depto, col_data_adm,
-                        col_ocorrencia, col_justificativa, col_data,
-                        mapa_colaboradores, mapa_supervisores
-                    )
-                    resultados_processados.append({
-                        'config': config, 'arquivos': arquivos,
-                        'pasta': pasta, 'total_colab': total_colab, 'tipo': 'multiplas'
-                    })
-                
+                    arquivos, pasta, total_colab = gerar_pasta_ocorrencia(df, config, col_nome, col_cargo, col_depto, col_data_adm, col_ocorrencia, col_justificativa, col_data, mapa_colaboradores, mapa_supervisores)
+                    resultados_processados.append({'config': config, 'arquivos': arquivos, 'pasta': pasta, 'total_colab': total_colab, 'tipo': 'multiplas'})
                 progress_bar.progress((i + 1) / (total + 1))
             
             zip_buffer = io.BytesIO()
@@ -701,43 +534,21 @@ if uploaded_file is not None:
                 for resultado in resultados_processados:
                     status_text.text(f"Compactando: {resultado['config']['nome']}...")
                     if resultado['tipo'] == 'unica':
-                        if resultado['excel_bytes'] is not None:
-                            zf.writestr(resultado['nome_arquivo'], resultado['excel_bytes'])
+                        if resultado['excel_bytes'] is not None: zf.writestr(resultado['nome_arquivo'], resultado['excel_bytes'])
                     else:
                         for nome_arquivo, excel_bytes in resultado['arquivos'].items():
-                            caminho = f"{resultado['pasta']}/{nome_arquivo}"
-                            zf.writestr(caminho, excel_bytes)
+                            zf.writestr(f"{resultado['pasta']}/{nome_arquivo}", excel_bytes)
                     progress_bar.progress((i + 1) / (total + 1) + 0.05)
             
             status_text.text("✅ Relatórios gerados!")
-            
             if len(zip_buffer.getvalue()) > 0:
-                st.download_button(
-                    label="📥 Baixar ZIP",
-                    data=zip_buffer.getvalue(),
-                    file_name="Relatorio_Ponto_Geral.zip",
-                    mime="application/zip",
-                    use_container_width=True
-                )
+                st.download_button("📥 Baixar ZIP", data=zip_buffer.getvalue(), file_name="Relatorio_Ponto_Geral.zip", mime="application/zip", use_container_width=True)
             
             st.subheader("📋 Resumo")
-            resumo_data = []
-            for resultado in resultados_processados:
-                if resultado['tipo'] == 'unica':
-                    tem = resultado['qtd'] > 0
-                    resumo_data.append({
-                        'Ocorrência': resultado['config']['nome'],
-                        'Colaboradores': resultado['qtd'],
-                        'Status': '✅' if tem else '⚠️'
-                    })
-                else:
-                    tem = resultado['total_colab'] > 0
-                    resumo_data.append({
-                        'Ocorrência': f"📁 {resultado['config']['nome']}",
-                        'Colaboradores': resultado['total_colab'],
-                        'Status': '✅' if tem else '⚠️'
-                    })
-            st.dataframe(pd.DataFrame(resumo_data), use_container_width=True, hide_index=True)
-
+            resumo = []
+            for r in resultados_processados:
+                if r['tipo'] == 'unica': resumo.append({'Ocorrência': r['config']['nome'], 'Colaboradores': r['qtd'], 'Status': '✅' if r['qtd'] > 0 else '⚠️'})
+                else: resumo.append({'Ocorrência': f"📁 {r['config']['nome']}", 'Colaboradores': r['total_colab'], 'Status': '✅' if r['total_colab'] > 0 else '⚠️'})
+            st.dataframe(pd.DataFrame(resumo), use_container_width=True, hide_index=True)
 else:
     st.info(" Carregue os arquivos para começar.")
