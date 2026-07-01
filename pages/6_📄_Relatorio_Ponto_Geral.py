@@ -272,34 +272,14 @@ def processar_ocorrencia(
     colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
     colunas_fixas_existentes = [c for c in colunas_fixas if c in df_filtrado.columns]
     
-    # Define a coluna de valores para o pivot: tenta justificativa, senão ocorrência
-    col_valor_pivot = None
-    for tentativa_col in [col_justificativa, col_ocorrencia, 'Justificativa']:
-        if tentativa_col in df_filtrado.columns:
-            col_valor_pivot = tentativa_col
-            break
-    
-    if col_valor_pivot is None:
-        # Último recurso: qualquer coluna que não seja fixa nem data
-        for c in df_filtrado.columns:
-            if c not in colunas_fixas_existentes and c not in ['Data_Formatada', 'Data_Dt', 'Tempo_Servico', 'Gestor', 'Supervisor', 'Turno']:
-                col_valor_pivot = c
-                break
-    
-    if col_valor_pivot is None:
-        st.warning("Não foi possível determinar coluna de valores para o pivot.")
-        df_detalhe = pd.DataFrame(columns=colunas_fixas_existentes)
-        df_ranking = pd.DataFrame(columns=['Posição'] + colunas_fixas_existentes + ['Quantidade Ocorrências'])
-        return df_detalhe, df_ranking
-    
-    # Pivot Table
+    # Pivot Table - usa _valor_pivot que foi criado ANTES do rename e SEMPRE existe
     agg_func = lambda x: ' | '.join(sorted(set([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])))
     
     try:
         df_detalhe = df_filtrado.pivot_table(
             index=colunas_fixas_existentes,
             columns='Data_Formatada',
-            values=col_valor_pivot,
+            values='_valor_pivot',
             aggfunc=agg_func
         ).fillna('')
     except Exception as e:
