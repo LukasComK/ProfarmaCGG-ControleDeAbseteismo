@@ -264,11 +264,6 @@ def processar_ocorrencia(
     if rename_map:
         df_filtrado = df_filtrado.rename(columns=rename_map)
     
-    # Salva o nome original da coluna de justificativa ANTES de perder a referência
-    nome_col_justificativa_no_df = col_justificativa
-    if col_justificativa in rename_map:
-        nome_col_justificativa_no_df = rename_map[col_justificativa]
-    
     # Garante que 'Colaborador' existe
     if 'Colaborador' not in df_filtrado.columns:
         df_filtrado['Colaborador'] = df_filtrado[col_nome]
@@ -276,17 +271,34 @@ def processar_ocorrencia(
     colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
     colunas_fixas_existentes = [c for c in colunas_fixas if c in df_filtrado.columns]
     
+    # Define a coluna de valores para o pivot: tenta justificativa, senão ocorrência
+    col_valor_pivot = None
+    for tentativa_col in [col_justificativa, col_ocorrencia, 'Justificativa']:
+        if tentativa_col in df_filtrado.columns:
+            col_valor_pivot = tentativa_col
+            break
+    
+    if col_valor_pivot is None:
+        # Último recurso: qualquer coluna que não seja fixa nem data
+        for c in df_filtrado.columns:
+            if c not in colunas_fixas_existentes and c not in ['Data_Formatada', 'Data_Dt', 'Tempo_Servico', 'Gestor', 'Supervisor', 'Turno']:
+                col_valor_pivot = c
+                break
+    
+    if col_valor_pivot is None:
+        st.warning("Não foi possível determinar coluna de valores para o pivot.")
+        df_detalhe = pd.DataFrame(columns=colunas_fixas_existentes)
+        df_ranking = pd.DataFrame(columns=['Posição'] + colunas_fixas_existentes + ['Quantidade Ocorrências'])
+        return df_detalhe, df_ranking
+    
     # Pivot Table
     agg_func = lambda x: ' | '.join(sorted(set([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])))
     
     try:
-        # Usa o nome correto da coluna de justificativa (pode ter sido renomeado)
-        valor_pivot = nome_col_justificativa_no_df if nome_col_justificativa_no_df in df_filtrado.columns else col_justificativa
-        
         df_detalhe = df_filtrado.pivot_table(
             index=colunas_fixas_existentes,
             columns='Data_Formatada',
-            values=valor_pivot,
+            values=col_valor_pivot,
             aggfunc=agg_func
         ).fillna('')
     except Exception as e:
