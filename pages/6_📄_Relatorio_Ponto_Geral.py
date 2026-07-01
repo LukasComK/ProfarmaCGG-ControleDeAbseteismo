@@ -298,6 +298,10 @@ def processar_ocorrencia(
         if col_orig != col_novo and col_orig in df_filtrado.columns:
             rename_map[col_orig] = col_novo
     
+    # Renomeia Tempo_Servico para Tempo de Serviço
+    if 'Tempo_Servico' in df_filtrado.columns:
+        rename_map['Tempo_Servico'] = 'Tempo de Serviço'
+    
     if rename_map:
         df_filtrado = df_filtrado.rename(columns=rename_map)
     
