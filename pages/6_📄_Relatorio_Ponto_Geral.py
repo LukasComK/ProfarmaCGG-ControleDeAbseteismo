@@ -219,21 +219,31 @@ def processar_ocorrencia(
     df_filtrado['Supervisor'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['supervisor'])
     df_filtrado['Turno'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['turno'])
     
-    # Cria coluna de valor para pivot (evita problemas de nome)
-    df_filtrado['_VALOR'] = df_filtrado[col_justificativa].fillna('').astype(str)
-    # Remove 'nan' string
-    df_filtrado.loc[df_filtrado['_VALOR'].str.lower() == 'nan', '_VALOR'] = ''
+    # Cria coluna de valor ANTES de qualquer rename - usa o índice para acessar
+    # Isso é mais seguro do que usar col_justificativa que pode ser um nome estranho
+    idx_justificativa = 27  # AB
+    if len(df_filtrado.columns) > idx_justificativa:
+        col_name_just = df_filtrado.columns[idx_justificativa]
+        df_filtrado['_VALOR'] = df_filtrado[col_name_just].fillna('').astype(str)
+    else:
+        df_filtrado['_VALOR'] = df_filtrado[col_justificativa].fillna('').astype(str)
+    df_filtrado.loc[df_filtrado['_VALOR'].str.lower().isin(['nan', 'nat', '']), '_VALOR'] = ''
+    
+    # DEBUG: guarda info para mostrar no Streamlit
+    debug_valores = df_filtrado['_VALOR'].value_counts().head(10).to_dict()
+    debug_qtde = len(df_filtrado)
+    st.session_state['_debug_qtde'] = debug_qtde
+    st.session_state['_debug_valores'] = debug_valores
     
     # Renomeia colunas para padrao
     rename_map = {}
     for col_orig, col_novo in [(col_nome, 'Colaborador'), (col_cargo, 'Cargo'), (col_depto, 'Departamento'), (col_data_adm, 'Data Admissão')]:
         if col_orig != col_novo and col_orig in df_filtrado.columns:
             rename_map[col_orig] = col_novo
-    rename_map['Tempo_Servico'] = 'Tempo de Serviço'
-    df_filtrado = df_filtrado.rename(columns=rename_map)
-    
-    if 'Colaborador' not in df_filtrado.columns:
-        df_filtrado['Colaborador'] = df_filtrado[col_nome]
+    if 'Tempo_Servico' in df_filtrado.columns:
+        rename_map['Tempo_Servico'] = 'Tempo de Serviço'
+    if rename_map:
+        df_filtrado = df_filtrado.rename(columns=rename_map)
     
     # ========================================================
     # CONSTRUCAO DIRETA DO DETALHAMENTO (MAIS ROBUSTA)
@@ -550,5 +560,16 @@ if uploaded_file is not None:
                 if r['tipo'] == 'unica': resumo.append({'Ocorrência': r['config']['nome'], 'Colaboradores': r['qtd'], 'Status': '✅' if r['qtd'] > 0 else '⚠️'})
                 else: resumo.append({'Ocorrência': f"📁 {r['config']['nome']}", 'Colaboradores': r['total_colab'], 'Status': '✅' if r['total_colab'] > 0 else '⚠️'})
             st.dataframe(pd.DataFrame(resumo), use_container_width=True, hide_index=True)
+            
+            # DEBUG
+            with st.expander("🔬 Debug dos dados", expanded=False):
+                debug_qtde = st.session_state.get('_debug_qtde', 0)
+                debug_valores = st.session_state.get('_debug_valores', {})
+                st.write(f"**Linhas filtradas no último processamento:** {debug_qtde}")
+                if debug_valores:
+                    st.write("**Valores únicos em _VALOR:**")
+                    st.json(debug_valores)
+                else:
+                    st.warning("Nenhum valor encontrado em _VALOR! Verifique o filtro.")
 else:
     st.info(" Carregue os arquivos para começar.")
