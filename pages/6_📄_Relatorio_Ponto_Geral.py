@@ -287,23 +287,39 @@ def processar_ocorrencia(
     # Cria colunas de índice fixas para o pivot
     colunas_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
     
-    # Renomeia colunas para nomes padronizados
-    df_filtrado = df_filtrado.rename(columns={
-        col_nome: 'Colaborador',
-        col_cargo: 'Cargo',
-        col_depto: 'Departamento',
-        col_data_adm: 'Data Admissão'
-    })
+    # Renomeia colunas para nomes padronizados (apenas se os nomes forem diferentes)
+    rename_map = {}
+    for col_orig, col_novo in [
+        (col_nome, 'Colaborador'),
+        (col_cargo, 'Cargo'),
+        (col_depto, 'Departamento'),
+        (col_data_adm, 'Data Admissão')
+    ]:
+        if col_orig != col_novo and col_orig in df_filtrado.columns:
+            rename_map[col_orig] = col_novo
+    
+    if rename_map:
+        df_filtrado = df_filtrado.rename(columns=rename_map)
+    
+    # Garante que todas as colunas fixas existem no DataFrame
+    colunas_fixas_existentes = [c for c in colunas_fixas if c in df_filtrado.columns]
     
     # Pivot Table: linhas = info do colaborador, colunas = datas, valores = justificativa
     agg_func = lambda x: ' | '.join(sorted(set([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])))
     
-    df_detalhe = df_filtrado.pivot_table(
-        index=colunas_fixas,
-        columns='Data_Formatada',
-        values=col_justificativa,
-        aggfunc=agg_func
-    ).fillna('')
+    try:
+        df_detalhe = df_filtrado.pivot_table(
+            index=colunas_fixas_existentes,
+            columns='Data_Formatada',
+            values=col_justificativa,
+            aggfunc=agg_func
+        ).fillna('')
+    except Exception as e:
+        # Se o pivot falhar, cria um DataFrame vazio com as colunas esperadas
+        st.warning(f"Erro ao criar pivot table: {e}. Gerando relatório vazio.")
+        df_detalhe = pd.DataFrame(columns=colunas_fixas_existentes)
+        df_ranking = pd.DataFrame(columns=['Posição', 'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências'])
+        return df_detalhe, df_ranking
     
     # Garante que células vazias fiquem como string vazia
     df_detalhe = df_detalhe.replace('nan', '')
