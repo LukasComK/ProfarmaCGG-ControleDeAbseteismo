@@ -340,7 +340,7 @@ def processar_ocorrencia(
     df_detalhe = df_detalhe[cols_existentes]
     
     # Ranking (sumarizado, sem as colunas de data)
-    df_ranking = df_detalhe[colunas_fixas].copy()
+    df_ranking = df_detalhe[cols_fixas_no_df].copy()
     
     # Conta quantas colunas de data têm conteúdo
     def contar_ocorrencias(row):
