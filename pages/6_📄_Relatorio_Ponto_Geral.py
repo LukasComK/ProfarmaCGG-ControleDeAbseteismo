@@ -224,7 +224,8 @@ def processar_ocorrencia(
         df_ranking = pd.DataFrame(columns=['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências'])
         return df_detalhe, df_ranking
     
-    # Prepara dados
+    # Prepara dados - ANTES de qualquer rename, salva uma cópia da justificativa para o pivot
+    df_filtrado['_valor_pivot'] = df_filtrado[col_justificativa].astype(str)
     df_filtrado['Data_Formatada'] = df_filtrado[col_data].apply(formatar_data_br)
     df_filtrado['Tempo_Servico'] = df_filtrado[col_data_adm].apply(calcular_tempo_servico)
     
