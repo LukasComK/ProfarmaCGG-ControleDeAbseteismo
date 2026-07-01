@@ -339,7 +339,8 @@ def processar_ocorrencia(
     cols_existentes = [c for c in cols_ordenadas if c in df_detalhe.columns]
     df_detalhe = df_detalhe[cols_existentes]
     
-    # Ranking (sumarizado, sem as colunas de data)
+    # Ranking (sumarizado) - usa EXATAMENTE as colunas que existem no DataFrame
+    # cols_fixas_no_df já foi calculado dinamicamente e só contém colunas que existem
     df_ranking = df_detalhe[cols_fixas_no_df].copy()
     
     # Conta quantas colunas de data têm conteúdo
@@ -348,12 +349,7 @@ def processar_ocorrencia(
     
     df_ranking['Quantidade Ocorrências'] = df_detalhe.apply(contar_ocorrencias, axis=1)
     df_ranking = df_ranking.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
-    df_ranking['Posição'] = range(1, len(df_ranking) + 1)
-    
-    # Reordena colunas do ranking dinamicamente
-    cols_ranking_ordem = ['Posição', 'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço', 'Quantidade Ocorrências']
-    cols_ranking_existentes = [c for c in cols_ranking_ordem if c in df_ranking.columns]
-    df_ranking = df_ranking[cols_ranking_existentes]
+    df_ranking.insert(0, 'Posição', range(1, len(df_ranking) + 1))
     
     return df_detalhe, df_ranking
 
