@@ -112,8 +112,17 @@ def processar_ocorrencia(
     termo_occ_norm = unidecode(termo_ocorrencia).strip().lower()
     termo_just_norm = unidecode(termo_justificativa).strip().lower()
     
-    occ_norm = df[col_ocorrencia].astype(str).apply(lambda x: unidecode(x).strip().lower())
-    just_norm = df[col_justificativa].astype(str).apply(lambda x: unidecode(x).strip().lower())
+    # Função segura para aplicar unidecode tratando NaN e valores vazios
+    def safe_unidecode(valor):
+        if pd.isna(valor) or str(valor).strip() == '':
+            return ''
+        try:
+            return unidecode(str(valor)).strip().lower()
+        except:
+            return str(valor).strip().lower()
+    
+    occ_norm = df[col_ocorrencia].apply(safe_unidecode)
+    just_norm = df[col_justificativa].apply(safe_unidecode)
     
     # Filtra pela ocorrência
     mask_occ = occ_norm == termo_occ_norm
