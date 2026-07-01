@@ -327,13 +327,17 @@ def processar_ocorrencia(
     # Reset index para as colunas fixas virarem colunas normais
     df_detalhe = df_detalhe.reset_index()
     
-    # Ordena colunas: fixas primeiro, depois datas em ordem cronológica
-    cols_datas = [c for c in df_detalhe.columns if c not in colunas_fixas]
+    # Recalcula cols_datas com BASE no DataFrame atual (após reset_index)
+    cols_fixas_no_df = [c for c in colunas_fixas if c in df_detalhe.columns]
+    cols_datas = [c for c in df_detalhe.columns if c not in cols_fixas_no_df]
     try:
         cols_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
     except:
         pass
-    df_detalhe = df_detalhe[colunas_fixas + cols_datas]
+    # Reordena colunas apenas se todas existirem
+    cols_ordenadas = cols_fixas_no_df + cols_datas
+    cols_existentes = [c for c in cols_ordenadas if c in df_detalhe.columns]
+    df_detalhe = df_detalhe[cols_existentes]
     
     # Ranking (sumarizado, sem as colunas de data)
     df_ranking = df_detalhe[colunas_fixas].copy()
