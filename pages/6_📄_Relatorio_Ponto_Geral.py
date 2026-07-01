@@ -339,27 +339,44 @@ def processar_ocorrencia(
     # Recalcula cols_datas com BASE no DataFrame atual (após reset_index)
     cols_fixas_no_df = [c for c in colunas_fixas if c in df_detalhe.columns]
     cols_datas = [c for c in df_detalhe.columns if c not in cols_fixas_no_df]
+    cols_datas = [c for c in cols_datas if c not in ['Quantidade Ocorrências', 'Datas das Ocorrências']]
+    
     try:
         cols_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
     except:
         pass
-    # Adiciona colunas resumidas (Quantidade e Datas concatenadas) ANTES das colunas de data
-    def contar_ocorrencias(row):
-        return sum(1 for c in cols_datas if row[c] != '' and pd.notna(row[c]))
     
-    def concatenar_datas(row):
-        datas = [c for c in cols_datas if row[c] != '' and pd.notna(row[c])]
-        return ', '.join(sorted(datas))
+    # Conta ocorrências DIRETAMENTE do df_filtrado original agrupando por colaborador
+    # Isso é muito mais confiável do que contar células vazias no pivot
+    grupos_originais = df_filtrado.groupby('Colaborador')
+    qtd_por_colaborador = {}
+    datas_por_colaborador = {}
+    for nome_colab, grupo in grupos_originais:
+        datas_unicas = sorted(grupo['Data_Formatada'].dropna().unique().tolist())
+        qtd_por_colaborador[nome_colab] = len(grupo)
+        datas_por_colaborador[nome_colab] = ', '.join(datas_unicas) if datas_unicas else ''
     
-    df_detalhe.insert(len(cols_fixas_no_df), 'Quantidade Ocorrências', df_detalhe.apply(contar_ocorrencias, axis=1))
-    df_detalhe.insert(len(cols_fixas_no_df) + 1, 'Datas das Ocorrências', df_detalhe.apply(concatenar_datas, axis=1))
+    # Aplica contagem baseada no nome do colaborador no df_detalhe
+    # Precisamos saber qual coluna contém o nome do colaborador em df_detalhe
+    col_nome_no_detalhe = 'Colaborador' if 'Colaborador' in df_detalhe.columns else df_detalhe.columns[0]
+    
+    qtd_series = df_detalhe[col_nome_no_detalhe].map(lambda x: qtd_por_colaborador.get(str(x).strip(), 0))
+    datas_series = df_detalhe[col_nome_no_detalhe].map(lambda x: datas_por_colaborador.get(str(x).strip(), ''))
+    
+    # Preenche NaN com 0 e string vazia
+    qtd_series = qtd_series.fillna(0).astype(int)
+    datas_series = datas_series.fillna('')
+    
+    # Insere colunas resumidas DEPOIS das colunas fixas
+    df_detalhe.insert(len(cols_fixas_no_df), 'Quantidade Ocorrências', qtd_series)
+    df_detalhe.insert(len(cols_fixas_no_df) + 1, 'Datas das Ocorrências', datas_series)
     
     # Reordena colunas: fixas + Qtd + Datas concatenadas + colunas de data individuais
     cols_ordenadas = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + cols_datas
     cols_existentes = [c for c in cols_ordenadas if c in df_detalhe.columns]
     df_detalhe = df_detalhe[cols_existentes]
     
-    # Ranking (sumarizado) - pega colunas fixas + quantidade + datas concatenadas
+    # Ranking (sumarizado) - usa os dados já calculados
     cols_ranking = cols_fixas_no_df + ['Quantidade Ocorrências', 'Datas das Ocorrências']
     cols_ranking_existentes = [c for c in cols_ranking if c in df_detalhe.columns]
     df_ranking = df_detalhe[cols_ranking_existentes].copy()
