@@ -219,15 +219,18 @@ def processar_ocorrencia(
     df_filtrado['Supervisor'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['supervisor'])
     df_filtrado['Turno'] = df_filtrado[col_nome].apply(lambda x: get_info_colaborador(x)['turno'])
     
-    # Cria coluna de valor ANTES de qualquer rename - usa o índice para acessar
-    # Isso é mais seguro do que usar col_justificativa que pode ser um nome estranho
-    idx_justificativa = 27  # AB
-    if len(df_filtrado.columns) > idx_justificativa:
-        col_name_just = df_filtrado.columns[idx_justificativa]
-        df_filtrado['_VALOR'] = df_filtrado[col_name_just].fillna('').astype(str)
-    else:
-        df_filtrado['_VALOR'] = df_filtrado[col_justificativa].fillna('').astype(str)
-    df_filtrado.loc[df_filtrado['_VALOR'].str.lower().isin(['nan', 'nat', '']), '_VALOR'] = ''
+    # Cria a coluna de valor antes de qualquer rename.
+    # Algumas ocorrências vêm preenchidas em col_justificativa, outras em col_ocorrencia,
+    # então usamos a primeira informação útil disponível para não perder a marcação na matriz.
+    def extrair_valor_marcacao(row):
+        for col_ref in (col_justificativa, col_ocorrencia):
+            if col_ref in row.index:
+                valor = str(row[col_ref]).strip()
+                if valor and valor.lower() not in ['nan', 'nat']:
+                    return valor
+        return ''
+
+    df_filtrado['_VALOR'] = df_filtrado.apply(extrair_valor_marcacao, axis=1)
     
     # DEBUG: guarda info para mostrar no Streamlit
     debug_valores = df_filtrado['_VALOR'].value_counts().head(10).to_dict()
