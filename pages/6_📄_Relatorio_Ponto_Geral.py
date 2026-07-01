@@ -246,105 +246,64 @@ def processar_ocorrencia(
         df_filtrado = df_filtrado.rename(columns=rename_map)
     
     # ========================================================
-    # CONSTRUCAO DO DETALHAMENTO VIA PIVOT TABLE DO PANDAS
+    # CONSTRUCAO DO DETALHAMENTO
     # ========================================================
     cols_fixas = ['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data Admissão', 'Tempo de Serviço']
-    
-    # Pega as colunas fixas que existem
     cols_fixas_existentes = [c for c in cols_fixas if c in df_filtrado.columns]
     
-    # Agrupa por (Colaborador, Data) para concatenar valores
-    df_agg = df_filtrado.groupby(['Colaborador', 'Data_Formatada'], as_index=False)['_VALOR'].agg(
-        lambda x: ' | '.join(sorted(set(v for v in x if str(v).strip() != '')))
-    )
-    
-    # Concatena com os dados fixos (first de cada colab)
-    df_fixas = df_filtrado[cols_fixas_existentes].drop_duplicates(subset=['Colaborador']).reset_index(drop=True)
-    
-    # Merge: junta df_agg com df_fixas pelo Colaborador
-    df_merged = df_agg.merge(df_fixas, on='Colaborador', how='left')
-    
-    # Pivot: linhas = Colaborador + dados fixos, colunas = Data_Formatada, valores = _VALOR
-    # Primeiro faz o pivot
-    try:
-        df_pivot = df_merged.pivot_table(
-            index=cols_fixas_existentes,
-            columns='Data_Formatada',
-            values='_VALOR',
-            aggfunc='first'
-        ).fillna('')
-    except Exception as e:
-        st.warning(f"Erro no pivot: {e}. Usando método alternativo.")
-        # Fallback: construção manual simplificada
-        todas_datas = sorted(df_agg['Data_Formatada'].unique().tolist())
-        try:
-            todas_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
-        except:
-            pass
-        
-        # Cria lookup e monta linhas
-        lookup = {}
-        for _, row in df_agg.iterrows():
-            lookup[(str(row['Colaborador']).strip(), str(row['Data_Formatada']).strip())] = str(row['_VALOR']).strip()
-        
-        linhas = []
-        for _, fixa_row in df_fixas.iterrows():
-            colab = str(fixa_row['Colaborador']).strip()
-            linha = {c: fixa_row[c] for c in cols_fixas_existentes}
-            
-            qtd = 0
-            datas_list = []
-            for data in todas_datas:
-                v = lookup.get((colab, data), '')
-                linha[data] = v
-                if v:
-                    qtd += 1
-                    datas_list.append(data)
-            
-            linha['Quantidade Ocorrências'] = qtd
-            linha['Datas das Ocorrências'] = ', '.join(datas_list)
-            linhas.append(linha)
-        
-        df_detalhe = pd.DataFrame(linhas)
-        df_detalhe = df_detalhe.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
-        
-        cols_finais = cols_fixas_existentes + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + todas_datas
-        cols_existentes = [c for c in cols_finais if c in df_detalhe.columns]
-        df_detalhe = df_detalhe[cols_existentes]
-        
-        # Ranking
-        cols_ranking = cols_fixas_existentes + ['Quantidade Ocorrências', 'Datas das Ocorrências']
-        cols_ranking_existentes = [c for c in cols_ranking if c in df_detalhe.columns]
-        df_ranking = df_detalhe[cols_ranking_existentes].copy()
-        df_ranking = df_ranking.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
-        df_ranking.insert(0, 'Posição', range(1, len(df_ranking) + 1))
-        
-        return df_detalhe, df_ranking
-    
-    df_pivot = df_pivot.reset_index()
-    
-    # Lista de datas ordenadas
-    todas_datas = [c for c in df_pivot.columns if c not in cols_fixas_existentes]
+    # Pega todas as datas únicas ORDENADAS
+    todas_datas = sorted(df_filtrado['Data_Formatada'].dropna().unique().tolist())
     try:
         todas_datas.sort(key=lambda x: datetime.strptime(x, '%d/%m/%Y') if x else datetime.min)
     except:
         pass
     
-    # Calcula qtd e datas concatenadas
-    def contar_ocorrencias(row):
-        return sum(1 for c in todas_datas if str(row[c]).strip() != '')
+    # Cria lookup direto: (colaborador_norm, data) -> lista de valores
+    from collections import defaultdict
+    lookup = defaultdict(list)
     
-    def concatenar_datas(row):
-        return ', '.join(sorted([c for c in todas_datas if str(row[c]).strip() != '']))
+    for _, row in df_filtrado.iterrows():
+        colab = str(row['Colaborador']).strip()
+        data = str(row['Data_Formatada']).strip()
+        valor = str(row['_VALOR']).strip()
+        if valor and valor.lower() not in ['nan', 'nat']:
+            lookup[(colab, data)].append(valor)
     
-    df_pivot['Quantidade Ocorrências'] = df_pivot.apply(contar_ocorrencias, axis=1)
-    df_pivot['Datas das Ocorrências'] = df_pivot.apply(concatenar_datas, axis=1)
+    # Para cada (colab, data), junta valores únicos
+    lookup_final = {}
+    for chave, valores in lookup.items():
+        valores_unicos = sorted(set(valores))
+        lookup_final[chave] = ' | '.join(valores_unicos)
     
-    # Reordena colunas
-    cols_finais = cols_fixas_existentes + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + todas_datas
-    cols_existentes = [c for c in cols_finais if c in df_pivot.columns]
-    df_detalhe = df_pivot[cols_existentes]
+    # Pega dados fixos de cada colaborador
+    df_fixas = df_filtrado[cols_fixas_existentes].drop_duplicates(subset=['Colaborador']).reset_index(drop=True)
+    
+    # Remove a coluna _VALOR do df_filtrado se existir (pode conflitar)
+    # Monta linhas
+    linhas = []
+    for _, fixa_row in df_fixas.iterrows():
+        colab = str(fixa_row['Colaborador']).strip()
+        linha = {c: fixa_row[c] for c in cols_fixas_existentes}
+        
+        datas_com_valor = []
+        qtd = 0
+        for data in todas_datas:
+            valor = lookup_final.get((colab, data), '')
+            linha[data] = valor
+            if valor:
+                qtd += 1
+                datas_com_valor.append(data)
+        
+        linha['Quantidade Ocorrências'] = qtd
+        linha['Datas das Ocorrências'] = ', '.join(datas_com_valor)
+        linhas.append(linha)
+    
+    df_detalhe = pd.DataFrame(linhas)
     df_detalhe = df_detalhe.sort_values('Quantidade Ocorrências', ascending=False).reset_index(drop=True)
+    
+    cols_finais = cols_fixas_existentes + ['Quantidade Ocorrências', 'Datas das Ocorrências'] + todas_datas
+    cols_existentes = [c for c in cols_finais if c in df_detalhe.columns]
+    df_detalhe = df_detalhe[cols_existentes]
     
     # Ranking
     cols_ranking = cols_fixas + ['Quantidade Ocorrências', 'Datas das Ocorrências']
