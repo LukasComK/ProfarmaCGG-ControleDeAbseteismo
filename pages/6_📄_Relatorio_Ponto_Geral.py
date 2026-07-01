@@ -314,8 +314,8 @@ def processar_ocorrencia(
     colunas_fixas_existentes = [c for c in colunas_fixas if c in df_filtrado.columns]
     
     # Pivot Table: linhas = info do colaborador, colunas = datas, valores = justificativa
-    # Usa "1" para sinalizar que houve ocorrência naquela data (mais fácil de filtrar/somar)
-    agg_func = lambda x: '1'
+    # Mostra o nome da ocorrência/justificativa na célula
+    agg_func = lambda x: ' | '.join(sorted(set([str(v) for v in x if pd.notna(v) and str(v).strip() != ''])))
     
     try:
         df_detalhe = df_filtrado.pivot_table(
