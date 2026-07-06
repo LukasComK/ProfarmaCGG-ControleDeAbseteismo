@@ -824,7 +824,7 @@ def valor_excel_seguro(valor):
     return valor
 
 
-def identificar_dia_extra(grupo_dia: pd.DataFrame) -> str:
+def identificar_dia_evento(grupo_dia: pd.DataFrame) -> Tuple[str, str]:
     texto_parts = []
     for col in ['Ocorrencia', 'Justificativa', 'TipoOcorrencia']:
         if col in grupo_dia.columns:
@@ -833,20 +833,23 @@ def identificar_dia_extra(grupo_dia: pd.DataFrame) -> str:
 
     texto = ' | '.join(texto_parts).lower()
     if not texto:
-        return ''
+        return '', ''
+
+    if 'falta' in texto or 'sem marcação' in texto or 'sem marcacao' in texto or 'ausência' in texto or 'ausencia' in texto:
+        return 'falta', 'Falta/Ausência'
 
     if 'feriado' in texto:
-        return 'Trabalho em feriado'
+        return 'extra_forte', 'Trabalho em feriado'
     if 'folga' in texto and ('hora extra' in texto or 'pagar horas extras' in texto or 'trabalh' in texto):
-        return 'Trabalho em folga'
+        return 'extra_forte', 'Trabalho em folga'
     if 'hora extra folga' in texto:
-        return 'Hora extra em folga'
+        return 'extra_forte', 'Hora extra em folga'
     if 'pagar horas extras' in texto:
-        return 'Dia fora da jornada com hora extra'
+        return 'extra_forte', 'Dia fora da jornada com hora extra'
     if 'serviço externo' in texto or 'servico externo' in texto:
-        return 'Dia fora da jornada'
+        return 'extra_moderado', 'Dia fora da jornada'
 
-    return ''
+    return '', ''
 
 
 def processar_alteracoes_escala(
@@ -926,7 +929,7 @@ def processar_alteracoes_escala(
                     break
             reais = lista_reais
 
-        alerta_dia = identificar_dia_extra(grupo_dia)
+        tipo_evento, alerta_dia = identificar_dia_evento(grupo_dia)
 
         saldo_bh_min = None
         for col_balanco in ['BancoDeHoras', 'HoraExtra', 'Desconto']:
@@ -964,9 +967,11 @@ def processar_alteracoes_escala(
             'Delta Saída': delta_saida,
             'Saldo BH Min': saldo_bh_min,
             'Saldo BH': formatar_duracao_minutos(saldo_bh_min),
-            'Tem Jornada Completa': bool(len(oficiais) >= 4 and len(reais) >= 4),
+            'Tem Jornada Comparavel': bool(len(reais) >= 2),
             'Alerta Dia': alerta_dia,
-            'Dia Extra': bool(alerta_dia),
+            'Tipo Evento': tipo_evento,
+            'Dia Extra': tipo_evento in {'extra_forte', 'extra_moderado'},
+            'Dia Falta': tipo_evento == 'falta',
         })
 
     df_detalhe = pd.DataFrame(registros_diarios)
@@ -981,8 +986,11 @@ def processar_alteracoes_escala(
     for colaborador, grupo in df_detalhe.groupby('Colaborador', sort=False):
         total_dias = len(grupo)
         dias_extra = int(grupo['Dia Extra'].sum()) if 'Dia Extra' in grupo.columns else 0
+        dias_falta = int(grupo['Dia Falta'].sum()) if 'Dia Falta' in grupo.columns else 0
+        dias_extra_fortes = int((grupo['Tipo Evento'] == 'extra_forte').sum()) if 'Tipo Evento' in grupo.columns else 0
+        taxa_falta = (dias_falta / total_dias) if total_dias else 0.0
 
-        grupo_regular = grupo[(grupo['Tem Jornada Completa']) & (~grupo['Dia Extra'])].copy()
+        grupo_regular = grupo[(grupo['Tem Jornada Comparavel']) & (~grupo['Dia Extra']) & (~grupo['Dia Falta'])].copy()
         dias_regulares = len(grupo_regular)
         med_entrada = float(np.median(grupo_regular['Delta Entrada'])) if dias_regulares > 0 and grupo_regular['Delta Entrada'].notna().any() else None
         med_saida = float(np.median(grupo_regular['Delta Saída'])) if dias_regulares > 0 and grupo_regular['Delta Saída'].notna().any() else None
@@ -999,10 +1007,14 @@ def processar_alteracoes_escala(
         saldo_neg_pct = float((saldo_vals < 0).mean() * 100) if len(saldo_vals) > 0 else 0.0
 
         penalty_extra = min(15, dias_extra * 5)
-        consistencia_final = max(0.0, consistencia_horario - penalty_extra)
+        penalty_falta = min(30, dias_falta * 8)
+        consistencia_final = max(0.0, consistencia_horario - penalty_extra - penalty_falta)
 
-        flag_horario = dias_regulares >= minimo_dias and med_entrada is not None and med_saida is not None and (abs(med_entrada) >= 15 or abs(med_saida) >= 15) and consistencia_horario >= consistencia_minima
-        flag_saldo = total_dias >= minimo_dias and saldo_abs_medio is not None and saldo_abs_medio >= 240 and max(saldo_pos_pct, saldo_neg_pct) >= 70
+        flag_horario = dias_regulares >= minimo_dias and taxa_falta < 0.40 and med_entrada is not None and med_saida is not None and (abs(med_entrada) >= 15 or abs(med_saida) >= 15) and consistencia_horario >= consistencia_minima
+        flag_saldo = total_dias >= minimo_dias and taxa_falta < 0.50 and saldo_abs_medio is not None and saldo_abs_medio >= 240 and max(saldo_pos_pct, saldo_neg_pct) >= 70
+
+        if dias_falta >= dias_regulares and dias_extra_fortes == 0:
+            continue
 
         if not flag_horario and not flag_saldo:
             continue
@@ -1023,8 +1035,14 @@ def processar_alteracoes_escala(
             motivos.append('Entrada e saída deslocadas de forma consistente')
         if dias_extra > 0:
             motivos.append(f'{dias_extra} dia(s) fora da jornada')
+        if dias_falta > 0:
+            motivos.append(f'{dias_falta} dia(s) com falta/ausência')
+        if taxa_falta >= 0.40:
+            motivos.append(f'Faltas em {round(taxa_falta * 100)}% dos dias')
 
-        if flag_saldo and flag_horario:
+        if dias_extra_fortes > 0 and flag_horario:
+            recomendacao = 'Troca de escala evidente'
+        elif flag_saldo and flag_horario:
             recomendacao = 'Rever escala agora'
         elif flag_saldo:
             recomendacao = 'Revisar escala por saldo de horas'
@@ -1038,6 +1056,12 @@ def processar_alteracoes_escala(
             pontuacao += 25.0 + min(15.0, float(saldo_abs_medio) / 60.0 * 3.0)
         if dias_extra > 0:
             pontuacao += min(10.0, dias_extra * 2.5)
+        if dias_extra_fortes > 0:
+            pontuacao += min(20.0, dias_extra_fortes * 10.0)
+        if dias_falta > 0:
+            pontuacao -= min(20.0, dias_falta * 3.0)
+        if taxa_falta >= 0.40:
+            pontuacao -= min(20.0, taxa_falta * 20.0)
         if not flag_horario and dias_extra > 0:
             pontuacao *= 0.6
 
@@ -1055,15 +1079,18 @@ def processar_alteracoes_escala(
             'Saldo Médio BH': formatar_duracao_minutos(saldo_medio),
             'Dias Analisados': total_dias,
             'Dias Fora da Jornada': dias_extra,
+            'Dias com Falta': dias_falta,
+            'Falta %': round(taxa_falta * 100, 1),
             'Consistência': round(consistencia_final, 1),
             'Pontuação': round(pontuacao, 1),
+            'Evidência': 'Alta' if (dias_extra_fortes > 0 and flag_horario) else ('Média' if flag_horario else 'Baixa'),
             'Alerta': ' | '.join(motivos),
             'Recomendação': recomendacao,
         })
 
     df_resumo = pd.DataFrame(linhas_resumo)
     if not df_resumo.empty:
-        df_resumo = df_resumo.sort_values(['Pontuação', 'Consistência', 'Dias Analisados', 'Dias Fora da Jornada'], ascending=[False, False, False, True]).reset_index(drop=True)
+        df_resumo = df_resumo.sort_values(['Pontuação', 'Consistência', 'Dias Analisados', 'Dias Fora da Jornada', 'Dias com Falta'], ascending=[False, False, False, True, True]).reset_index(drop=True)
         df_resumo.insert(0, 'Posição', range(1, len(df_resumo) + 1))
 
     df_detalhe = df_detalhe.drop(columns=['Data_Ord', 'Saldo BH Min'], errors='ignore')
@@ -1083,7 +1110,7 @@ def gerar_planilha_alteracoes_escala(df_resumo: pd.DataFrame, df_detalhe: pd.Dat
         cell_media_fmt = workbook.add_format({'font_size': 11, 'bold': True, 'font_color': COR_LARANJA, 'border': 1, 'border_color': '#BFBFBF', 'bg_color': '#FFF8E7', 'text_wrap': True, 'valign': 'vcenter', 'align': 'center'})
 
         if df_resumo.empty:
-            df_resumo = pd.DataFrame(columns=['Posição', 'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Turno', 'Escala Oficial', 'Entrada Prevista', 'Entrada Real Média', 'Saída Prevista', 'Saída Real Média', 'Saldo Médio BH', 'Dias Analisados', 'Dias Fora da Jornada', 'Consistência', 'Pontuação', 'Alerta', 'Recomendação'])
+            df_resumo = pd.DataFrame(columns=['Posição', 'Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Turno', 'Escala Oficial', 'Entrada Prevista', 'Entrada Real Média', 'Saída Prevista', 'Saída Real Média', 'Saldo Médio BH', 'Dias Analisados', 'Dias Fora da Jornada', 'Dias com Falta', 'Falta %', 'Consistência', 'Pontuação', 'Evidência', 'Alerta', 'Recomendação'])
 
         if df_detalhe.empty:
             df_detalhe = pd.DataFrame(columns=['Colaborador', 'Cargo', 'Departamento', 'Gestor', 'Supervisor', 'Turno', 'Data', 'Escala Oficial', 'Batidas do Dia', 'Entrada Prevista', 'Entrada Real', 'Saída Prevista', 'Saída Real', 'Delta Entrada', 'Delta Saída', 'Saldo BH'])
@@ -1108,9 +1135,13 @@ def gerar_planilha_alteracoes_escala(df_resumo: pd.DataFrame, df_detalhe: pd.Dat
                 largura = 28
             elif col_name in {'Entrada Prevista', 'Entrada Real Média', 'Saída Prevista', 'Saída Real Média', 'Saldo Médio BH'}:
                 largura = 16
+            elif col_name in {'Falta %'}:
+                largura = 10
             elif col_name in {'Recomendação'}:
                 largura = 26
-            elif col_name in {'Motivo'}:
+            elif col_name in {'Evidência'}:
+                largura = 12
+            elif col_name in {'Alerta'}:
                 largura = 36
             elif col_name in {'Consistência', 'Pontuação'}:
                 largura = 12
