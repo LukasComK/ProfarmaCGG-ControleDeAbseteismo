@@ -58,6 +58,50 @@ if file_banco_horas and file_csv_colaboradores:
         
         st.divider()
         
+        # Checkbox para Filtro de Diretoria
+        ativar_filtro_diretoria = st.checkbox("🏢 Ativar Filtro de Diretoria", value=False)
+        
+        # Cache do CSV para reutilização (evita ler o arquivo duas vezes)
+        df_csv_cache = None
+        try:
+            encodings = ['latin-1', 'iso-8859-1', 'cp1252', 'utf-8']
+            for encoding in encodings:
+                try:
+                    df_csv_cache = pd.read_csv(
+                        file_csv_colaboradores,
+                        encoding=encoding,
+                        sep=';',
+                        skiprows=1
+                    )
+                    break
+                except Exception:
+                    continue
+        except Exception:
+            df_csv_cache = None
+        
+        diretoria_selecionada = None
+        if ativar_filtro_diretoria and df_csv_cache is not None:
+            if 'Diretoria' in df_csv_cache.columns:
+                diretorias = sorted(df_csv_cache['Diretoria'].dropna().unique())
+                if len(diretorias) > 0:
+                    diretoria_selecionada = st.selectbox(
+                        "Selecione a Diretoria para filtrar:",
+                        options=diretorias,
+                        index=0
+                    )
+                    st.info(f"🔍 O relatório será filtrado apenas para colaboradores da diretoria: **{diretoria_selecionada}**")
+                else:
+                    st.warning("⚠️ Nenhuma diretoria encontrada no CSV.")
+                    ativar_filtro_diretoria = False
+            else:
+                st.warning("⚠️ Coluna 'Diretoria' não encontrada no CSV.")
+                ativar_filtro_diretoria = False
+        elif ativar_filtro_diretoria and df_csv_cache is None:
+            st.warning("⚠️ Não foi possível carregar o CSV.")
+            ativar_filtro_diretoria = False
+        
+        st.divider()
+        
         # Botão para gerar relatório
         if st.button("📊 Gerar Relatório", use_container_width=True):
             try:
@@ -229,6 +273,38 @@ if file_banco_horas and file_csv_colaboradores:
                     
                     progress_bar.progress(25, text="⏳ Processando dados... (25%)")
                     status_text.text("Convertendo horas...")
+                    
+                    # ===== APLICA FILTRO DE DIRETORIA SE ATIVADO =====
+                    if ativar_filtro_diretoria and diretoria_selecionada:
+                        status_text.text("Aplicando filtro de diretoria...")
+                        
+                        # Usa o CSV já carregado em cache (df_csv_cache)
+                        if df_csv_cache is not None and 'Diretoria' in df_csv_cache.columns and 'Colaborador' in df_csv_cache.columns:
+                            # Cria colunas upper para comparação
+                            df_csv_cache['Colaborador_upper'] = df_csv_cache['Colaborador'].astype(str).str.strip().str.upper()
+                            df_csv_cache['Diretoria_upper'] = df_csv_cache['Diretoria'].astype(str).str.strip().str.upper()
+                            
+                            # Lista de colaboradores da diretoria selecionada
+                            colaboradores_diretoria = df_csv_cache[
+                                df_csv_cache['Diretoria_upper'] == diretoria_selecionada.upper()
+                            ]['Colaborador_upper'].tolist()
+                            
+                            set_colaboradores_diretoria = set(colaboradores_diretoria)
+                            
+                            # Filtra df_processado
+                            df_processado['Colaborador_upper'] = df_processado['Colaborador'].astype(str).str.strip().str.upper()
+                            df_processado = df_processado[df_processado['Colaborador_upper'].isin(set_colaboradores_diretoria)].copy()
+                            df_processado = df_processado.drop(columns=['Colaborador_upper'])
+                            
+                            if len(df_processado) == 0:
+                                st.warning(f"⚠️ Nenhum colaborador encontrado para a diretoria '{diretoria_selecionada}'.")
+                            else:
+                                st.info(f"✅ Filtrado para {len(df_processado)} colaboradores da diretoria **{diretoria_selecionada}**")
+                        else:
+                            st.warning("⚠️ Não foi possível aplicar o filtro de diretoria - colunas necessárias não encontradas no CSV.")
+                        
+                        progress_bar.progress(30, text="⏳ Processando dados... (30%)")
+                        status_text.text("Filtro de diretoria aplicado...")
                     
                     # Função para converter horas decimais de volta para HH:MM:SS
                     def horas_para_tempo(horas):
@@ -421,29 +497,10 @@ if file_banco_horas and file_csv_colaboradores:
                     # Remove grid lines da sheet CONSOLIDAÇÃO
                     ws1.sheet_view.showGridLines = False
                     
-                    # Carrega dados do CSV para lookup de gestores (tenta múltiplos encodings)
-                    df_gestores = None
-                    try:
-                        # Tenta diferentes encodings com delimiter correto (;)
-                        encodings = ['latin-1', 'iso-8859-1', 'cp1252', 'utf-8']
-                        for encoding in encodings:
-                            try:
-                                df_gestores = pd.read_csv(
-                                    file_csv_colaboradores, 
-                                    encoding=encoding,
-                                    sep=';',  # Delimiter correto
-                                    skiprows=1  # Pula a primeira linha "Colaboradores"
-                                )
-                                break
-                            except Exception:
-                                continue
-                        
-                        if df_gestores is None:
-                            st.warning("⚠️ Não foi possível carregar o CSV com os encodings disponíveis")
-                            df_gestores = None
-                    except Exception as e:
-                        st.warning(f"⚠️ Erro ao carregar CSV: {e}")
-                        df_gestores = None
+                    # Usa o CSV em cache para lookup de gestores
+                    df_gestores = df_csv_cache
+                    if df_gestores is None:
+                        st.warning("⚠️ Não foi possível carregar o CSV com os encodings disponíveis")
                     
                     # Função para fazer lookup do gestor (PROCV)
                     def buscar_gestor(nome_colaborador, df_csv):
@@ -616,26 +673,23 @@ if file_banco_horas and file_csv_colaboradores:
                         df_processado['CentroDeCustos'].str.strip().str.upper() == 'MOVIMENTACAO E ARMAZENAGEM'
                     ].copy()
                     
-                    if len(df_mov_arm) > 0:
-                        # Define estilos para detalhes
-                        header_detail_fill = PatternFill(start_color="FF1F4E78", end_color="FF1F4E78", fill_type="solid")
-                        header_detail_font = Font(bold=True, color="FFFFFFFF", size=11, name="Calibri")
-                        
-                        detail_data_fill = PatternFill(start_color="FFE7E6E6", end_color="FFE7E6E6", fill_type="solid")
-                        detail_data_font = Font(color="FF000000", name="Calibri", size=10)
-                        
-                        detail_total_fill = PatternFill(start_color="FF1F4E78", end_color="FF1F4E78", fill_type="solid")
-                        detail_total_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
-                        
-                        border_detail = Border(
-                            left=Side(style="thin", color="000000"),
-                            right=Side(style="thin", color="000000"),
-                            top=Side(style="thin", color="000000"),
-                            bottom=Side(style="thin", color="000000")
-                        )
-                        
-
-                        
+                    # Define estilos para detalhes (fora do if para uso na sheet BASE)
+                    header_detail_fill = PatternFill(start_color="FF1F4E78", end_color="FF1F4E78", fill_type="solid")
+                    header_detail_font = Font(bold=True, color="FFFFFFFF", size=11, name="Calibri")
+                    
+                    detail_data_fill = PatternFill(start_color="FFE7E6E6", end_color="FFE7E6E6", fill_type="solid")
+                    detail_data_font = Font(color="FF000000", name="Calibri", size=10)
+                    
+                    detail_total_fill = PatternFill(start_color="FF1F4E78", end_color="FF1F4E78", fill_type="solid")
+                    detail_total_font = Font(bold=True, color="FFFFFFFF", name="Calibri", size=11)
+                    
+                    border_detail = Border(
+                        left=Side(style="thin", color="000000"),
+                        right=Side(style="thin", color="000000"),
+                        top=Side(style="thin", color="000000"),
+                        bottom=Side(style="thin", color="000000")
+                    )
+                    
                     # ===== SHEETS DE OFENSORES POR TURNO =====
                     # Função auxiliar para buscar turno de um colaborador
                     def buscar_turno_colaborador(nome_colaborador, df_csv):

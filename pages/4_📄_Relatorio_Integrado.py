@@ -305,6 +305,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 df_gest = carregar_arquivo(f_gest)
                 gestores_dict = {}
                 admissoes_dict = {}
+                situacao_dict = {}
                 colaboradores_excluidos = {}
                 
                 # Busca automática pela linha e índices das colunas no CSV/Excel
@@ -312,7 +313,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 col_colab = 3  # Padrão original no CSV era 3 se desse erro
                 col_nome_gest = 25 # Padrão original era 25
                 col_admissao = 12 # Padrão é coluna M (índice 12)
-                col_situacao = 11 # Padrão é coluna L (índice 11)
+                col_situacao = 8 # Padrão é coluna I (índice 8) - "Descrição Situação"
                 
                 for r in range(min(15, len(df_gest))):
                     linha_txt = [str(v).upper() for v in df_gest.iloc[r, :]]
@@ -324,7 +325,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             if "COLABORADOR" in v: col_colab = idx
                             if "NOME GESTOR" in v: col_nome_gest = idx
                             if "ADMISS" in v: col_admissao = idx
-                            if "SITUAÇ" in v or "SITUAC" in v: col_situacao = idx
+                            if "DESCRI" in v and "SITUA" in v and "TIPO" not in v: col_situacao = idx
                         break
                         
                 for r in range(linha_cab_gest + 1, len(df_gest)):
@@ -334,7 +335,8 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                         if colab_nome and str(colab_nome) != "NAN":
                             # Situação
                             if len(df_gest.columns) > col_situacao:
-                                sit = str(df_gest.iloc[r, col_situacao]).upper().strip()
+                                sit = str(df_gest.iloc[r, col_situacao]).replace('"', '').replace("'", "").upper().strip()
+                                situacao_dict[colab_nome] = sit
                                 if "AFASTAMENTO" in sit or "RECIS" in sit or "RESCIS" in sit:
                                     colaboradores_excluidos[colab_nome] = True
                                     continue
@@ -486,15 +488,24 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             dias_str = ", ".join([df.strftime('%d/%m') if isinstance(df, datetime.date) and pd.notna(df) else str(df) for df in all_fa_pendentes])
                             retornos_str = ", ".join(datas_retornos)
                             
+                            # Pegar Situação para entrevistas pendentes
+                            situacao_pendente = buscar_info_aproximada(nome, situacao_dict)
+                            situacao_pendente_final = situacao_pendente if situacao_pendente else "Sem situação mapeada"
+
                             lista_entrevistas_pendentes.append({
                                 "Colaborador": nome,
                                 "Gestor": gestor_final,
                                 "Supervisor": supervisor_final,
+                                "Situação": situacao_pendente_final,
                                 "Datas de Ausência": dias_str,
                                 "Datas de Retorno (P)": retornos_str,
                                 "Quantidade de faltas": len(all_fa_pendentes),
                                 "Desligamento": texto_dem
                             })
+
+                    # Pegar Situação
+                    situacao_nome = buscar_info_aproximada(nome, situacao_dict)
+                    situacao_final = situacao_nome if situacao_nome else "Sem situação mapeada"
 
                     if rec.get('FI'):
                         med = buscar_info_aproximada(nome, medidas_dict)
@@ -519,6 +530,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                         
                         lista_fi_geral.append({
                             "Colaborador": nome, "Gestor": gestor_final, "Supervisor": supervisor_final,
+                            "Situação": situacao_final,
                             "Datas das Faltas (FI)": ", ".join([d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d) for d in rec['FI']]),
                             "Quantidade de Faltas": len(rec['FI']), "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Medida Disciplinar": texto_medida, "Desligamento": texto_dem,
                             "Tempo de Serviço": ts_geral
@@ -541,6 +553,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                         
                         lista_fa_geral.append({
                             "Colaborador": nome, "Gestor": gestor_final, "Supervisor": supervisor_final,
+                            "Situação": situacao_final,
                             "Datas dos Atestados (FA)": ", ".join([d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d) for d in rec['FA']]),
                             "Quantidade de Faltas": len(rec['FA']), "Entrevista de Absenteísmo": texto_entrevista,
                             "Motivo": texto_motivo,
@@ -592,13 +605,13 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 for sem in semanas_lista:
                     # Linha Separadora de Semana
                     lista_ofensores_fi.append({
-                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Dias das Faltas": "", "Faltas Injustificadas": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
+                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Situação": "", "Dias das Faltas": "", "Faltas Injustificadas": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
                     })
                     lista_ofensores_fa.append({
-                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Dias das Faltas": "", "Faltas por Atestado": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
+                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Situação": "", "Dias das Faltas": "", "Faltas por Atestado": None, "Entrevista de Absenteísmo": "", "Motivo": "", "Desligamento": "", "Tempo de Serviço": ""
                     })
                     lista_ofensores_pendentes.append({
-                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Dias das Faltas (FA)": "", "Datas de Retorno (P)": "", "Quantidade de Faltas": None, "Desligamento": ""
+                        "Nome": sem["nome"], "Gestor": "", "Supervisor": "", "Situação": "", "Dias das Faltas (FA)": "", "Datas de Retorno (P)": "", "Quantidade de Faltas": None, "Desligamento": ""
                     })
                     
                     pessoas_fi = {}
@@ -629,6 +642,10 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                         dem = buscar_info_aproximada(nome, demissoes_dict)
                         texto_dem = f"{dem['data']} - {dem['tipo']}" if dem else "Sem projeção"
                         
+                        # Pegar Situação
+                        situacao_nome_sem = buscar_info_aproximada(nome, situacao_dict)
+                        situacao_final_sem = situacao_nome_sem if situacao_nome_sem else "Sem situação mapeada"
+                        
                         # Se faltou INJUSTIFICADO na semana, coloca na aba de Semanais FI
                         if qtd_fi > 0:
                             dias_fi_str = ", ".join([d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d) for d in fi_na_semana])
@@ -642,7 +659,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 texto_motivo_fi = "N/A"
                                 
                             pessoas_fi[nome] = {
-                                "Nome": nome, "Gestor": gestor_final, "Supervisor": supervisor_final, "Dias das Faltas": dias_fi_str, "Faltas Injustificadas": qtd_fi, "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
+                                "Nome": nome, "Gestor": gestor_final, "Supervisor": supervisor_final, "Situação": situacao_final_sem, "Dias das Faltas": dias_fi_str, "Faltas Injustificadas": qtd_fi, "Entrevista de Absenteísmo": texto_entrevista_fi, "Motivo": texto_motivo_fi, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
                             }
                             
                         # Se teve ATESTADO na semana, coloca na aba de Semanais FA
@@ -657,7 +674,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 texto_motivo = "N/A"
                                 
                             pessoas_fa[nome] = {
-                                "Nome": nome, "Gestor": gestor_final, "Supervisor": supervisor_final, "Dias das Faltas": dias_fa_str, "Faltas por Atestado": qtd_fa, "Entrevista de Absenteísmo": texto_entrevista, "Motivo": texto_motivo, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
+                                "Nome": nome, "Gestor": gestor_final, "Supervisor": supervisor_final, "Situação": situacao_final_sem, "Dias das Faltas": dias_fa_str, "Faltas por Atestado": qtd_fa, "Entrevista de Absenteísmo": texto_entrevista, "Motivo": texto_motivo, "Desligamento": texto_dem, "Tempo de Serviço": ts_semanal
                             }
 
                         # Pendentes Semanais Logic
@@ -690,6 +707,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                     "Nome": nome,
                                     "Gestor": gestor_final,
                                     "Supervisor": supervisor_final,
+                                    "Situação": situacao_final_sem,
                                     "Dias das Faltas (FA)": dias_str,
                                     "Datas de Retorno (P)": retornos_str,
                                     "Quantidade de Faltas": len(week_fa_pendentes),
