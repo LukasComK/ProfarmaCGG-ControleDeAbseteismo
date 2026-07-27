@@ -2890,6 +2890,20 @@ st.write("VERSÃO 1.0")
 
 MAPA_CODIGOS = {1: 'P', 2: 'FI', 4: 'FA', 3: 'FÉRIAS-BH', 5: 'DESLIGADO'}
 
+# Mapa reverso: texto normalizado -> marcação (para aceitar TEXTO além de números)
+MAPA_TEXTO_PARA_MARCACAO = {
+    'P': 'P', 'PRESENTE': 'P', 'PRESENCA': 'P',
+    'FI': 'FI', 'FALTA INJUSTIFICADA': 'FI', 'FALTAINJUSTIFICADA': 'FI',
+    'FA': 'FA', 'FALTA ATESTADO': 'FA', 'FALTAPORATESTADO': 'FA', 'ATESTADO': 'FA',
+    'FERIAS-BH': 'FERIAS-BH', 'FERIAS': 'FERIAS-BH', 'FERI': 'FERIAS-BH', 'FÉRIAS-BH': 'FERIAS-BH', 'FÉRIAS': 'FERIAS-BH',
+    'DESLIGADO': 'DESLIGADO', 'DESLIG': 'DESLIGADO',
+    'D': 'D', 'DESCANSO': 'D', 'FOLGA': 'D',
+    'FERIADO': 'FERIADO',
+    'DOMINGO': 'D',
+    'SABADO': 'D', 'SÁBADO': 'D',
+    'AFASTAMENTO': 'Afastamento'
+}
+
 MAPA_CORES = {
     'P': 'FF90EE90',      # Verde claro
     'FI': 'FFFF0000',     # Vermelho puro (mais nítido)
@@ -3880,10 +3894,31 @@ with col_btn_processar:
                         
                         df_long.rename(columns={'___NOME___': 'NOME'}, inplace=True)
                         df_long['NOME_LIMPO'] = df_long['NOME'].apply(limpar_nome)
-                        df_long['CODIGO'] = pd.to_numeric(df_long['COD'], errors='coerce')
+                        
+                        # ===== MODIFICADO: Aceita TEXTO (P, FI, FA) além de números (1, 2, 4) =====
+                        # Função que converte o valor para o código de marcação
+                        def converter_para_marcacao(valor):
+                            if pd.isna(valor):
+                                return None
+                            # Tenta primeiro como número
+                            try:
+                                num_val = int(float(str(valor).strip()))
+                                if num_val in MAPA_CODIGOS:
+                                    return MAPA_CODIGOS[num_val]
+                            except (ValueError, TypeError):
+                                pass
+                            # Tenta como texto normalizado
+                            texto_normalizado = normalizar_coluna(str(valor))
+                            if texto_normalizado in MAPA_TEXTO_PARA_MARCACAO:
+                                return MAPA_TEXTO_PARA_MARCACAO[texto_normalizado]
+                            return None
+                        
+                        df_long['MARCACAO'] = df_long['COD'].apply(converter_para_marcacao)
                         df_long['DATA'] = df_long['DIA'].apply(lambda x: extrair_dia_do_cabecalho(x, mes, ano))
                         df_long = df_long[df_long['NOME_LIMPO'].astype(str).str.strip() != '']
                         df_long = df_long.dropna(subset=['DATA', 'NOME_LIMPO'])
+                        # Remove linhas onde não foi possível determinar a marcação
+                        df_long = df_long[df_long['MARCACAO'].notna()]
                         
                         sucesso = 0
                         erros = []
@@ -3893,7 +3928,7 @@ with col_btn_processar:
                         
                         for _, row in df_long.iterrows():
                             nome = row['NOME_LIMPO']
-                            cod = row['CODIGO']
+                            marcacao = row['MARCACAO']  # Agora é string: 'P', 'FI', 'FA', etc.
                             data = row['DATA']
 
                             # Regra fixa: nunca processar o rótulo LEGENDA.
@@ -3903,7 +3938,7 @@ with col_btn_processar:
                             nomes_unicos.add(nome)
                             total_nomes_unicos.add(nome)
                             
-                            if pd.isna(cod) or cod not in MAPA_CODIGOS or data not in mapa_datas:
+                            if data not in mapa_datas:
                                 continue
                             
                             col_data = mapa_datas[data]
@@ -3933,7 +3968,8 @@ with col_btn_processar:
                                     if df_mest[col_data].dtype != 'object':
                                         df_mest[col_data] = df_mest[col_data].astype('object')
                                     
-                                    df_mest.at[idx, col_data] = MAPA_CODIGOS[cod]
+                                    # ===== CORREÇÃO: SEMPRE sobrescreve o valor (mesmo se já preenchido) =====
+                                    df_mest.at[idx, col_data] = marcacao
                                     linhas_processadas.add(idx)
                                     total_linhas_processadas.add(idx)
                                 

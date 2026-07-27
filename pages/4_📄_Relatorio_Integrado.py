@@ -21,9 +21,20 @@ agrupando os colaboradores com **Faltas Injustificadas (FI)** e **Faltas por Ate
 
 st.divider()
 
+# ===== CHECKBOX PARA USAR PONTO EM VEZ DE ABS =====
+usar_ponto = st.checkbox("📋 Usar arquivo(s) de PONTO em vez da planilha de Absenteísmo", help="Ative para carregar 2 arquivos de ponto eletrônico. O sistema converterá as ocorrências do ponto em FI/FA automaticamente usando o dicionário de dados.")
+
 col1, col2, col3 = st.columns(3)
 with col1:
-    f_abs = st.file_uploader("1️⃣ Planilha de Absenteísmo (Aba 'Dados')", type=["xlsx", "xls", "xlsm"])
+    if usar_ponto:
+        f_abs = None
+        f_ponto_1 = st.file_uploader("1️⃣ Arquivo de PONTO 1", type=["xlsx", "xlsm"], key="ponto1")
+        f_ponto_2 = st.file_uploader("2️⃣ Arquivo de PONTO 2", type=["xlsx", "xlsm"], key="ponto2")
+        st.caption("Carregue 1 ou 2 arquivos de ponto. O sistema consolidará os dados.")
+    else:
+        f_abs = st.file_uploader("1️⃣ Planilha de Absenteísmo (Aba 'Dados')", type=["xlsx", "xls", "xlsm"])
+        f_ponto_1 = None
+        f_ponto_2 = None
     f_med = st.file_uploader("2️⃣ Planilha de Medida Disciplinar", type=["xlsx", "xls", "xlsm"])
 with col2:
     f_dem = st.file_uploader("3️⃣ Planilha de Demissões", type=["xlsx", "xls", "xlsm"])
@@ -40,6 +51,43 @@ with col3:
             data_fim = st.date_input("Data Final", format="DD/MM/YYYY")
     else:
         data_inicio, data_fim = None, None
+    
+    st.markdown("### 👤 Filtrar por Cargo")
+    
+    # Tenta ler os cargos da Base OCI/Gestor (coluna T = índice 19)
+    opcoes_cargo = ["AUXILIAR DEPOSITO I", "AUXILIAR DEPOSITO II", "AUXILIAR DEPOSITO III"]
+    if f_gest is not None:
+        try:
+            df_gest_temp = carregar_arquivo(f_gest)
+            if len(df_gest_temp.columns) > 19:
+                # Procura a linha de cabeçalho
+                for r in range(min(15, len(df_gest_temp))):
+                    linha_txt = [str(v).upper().replace('"', '').replace("'", "").strip() for v in df_gest_temp.iloc[r, :]]
+                    if "CARGO" in linha_txt or "FUNCAO" in linha_txt or "FUNÇÃO" in linha_txt:
+                        break
+                # Pega valores únicos da coluna 19 (coluna T)
+                cargos_unicos = df_gest_temp.iloc[:, 19].dropna().astype(str).str.replace('"', '').str.replace("'", "").str.strip().str.upper().unique()
+                cargos_unicos = sorted([c for c in cargos_unicos if c and c != 'NAN' and c != ''])
+                if cargos_unicos:
+                    opcoes_cargo = cargos_unicos
+        except:
+            pass
+    
+    opcoes_multiselect = list(opcoes_cargo) + ["Todos os cargos"]
+    default_cargos = [c for c in opcoes_cargo if "AUXILIAR" in c and ("DEPOSITO" in c or "DEPÓSITO" in c)]
+    if not default_cargos:
+        default_cargos = opcoes_cargo[:3] if len(opcoes_cargo) >= 3 else opcoes_cargo
+    
+    cargos_selecionados = st.multiselect(
+        "Selecione os cargos (deixe vazio para usar apenas Auxiliar Depósito I, II, III):",
+        options=opcoes_multiselect,
+        default=default_cargos,
+        key="filtro_cargos"
+    )
+    if "Todos os cargos" in cargos_selecionados:
+        cargos_selecionados = None  # None = sem filtro
+    elif not cargos_selecionados:
+        cargos_selecionados = default_cargos  # Padrão: apenas Auxiliar Deposito
 
 def limpar_nome(nome):
     if pd.isna(nome) or str(nome).strip().upper() == "NAN":
@@ -139,95 +187,287 @@ def carregar_arquivo(f, sheet=None, todas_abas=False):
                 except:
                     raise ValueError(f"Não foi possível ler '{f.name}'. Ele pode estar protegido por senha, criptografado ou em um formato desconhecido. (Erro: {str(e_excel)})")
 
-if f_abs and f_med and f_dem and f_ent and f_gest:
+# ============================================================
+# DICIONÁRIO DE DADOS: OCORRÊNCIA DO PONTO -> MARCAÇÃO NA MESTRA
+# ============================================================
+JUSTIFICATIVAS_ABONADAS = [
+    'OBITO DE FAMILIAR', 'OBITO', 'FALECIMENTO',
+    'AMAMENTACAO', 'AMAMENTAÇÃO',
+    'SERVICO EXTERNO', 'SERVIÇO EXTERNO',
+    'FOLGA', 'FOLGA OURO DA CASA',
+    'ANIVERSARIO - DIA LIVRE', 'ANIVERSÁRIO - DIA LIVRE',
+    'INTEGRACAO', 'INTEGRAÇÃO',
+    'CURSO DE APRENDIZAGEM',
+    'LIBERACAO DA EMPRESA - DIA', 'LIBERAÇÃO DA EMPRESA - DIA',
+    'BANCO DE HORAS', 'DECLARACAO DE HORAS', 'DECLARAÇÃO DE HORAS',
+    'PARTE OU TESTEMUNHA DE PROCESSO JUDICIAL',
+    'LIBERACAO EMPRESA - HORAS', 'LIBERAÇÃO EMPRESA - HORAS',
+]
+
+OCORRENCIAS_FA_15 = [
+    'AFAST DOENCA <= 15 DIAS', 'AFAST DOENÇA <= 15 DIAS',
+    'AFAST ACID TRAB <= 15 DIAS',
+    'OUTROS TIPOS DE AFASTAMENTO',
+]
+
+OCORRENCIAS_IGNORAR = [
+    'AFAST DOENCA > 15 DIAS', 'AFAST DOENÇA > 15 DIAS',
+    'AFAST ACID TRAB > 15 DIAS',
+]
+
+OCORRENCIAS_FERIAS = [
+    'FERIAS NORMAIS', 'FÉRIAS NORMAIS',
+    'AFAST LICENCA MATERNIDADE', 'AFAST LICENÇA MATERNIDADE',
+]
+
+OCORRENCIAS_SEM_MARCACAO_ENTRADA = [
+    'SEM MARCAÇÃO DE ENTRADA', 'SEM MARCACAO DE ENTRADA',
+]
+OCORRENCIAS_SEM_MARCACAO_SAIDA = [
+    'SEM MARCAÇÃO DE SAÍDA', 'SEM MARCACAO DE SAIDA',
+]
+
+OCORRENCIAS_ATRASO = [
+    'ENTRADA EM ATRASO',
+]
+
+
+def normalizar_texto(texto) -> str:
+    if pd.isna(texto):
+        return ''
+    from unidecode import unidecode
+    return unidecode(str(texto)).upper().strip()
+
+
+def determinar_marcacao_por_ponto(ocorrencia: str, justificativa: str):
+    occ_norm = normalizar_texto(ocorrencia)
+    just_norm = normalizar_texto(justificativa)
+    
+    for occ_ignorar in OCORRENCIAS_IGNORAR:
+        if occ_ignorar in occ_norm or occ_norm in occ_ignorar:
+            return None
+    
+    for occ_fa in OCORRENCIAS_FA_15:
+        if occ_fa in occ_norm or occ_norm in occ_fa:
+            return 'FA'
+    
+    for occ_ferias in OCORRENCIAS_FERIAS:
+        if occ_ferias in occ_norm or occ_norm in occ_ferias:
+            return 'FERIAS-BH'
+    
+    for occ_sem_entrada in OCORRENCIAS_SEM_MARCACAO_ENTRADA:
+        if occ_sem_entrada in occ_norm or occ_norm in occ_sem_entrada:
+            return 'P'
+    
+    for occ_sem_saida in OCORRENCIAS_SEM_MARCACAO_SAIDA:
+        if occ_sem_saida in occ_norm or occ_norm in occ_sem_saida:
+            return 'P'
+    
+    for occ_atraso in OCORRENCIAS_ATRASO:
+        if occ_atraso in occ_norm or occ_norm in occ_atraso:
+            return 'P'
+    
+    if 'FALTA' in occ_norm:
+        for just_abonada in JUSTIFICATIVAS_ABONADAS:
+            if just_abonada in just_norm or just_norm in just_abonada:
+                return 'FERIAS-BH'
+        return 'FI'
+    
+    return 'P'
+
+
+def processar_ponto_para_absencias(df_ponto) -> dict:
+    """
+    Processa um DataFrame de ponto e retorna um dicionário no formato:
+    { "NOME": {"FI": [datas], "FA": [datas], "P": [datas]} }
+    """
+    col_nome = df_ponto.columns[3]
+    col_ocorrencia = df_ponto.columns[25]
+    col_justificativa = df_ponto.columns[27]
+    col_data = df_ponto.columns[38]
+    
+    absencias = {}
+    
+    for idx, row in df_ponto.iterrows():
+        nome = limpar_nome(row[col_nome])
+        if not nome:
+            continue
+        
+        ocorrencia = str(row[col_ocorrencia]) if pd.notna(row[col_ocorrencia]) else ''
+        justificativa = str(row[col_justificativa]) if pd.notna(row[col_justificativa]) else ''
+        data_raw = row[col_data]
+        
+        data_dt = None
+        if pd.notna(data_raw):
+            try:
+                if isinstance(data_raw, (datetime.datetime, pd.Timestamp)):
+                    data_dt = data_raw
+                else:
+                    data_dt = pd.to_datetime(str(data_raw), dayfirst=True, errors='coerce')
+            except:
+                pass
+        
+        if data_dt is None or pd.isna(data_dt):
+            continue
+        
+        data_date = data_dt.date() if hasattr(data_dt, 'date') else data_dt
+        
+        marcacao = determinar_marcacao_por_ponto(ocorrencia, justificativa)
+        
+        if marcacao in ['FI', 'FA', 'P']:
+            if nome not in absencias:
+                absencias[nome] = {'FI': [], 'FA': [], 'P': []}
+            absencias[nome][marcacao].append(data_date)
+    
+    return absencias
+
+
+def consolidar_absencias(absencias_lista: list) -> dict:
+    """Consolida múltiplos dicionários de absencias em um só"""
+    resultado = {}
+    prioridade = {'FI': 3, 'FA': 2, 'P': 1}
+    
+    for absencias in absencias_lista:
+        for nome, rec in absencias.items():
+            if nome not in resultado:
+                resultado[nome] = {'FI': [], 'FA': [], 'P': []}
+            for tipo in ['FI', 'FA', 'P']:
+                for data in rec.get(tipo, []):
+                    if data not in resultado[nome][tipo]:
+                        resultado[nome][tipo].append(data)
+    
+    return resultado
+
+
+# ===== VALIDAÇÃO DOS ARQUIVOS =====
+if usar_ponto:
+    arquivos_ok = (f_ponto_1 is not None) and f_med and f_dem and f_ent and f_gest
+    label_erro = "⚠️ Aguardando o envio dos arquivos de PONTO (pelo menos 1) + Medida + Demissões + Entrevista + Base OCI."
+else:
+    arquivos_ok = f_abs and f_med and f_dem and f_ent and f_gest
+    label_erro = "⚠️ Aguardando o envio das 5 planilhas para habilitar o relatório."
+
+if arquivos_ok:
     if st.button("🚀 Gerar Relatório Integrado", type="primary", use_container_width=True):
         with st.spinner("Analisando e cruzando as planilhas. Isso pode levar alguns segundos..."):
             try:
                 # ---------------------------------------------------------
-                # 1. PROCESSAR PLANILHA DE ABSENTEÍSMO
+                # 1. PROCESSAR FONTE DE DADOS (ABS ou PONTO)
                 # ---------------------------------------------------------
-                df_abs = carregar_arquivo(f_abs, sheet="Dados")
-                
-                absencias = {} # Formato: { "NOME": {"FI": [], "FA": []} }
-                
-                # Mapear os cabeçalhos de data (Colunas J até AN -> Índices 9 a 39)
-                datas_colunas = {}
-                col_fim = min(50, len(df_abs.columns)) # Aumentado para 50 para garantir que pega as datas após a M
-                
-                # Tenta achar a linha de cabeçalho (que tem as datas) olhando as primeiras linhas
-                linha_cabecalho = 0
-                for r in range(min(5, len(df_abs))):
-                    # Procura na linha algo que pareça um cabeçalho (ex: Nome na pos 0) ou se a J/K tem algo
-                    if pd.notna(df_abs.iloc[r, 0]) and pd.notna(df_abs.iloc[r, 9]):
-                        linha_cabecalho = r
-                        break
-                        
-                # Achar a verdadeira coluna de Data de Admissão (padrão é M=12)
-                col_admissao = 12
-                for c in range(len(df_abs.columns)):
-                    val_str = str(df_abs.iloc[linha_cabecalho, c]).upper()
-                    if "ADMISS" in val_str:
-                        col_admissao = c
-                        break
-                        
-                for c in range(9, col_fim):
-                    # Não tenta ler a coluna de Admissão como data de faltas
-                    if c == col_admissao:
-                        continue
-                        
-                    val = df_abs.iloc[linha_cabecalho, c]
-                    if pd.isna(val): continue
+                if usar_ponto:
+                    # Processa arquivos de ponto
+                    absencias_lista = []
+                    for f_ponto in [f_ponto_1, f_ponto_2]:
+                        if f_ponto is not None:
+                            df_ponto = carregar_arquivo(f_ponto)
+                            if len(df_ponto.columns) >= 39:
+                                absencias_parcial = processar_ponto_para_absencias(df_ponto)
+                                absencias_lista.append(absencias_parcial)
                     
-                    dt_col = None
-                    try:
-                        # Tenta extrair a data real do cabeçalho
-                        if isinstance(val, pd.Timestamp):
-                            dt_col = val.date()
-                        elif isinstance(val, datetime.date) and not isinstance(val, pd.Timestamp):
-                            dt_col = val
-                        else:
-                            val_str = str(val).strip()
-                            # Caso seja apenas formato dia/mês estilo "01/04" ou "01-04"
-                            if re.match(r'^\d{1,2}[/-]\d{1,2}$', val_str):
-                                val_str += '/2026' # Adiciona ano fixo temporário para conseguir ordenar a semana
-                            val_dt = pd.to_datetime(val_str, dayfirst=True, errors='coerce')
-                            if pd.notna(val_dt):
-                                dt_col = val_dt.date()
-                    except:
-                        pass
-                        
-                    # Filtra data se habilitado
-                    if filtrar_periodo and dt_col and data_inicio and data_fim:
-                        if not (data_inicio <= dt_col <= data_fim):
-                            continue # Pula a coluna dessa data se estiver fora do período
+                    absencias = consolidar_absencias(absencias_lista)
+                    
+                    # Aplica filtro de período se habilitado
+                    if filtrar_periodo and data_inicio and data_fim:
+                        for nome in list(absencias.keys()):
+                            for tipo in ['FI', 'FA', 'P']:
+                                absencias[nome][tipo] = [
+                                    d for d in absencias[nome].get(tipo, [])
+                                    if isinstance(d, datetime.date) and data_inicio <= d <= data_fim
+                                ]
+                            # Remove colaboradores que ficaram sem nenhuma marcação
+                            if not any(absencias[nome].get(t, []) for t in ['FI', 'FA', 'P']):
+                                del absencias[nome]
+                    
+                    # Cria datas_colunas a partir das datas encontradas
+                    datas_colunas = {}
+                    for nome, rec in absencias.items():
+                        for tipo in ['FI', 'FA', 'P']:
+                            for data in rec.get(tipo, []):
+                                if isinstance(data, datetime.date):
+                                    datas_colunas[data] = data
+                else:
+                    df_abs = carregar_arquivo(f_abs, sheet="Dados")
+                    
+                    absencias = {} # Formato: { "NOME": {"FI": [], "FA": []} }
+                    
+                    # Mapear os cabeçalhos de data (Colunas J até AN -> Índices 9 a 39)
+                    datas_colunas = {}
+                    col_fim = min(50, len(df_abs.columns)) # Aumentado para 50 para garantir que pega as datas após a M
+                    
+                    # Tenta achar a linha de cabeçalho (que tem as datas) olhando as primeiras linhas
+                    linha_cabecalho = 0
+                    for r in range(min(5, len(df_abs))):
+                        # Procura na linha algo que pareça um cabeçalho (ex: Nome na pos 0) ou se a J/K tem algo
+                        if pd.notna(df_abs.iloc[r, 0]) and pd.notna(df_abs.iloc[r, 9]):
+                            linha_cabecalho = r
+                            break
                             
-                    # Manter a data real na lista
-                    if dt_col is not None:
-                        datas_colunas[c] = dt_col # Salva como datetime.date real
-                    else:
-                        datas_colunas[c] = str(val)[:10]
+                    # Achar a verdadeira coluna de Data de Admissão (padrão é M=12)
+                    col_admissao = 12
+                    for c in range(len(df_abs.columns)):
+                        val_str = str(df_abs.iloc[linha_cabecalho, c]).upper()
+                        if "ADMISS" in val_str:
+                            col_admissao = c
+                            break
+                            
+                    for c in range(9, col_fim):
+                        # Não tenta ler a coluna de Admissão como data de faltas
+                        if c == col_admissao:
+                            continue
+                            
+                        val = df_abs.iloc[linha_cabecalho, c]
+                        if pd.isna(val): continue
+                        
+                        dt_col = None
+                        try:
+                            # Tenta extrair a data real do cabeçalho
+                            if isinstance(val, pd.Timestamp):
+                                dt_col = val.date()
+                            elif isinstance(val, datetime.date) and not isinstance(val, pd.Timestamp):
+                                dt_col = val
+                            else:
+                                val_str = str(val).strip()
+                                # Caso seja apenas formato dia/mês estilo "01/04" ou "01-04"
+                                if re.match(r'^\d{1,2}[/-]\d{1,2}$', val_str):
+                                    val_str += '/2026' # Adiciona ano fixo temporário para conseguir ordenar a semana
+                                val_dt = pd.to_datetime(val_str, dayfirst=True, errors='coerce')
+                                if pd.notna(val_dt):
+                                    dt_col = val_dt.date()
+                        except:
+                            pass
+                            
+                        # Filtra data se habilitado
+                        if filtrar_periodo and dt_col and data_inicio and data_fim:
+                            if not (data_inicio <= dt_col <= data_fim):
+                                continue # Pula a coluna dessa data se estiver fora do período
+                                
+                        # Manter a data real na lista
+                        if dt_col is not None:
+                            datas_colunas[c] = dt_col # Salva como datetime.date real
+                        else:
+                            datas_colunas[c] = str(val)[:10]
 
-                # Percorrer os colaboradores
-                for r in range(linha_cabecalho + 1, len(df_abs)):
-                    nome = limpar_nome(df_abs.iloc[r, 0]) # Coluna A (Índice 0)
-                    if not nome: continue
-                    
-                    data_adm = df_abs.iloc[r, col_admissao] if len(df_abs.columns) > col_admissao else None
-                    
-                    # Itera apenas pelas colunas que foram mapeadas/aprovadas pelo Filtro de Datas
-                    for c in datas_colunas.keys():
-                        status = limpar_nome(df_abs.iloc[r, c])
-                        if status in ['FI', 'FA', 'P']:
-                            if nome not in absencias:
-                                absencias[nome] = {'FI': [], 'FA': [], 'P': [], 'admissao': data_adm}
-                            if 'P' not in absencias[nome]:
-                                absencias[nome]['P'] = []
-                                
-                            # Se a primeira vez for lido e era vazio, tenta repopular
-                            if absencias[nome].get('admissao') is None or str(absencias[nome].get('admissao')).strip() in ['', 'nan', 'NaT', 'NaN']:
-                                absencias[nome]['admissao'] = data_adm
-                                
-                            absencias[nome][status].append(datas_colunas[c])
+                    # Percorrer os colaboradores
+                    for r in range(linha_cabecalho + 1, len(df_abs)):
+                        nome = limpar_nome(df_abs.iloc[r, 0]) # Coluna A (Índice 0)
+                        if not nome: continue
+                        
+                        data_adm = df_abs.iloc[r, col_admissao] if len(df_abs.columns) > col_admissao else None
+                        
+                        # Itera apenas pelas colunas que foram mapeadas/aprovadas pelo Filtro de Datas
+                        for c in datas_colunas.keys():
+                            status = limpar_nome(df_abs.iloc[r, c])
+                            if status in ['FI', 'FA', 'P']:
+                                if nome not in absencias:
+                                    absencias[nome] = {'FI': [], 'FA': [], 'P': [], 'admissao': data_adm}
+                                if 'P' not in absencias[nome]:
+                                    absencias[nome]['P'] = []
+                                    
+                                # Se a primeira vez for lido e era vazio, tenta repopular
+                                if absencias[nome].get('admissao') is None or str(absencias[nome].get('admissao')).strip() in ['', 'nan', 'NaT', 'NaN']:
+                                    absencias[nome]['admissao'] = data_adm
+                                    
+                                absencias[nome][status].append(datas_colunas[c])
 
                 # ---------------------------------------------------------
                 # 2. PROCESSAR MEDIDAS DISCIPLINARES
@@ -314,6 +554,7 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                 col_nome_gest = 25 # Padrão original era 25
                 col_admissao = 12 # Padrão é coluna M (índice 12)
                 col_situacao = 8 # Padrão é coluna I (índice 8) - "Descrição Situação"
+                col_cargo = 7  # Padrão é coluna H (índice 7) - Cargo
                 
                 for r in range(min(15, len(df_gest))):
                     linha_txt = [str(v).upper() for v in df_gest.iloc[r, :]]
@@ -326,13 +567,22 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                             if "NOME GESTOR" in v: col_nome_gest = idx
                             if "ADMISS" in v: col_admissao = idx
                             if "DESCRI" in v and "SITUA" in v and "TIPO" not in v: col_situacao = idx
+                            if "CARGO" in v or "FUNCAO" in v or "FUNÇÃO" in v: col_cargo = idx
                         break
-                        
+                
+                # Dicionário para armazenar cargo de cada colaborador
+                cargos_dict = {}
+                
                 for r in range(linha_cab_gest + 1, len(df_gest)):
                     if len(df_gest.columns) > max(col_colab, col_nome_gest):
                         colab_nome = limpar_nome(df_gest.iloc[r, col_colab])
                         
                         if colab_nome and str(colab_nome) != "NAN":
+                            # Cargo
+                            if len(df_gest.columns) > col_cargo:
+                                cargo_val = str(df_gest.iloc[r, col_cargo]).replace('"', '').replace("'", "").upper().strip()
+                                cargos_dict[colab_nome] = cargo_val
+                            
                             # Situação
                             if len(df_gest.columns) > col_situacao:
                                 sit = str(df_gest.iloc[r, col_situacao]).replace('"', '').replace("'", "").upper().strip()
@@ -352,7 +602,23 @@ if f_abs and f_med and f_dem and f_ent and f_gest:
                                 if pd.notna(val_adm) and str(val_adm).strip() != "":
                                     # Limpa possíveis aspas no texto da data (ex: CSV bugado)
                                     val_adm = str(val_adm).replace('"', '').replace("'", "").strip()
-                                    admissoes_dict[colab_nome] = val_adm                                        
+                                    admissoes_dict[colab_nome] = val_adm
+                
+                # ===== APLICA FILTRO DE CARGO =====
+                if cargos_selecionados is not None:
+                    # Filtra absencias para manter apenas colaboradores com cargo selecionado
+                    nomes_filtrados = set()
+                    for nome_colab, cargo in cargos_dict.items():
+                        cargo_norm = cargo.upper().strip()
+                        for cargo_permitido in cargos_selecionados:
+                            if cargo_permitido.upper() in cargo_norm or cargo_norm in cargo_permitido.upper():
+                                nomes_filtrados.add(nome_colab)
+                                break
+                    
+                    # Remove colaboradores que não estão na lista de cargos filtrados
+                    for nome in list(absencias.keys()):
+                        if nome not in nomes_filtrados:
+                            del absencias[nome]
                 # =========================================================
                 # FUNÇÕES AUXILIARES DE CÁLCULO
                 # =========================================================

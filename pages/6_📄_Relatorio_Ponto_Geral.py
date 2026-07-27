@@ -1274,7 +1274,7 @@ def gerar_pasta_ocorrencia(df: pd.DataFrame, config: Dict, col_nome: str, col_ca
 st.subheader("1. Carregue os arquivos")
 col1, col2 = st.columns(2)
 with col1:
-    uploaded_file = st.file_uploader("Arquivo Excel de Ponto (XLSX)", type=["xlsx", "xlsm"])
+    uploaded_files = st.file_uploader("Arquivo(s) Excel de Ponto (XLSX) - múltiplos permitidos", type=["xlsx", "xlsm"], accept_multiple_files=True)
 with col2:
     uploaded_csv = st.file_uploader("Arquivo CSV de Base Ativos", type=["csv"])
 
@@ -1314,55 +1314,179 @@ if uploaded_csv is not None:
     if mapa_colaboradores:
         st.success(f"✅ {len(mapa_colaboradores)} colaboradores mapeados no CSV")
 
-if uploaded_file is not None:
-    try:
-        df = pd.read_excel(uploaded_file)
-        st.success(f"Arquivo carregado! {len(df)} linhas, {len(df.columns)} colunas.")
-    except Exception as e:
-        st.error(f"Erro: {e}")
-        st.stop()
+# ===== VARIÁVEL GLOBAL PARA DF CONSOLIDADO =====
+if 'df_ponto_consolidado' not in st.session_state:
+    st.session_state.df_ponto_consolidado = None
+if 'df_ponto_total_linhas' not in st.session_state:
+    st.session_state.df_ponto_total_linhas = 0
+
+# ===== CARREGAMENTO E CONSOLIDAÇÃO DOS MÚLTIPLOS ARQUIVOS DE PONTO =====
+if uploaded_files:
+    st.divider()
+    st.subheader("📊 Consolidar Arquivos de Ponto")
     
-    if len(df.columns) < 39:
-        st.error(f"Precisa de 39 colunas. Encontradas: {len(df.columns)}")
-        st.stop()
+    # Mostra lista dos arquivos carregados
+    with st.expander(f"📋 {len(uploaded_files)} arquivo(s) carregado(s)", expanded=False):
+        for i, f in enumerate(uploaded_files):
+            st.write(f"  **[{i+1}]** - `{f.name}`")
     
-    col_nome = df.columns[3]; col_cargo = df.columns[7]; col_depto = df.columns[8]
-    col_escala = df.columns[11]; col_data_adm = df.columns[16]; col_marcacoes = df.columns[23]
-    col_ocorrencia = df.columns[25]; col_justificativa = df.columns[27]; col_data = df.columns[38]
-    col_marcacoes_atraso = df.columns[24]  # Col Y - Escala + Entrada real (ex: "06:00  06:50")
-    col_atraso_calc = df.columns[26]       # Col AA - Cálculo do atraso (ex: "50 Minutos")
-    
-    st.info(f"D={col_nome} | H={col_cargo} | I={col_depto} | Q={col_data_adm} | Y={col_marcacoes_atraso} | Z={col_ocorrencia} | AA={col_atraso_calc} | AB={col_justificativa} | AM={col_data}")
-    
-    with st.expander("📊 Ocorrências disponíveis", expanded=False):
-        oc = df[col_ocorrencia].value_counts().reset_index()
-        oc.columns = ['Ocorrência', 'Quantidade']
-        st.dataframe(oc, use_container_width=True)
-    
-    st.subheader("2. Selecione os tipos")
-    opcoes = []
-    for config in OCORRENCIAS_CONFIG:
-        if config['tipo'] == 'unica': opcoes.append(config['nome'])
-        elif config['tipo'] == 'multiplas_pasta_unica': opcoes.append(f"📁 {config['nome']} ({len(config['itens'])} tipos)")
-        else: opcoes.append(f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)")
-    selecionados = st.multiselect("Selecione:", options=opcoes, default=opcoes)
-    
-    if st.button("🚀 Gerar Relatórios", type="primary", use_container_width=True):
-        if not selecionados:
-            st.warning("Selecione pelo menos um tipo.")
-        else:
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+    # Botão para processar/consolidar
+    if st.button("🔄 Processar e Consolidar Arquivos de Ponto", type="secondary", use_container_width=True):
+        dataframes = []
+        data_min_global = None
+        data_max_global = None
+        erros = 0
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        for i, f in enumerate(uploaded_files):
+            status_text.text(f"📖 Carregando [{i+1}/{len(uploaded_files)}]: {f.name}...")
+            try:
+                df_temp = pd.read_excel(f)
+                
+                if len(df_temp.columns) < 39:
+                    st.warning(f"⚠️ {f.name} tem apenas {len(df_temp.columns)} colunas (mínimo 39). Pulando...")
+                    erros += 1
+                    continue
+                
+                # Detecta datas neste arquivo
+                col_data_temp = df_temp.columns[38]
+                datas_temp = df_temp[col_data_temp].dropna()
+                
+                # Converte para datetime para encontrar min/max
+                datas_convertidas = pd.to_datetime(datas_temp, errors='coerce', dayfirst=True).dropna()
+                if len(datas_convertidas) > 0:
+                    arq_min = datas_convertidas.min()
+                    arq_max = datas_convertidas.max()
+                    if data_min_global is None or arq_min < data_min_global:
+                        data_min_global = arq_min
+                    if data_max_global is None or arq_max > data_max_global:
+                        data_max_global = arq_max
+                
+                dataframes.append(df_temp)
+                st.success(f"✅ {f.name}: {len(df_temp)} linhas carregado")
+            except Exception as e:
+                st.warning(f"⚠️ Erro ao ler {f.name}: {str(e)}")
+                erros += 1
             
-            configs_selecionadas = []
-            for config in OCORRENCIAS_CONFIG:
-                if config['tipo'] == 'unica' and config['nome'] in selecionados: configs_selecionadas.append(config)
-                elif config['tipo'] == 'multiplas':
-                    label = f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)"
-                    if label in selecionados: configs_selecionadas.append(config)
-                elif config['tipo'] == 'multiplas_pasta_unica':
-                    label = f"📁 {config['nome']} ({len(config['itens'])} tipos)"
-                    if label in selecionados: configs_selecionadas.append(config)
+            progress_bar.progress((i + 1) / len(uploaded_files))
+        
+        if dataframes:
+            df_consolidado = pd.concat(dataframes, ignore_index=True)
+            st.session_state.df_ponto_consolidado = df_consolidado
+            st.session_state.df_ponto_total_linhas = len(df_consolidado)
+            
+            # Salva as datas detectadas no session_state
+            st.session_state.data_min_detectada = data_min_global
+            st.session_state.data_max_detectada = data_max_global
+            
+            status_text.success(f"✅ Consolidados {len(uploaded_files)} arquivo(s)! Total: {len(df_consolidado)} linhas")
+            progress_bar.progress(1.0)
+        else:
+            st.error("❌ Nenhum arquivo válido foi carregado!")
+    
+    # Se já tem dados consolidados, mostra o seletor de período
+    if st.session_state.df_ponto_consolidado is not None:
+        df = st.session_state.df_ponto_consolidado
+        
+        st.info(f"📊 **{st.session_state.df_ponto_total_linhas}** linhas consolidadas de **{len(uploaded_files)}** arquivo(s)")
+        
+        # ===== SELETOR DE PERÍODO =====
+        data_min = st.session_state.get('data_min_detectada')
+        data_max = st.session_state.get('data_max_detectada')
+        
+        if data_min is not None and data_max is not None:
+            st.markdown("### 📅 Selecione o período desejado")
+            st.caption(f"Datas detectadas nos arquivos: **{data_min.strftime('%d/%m/%Y')}** a **{data_max.strftime('%d/%m/%Y')}**")
+            
+            # Usa text_input para permitir formato DD/MM/YYYY
+            col_data_ini, col_data_fim = st.columns(2)
+            with col_data_ini:
+                data_inicio_str = st.text_input(
+                    "Data inicial (DD/MM/AAAA)",
+                    value=data_min.strftime('%d/%m/%Y'),
+                    key="data_inicio_ponto"
+                )
+            with col_data_fim:
+                data_fim_str = st.text_input(
+                    "Data final (DD/MM/AAAA)",
+                    value=data_max.strftime('%d/%m/%Y'),
+                    key="data_fim_ponto"
+                )
+            
+            # Converte as strings para datetime
+            try:
+                data_inicio = datetime.strptime(data_inicio_str, '%d/%m/%Y')
+                data_fim = datetime.strptime(data_fim_str, '%d/%m/%Y')
+            except ValueError:
+                st.error("❌ Formato de data inválido! Use DD/MM/AAAA (ex: 01/07/2026)")
+                st.stop()
+            
+            # Valida se as datas estão dentro do range
+            if data_inicio < data_min or data_fim > data_max:
+                st.warning(f"⚠️ O período deve estar entre {data_min.strftime('%d/%m/%Y')} e {data_max.strftime('%d/%m/%Y')}")
+                st.stop()
+            
+            # Filtra o DataFrame pelo período selecionado
+            col_data_filtro = df.columns[38]
+            datas_filtro = pd.to_datetime(df[col_data_filtro], errors='coerce', dayfirst=True)
+            mask_data = (datas_filtro >= pd.Timestamp(data_inicio)) & (datas_filtro <= pd.Timestamp(data_fim))
+            df_filtrado = df[mask_data].copy()
+            
+            if len(df_filtrado) == 0:
+                st.warning("⚠️ Nenhum registro encontrado no período selecionado.")
+                st.stop()
+            
+            st.success(f"📅 Período selecionado: **{data_inicio.strftime('%d/%m/%Y')}** a **{data_fim.strftime('%d/%m/%Y')}** — {len(df_filtrado)} linhas")
+            
+            # Usa o DataFrame filtrado
+            df = df_filtrado
+        else:
+            st.warning("⚠️ Não foi possível detectar as datas nos arquivos.")
+        
+        # ===== CONTINUA COM O PROCESSAMENTO NORMAL =====
+        if len(df.columns) < 39:
+            st.error(f"Precisa de 39 colunas. Encontradas: {len(df.columns)}")
+            st.stop()
+        
+        col_nome = df.columns[3]; col_cargo = df.columns[7]; col_depto = df.columns[8]
+        col_escala = df.columns[11]; col_data_adm = df.columns[16]; col_marcacoes = df.columns[23]
+        col_ocorrencia = df.columns[25]; col_justificativa = df.columns[27]; col_data = df.columns[38]
+        col_marcacoes_atraso = df.columns[24]
+        col_atraso_calc = df.columns[26]
+        
+        st.info(f"D={col_nome} | H={col_cargo} | I={col_depto} | Q={col_data_adm} | Y={col_marcacoes_atraso} | Z={col_ocorrencia} | AA={col_atraso_calc} | AB={col_justificativa} | AM={col_data}")
+        
+        with st.expander("📊 Ocorrências disponíveis", expanded=False):
+            oc = df[col_ocorrencia].value_counts().reset_index()
+            oc.columns = ['Ocorrência', 'Quantidade']
+            st.dataframe(oc, use_container_width=True)
+        
+        st.subheader("2. Selecione os tipos")
+        opcoes = []
+        for config in OCORRENCIAS_CONFIG:
+            if config['tipo'] == 'unica': opcoes.append(config['nome'])
+            elif config['tipo'] == 'multiplas_pasta_unica': opcoes.append(f"📁 {config['nome']} ({len(config['itens'])} tipos)")
+            else: opcoes.append(f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)")
+        selecionados = st.multiselect("Selecione:", options=opcoes, default=opcoes)
+        
+        if st.button("🚀 Gerar Relatórios", type="primary", use_container_width=True):
+            if not selecionados:
+                st.warning("Selecione pelo menos um tipo.")
+            else:
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                configs_selecionadas = []
+                for config in OCORRENCIAS_CONFIG:
+                    if config['tipo'] == 'unica' and config['nome'] in selecionados: configs_selecionadas.append(config)
+                    elif config['tipo'] == 'multiplas':
+                        label = f"📁 {config['nome']} ({len(config['justificativas'])} justificativas)"
+                        if label in selecionados: configs_selecionadas.append(config)
+                    elif config['tipo'] == 'multiplas_pasta_unica':
+                        label = f"📁 {config['nome']} ({len(config['itens'])} tipos)"
+                        if label in selecionados: configs_selecionadas.append(config)
             
             total = len(configs_selecionadas)
             if total == 0:
