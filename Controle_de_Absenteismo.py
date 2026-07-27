@@ -2917,7 +2917,14 @@ MAPA_CORES = {
 
 col1, col2 = st.columns(2)
 
+# Checkbox para modo rápido (apenas Dados + Porcentagens)
+if 'modo_rapido' not in st.session_state:
+    st.session_state.modo_rapido = False
+
 with col1:
+    st.checkbox("⚡ Modo Rápido (apenas abas Dados e Porcentagens ABS)", 
+                key="modo_rapido",
+                help="Ative para gerar apenas as abas essenciais e pular relatórios pesados (Ofensores, Ranking, etc.)")
     st.header("Upload")
     file_mestra = st.file_uploader("Planilha MESTRA", type=["xlsx", "xlsm"])
     file_colaboradores = st.file_uploader("CSV de Colaboradores (para enriquecer Ranking e atualizar Situação)", type=["csv", "xlsx", "xlsm"])
@@ -4748,83 +4755,84 @@ with col_btn_processar:
                         except Exception as e:
                             st.warning(f"⚠️ Não foi possível carregar CSV de colaboradores: {str(e)}")
                     
-                    # ===== CRIAR SHEET DE OFENSORES DE ABS (COM DADOS MARCADOS) =====
-                    status_text.info("📊 Gerando relatório de ofensores...")
-                    progress_bar.progress(71)
-                    criar_sheet_ofensores_abs(df_mest_marcado, w, mapa_datas, MAPA_CORES, afastamentos, df_colab_para_ranking)
-                    
-                    # ===== CRIAR SHEET DE RANKING DE ABS =====
-                    status_text.info("🏆 Gerando ranking de absenteísmo...")
-                    progress_bar.progress(72)
-                    
-                    criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
-                    
-                    # ===== CRIAR SHEET DE OFENSORES POR SETOR =====
-                    if df_colab_para_ranking is not None:
-                         status_text.info("🏢 Gerando ofensores por setor...")
-                         progress_bar.progress(72)
-                         criar_sheet_ofensores_por_setor(df_mest_marcado, w, df_colab_para_ranking, mapa_datas)
+                    # ===== MODO RÁPIDO: pula sheets extras se ativado =====
+                    if not st.session_state.modo_rapido:
+                        # ===== CRIAR SHEET DE OFENSORES DE ABS (COM DADOS MARCADOS) =====
+                        status_text.info("📊 Gerando relatório de ofensores...")
+                        progress_bar.progress(71)
+                        criar_sheet_ofensores_abs(df_mest_marcado, w, mapa_datas, MAPA_CORES, afastamentos, df_colab_para_ranking)
+                        
+                        # ===== CRIAR SHEET DE RANKING DE ABS =====
+                        status_text.info("🏆 Gerando ranking de absenteísmo...")
+                        progress_bar.progress(72)
+                        
+                        criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES)
+                        
+                        # ===== CRIAR SHEET DE OFENSORES POR SETOR =====
+                        if df_colab_para_ranking is not None:
+                             status_text.info("🏢 Gerando ofensores por setor...")
+                             progress_bar.progress(72)
+                             criar_sheet_ofensores_por_setor(df_mest_marcado, w, df_colab_para_ranking, mapa_datas)
 
-                    # ===== CRIAR SHEET DE OFENSORES SEMANAIS =====
-                    status_text.info("📅 Gerando ofensores semanais...")
-                    progress_bar.progress(73)
-                    
-                    criar_sheet_ofensores_semanais(df_mest_marcado, w, mapa_datas, df_colab_para_ranking)
+                        # ===== CRIAR SHEET DE OFENSORES SEMANAIS =====
+                        status_text.info("📅 Gerando ofensores semanais...")
+                        progress_bar.progress(73)
+                        
+                        criar_sheet_ofensores_semanais(df_mest_marcado, w, mapa_datas, df_colab_para_ranking)
 
-                    # ===== FALTANTES DESATIVADO =====
-                    # Não gera mais esta planilha por regra de negócio.
-                    if 'Faltantes' in w.book.sheetnames:
-                        del w.book['Faltantes']
-                    
-                    # ===== CRIAR SHEET OFENSORES POR TURNO =====
-                    status_text.info("🏭 Gerando ofensores por turno...")
-                    progress_bar.progress(74)
-                    criar_sheet_ofensores_por_turno(df_mest_marcado, w, mapa_datas)
+                        # ===== FALTANTES DESATIVADO =====
+                        # Não gera mais esta planilha por regra de negócio.
+                        if 'Faltantes' in w.book.sheetnames:
+                            del w.book['Faltantes']
+                        
+                        # ===== CRIAR SHEET OFENSORES POR TURNO =====
+                        status_text.info("🏭 Gerando ofensores por turno...")
+                        progress_bar.progress(74)
+                        criar_sheet_ofensores_por_turno(df_mest_marcado, w, mapa_datas)
 
-                    # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
-                    status_text.info("📊 Enriquecendo ranking com dados do CSV...")
-                    progress_bar.progress(75)
-                    
-                    if df_colab_para_ranking is not None:
-                        try:
-                            # Re-gera ranking completo para enriquecimento
-                            colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
-                            df_ranking_temp = pd.DataFrame({
-                                'NOME': df_mest_marcado['NOME'],
-                                'GESTOR': df_mest_marcado['GESTOR'],
-                                'FUNÇÃO': df_mest_marcado['FUNÇÃO'],
-                                'AREA': df_mest_marcado['AREA'],
-                                'FI': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FI').sum(), axis=1),
-                                'FA': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FA').sum(), axis=1),
-                            }).copy()
-                            df_ranking_temp = df_ranking_temp[df_ranking_temp['NOME'].notna() & (df_ranking_temp['NOME'] != '')]
-                            
-                            top10_fa_display = df_ranking_temp.sort_values(by='FA', ascending=False)
-                            top10_fi_display = df_ranking_temp.sort_values(by='FI', ascending=False)
-                            
-                            # Enriquece com dados do CSV
-                            top10_fa_display, top10_fi_display = enriquecer_ranking_com_dados_csv(top10_fa_display, top10_fi_display, df_colab_para_ranking)
-                            
-                            # Recreia o sheet de ranking com dados enriquecidos
-                            status_text.info("✅ Atualizando ranking com dados do CSV...")
-                            progress_bar.progress(74)
-                            
-                            # Remove o sheet anterior (se existir)
-                            if 'Ranking ABS' in w.book.sheetnames:
-                                del w.book['Ranking ABS']
-                            
-                            # Cria novo sheet com dados enriquecidos
-                            criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES, top10_fa_display, top10_fi_display)
-                            
-                            status_text.info("✅ Ranking atualizado com sucesso!")
-                            progress_bar.progress(75)
-                        except Exception as e:
-                            st.warning(f"⚠️ Não foi possível enriquecer ranking com CSV: {str(e)}")
-                    
-                    # ===== COLORIR CÉLULAS INCOMUNS NA PLANILHA DADOS =====
-                    status_text.info("🎯 Marcando presença incomum...")
-                    progress_bar.progress(75)
-                    colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas)
+                        # ===== ENRIQUECER RANKING COM DADOS DO CSV =====
+                        status_text.info("📊 Enriquecendo ranking com dados do CSV...")
+                        progress_bar.progress(75)
+                        
+                        if df_colab_para_ranking is not None:
+                            try:
+                                # Re-gera ranking completo para enriquecimento
+                                colunas_datas = [col for col in df_mest_marcado.columns if col not in ['NOME', 'FUNÇÃO', 'SITUAÇÃO', 'AREA', 'GESTOR', 'SUPERVISOR', 'NOME_LIMPO']]
+                                df_ranking_temp = pd.DataFrame({
+                                    'NOME': df_mest_marcado['NOME'],
+                                    'GESTOR': df_mest_marcado['GESTOR'],
+                                    'FUNÇÃO': df_mest_marcado['FUNÇÃO'],
+                                    'AREA': df_mest_marcado['AREA'],
+                                    'FI': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FI').sum(), axis=1),
+                                    'FA': df_mest_marcado[colunas_datas].apply(lambda row: (row == 'FA').sum(), axis=1),
+                                }).copy()
+                                df_ranking_temp = df_ranking_temp[df_ranking_temp['NOME'].notna() & (df_ranking_temp['NOME'] != '')]
+                                
+                                top10_fa_display = df_ranking_temp.sort_values(by='FA', ascending=False)
+                                top10_fi_display = df_ranking_temp.sort_values(by='FI', ascending=False)
+                                
+                                # Enriquece com dados do CSV
+                                top10_fa_display, top10_fi_display = enriquecer_ranking_com_dados_csv(top10_fa_display, top10_fi_display, df_colab_para_ranking)
+                                
+                                # Remove o sheet anterior (se existir)
+                                if 'Ranking ABS' in w.book.sheetnames:
+                                    del w.book['Ranking ABS']
+                                
+                                # Cria novo sheet com dados enriquecidos
+                                criar_sheet_ranking_abs(df_mest_marcado, w, MAPA_CORES, top10_fa_display, top10_fi_display)
+                                
+                                status_text.info("✅ Ranking atualizado com sucesso!")
+                                progress_bar.progress(75)
+                            except Exception as e:
+                                st.warning(f"⚠️ Não foi possível enriquecer ranking com CSV: {str(e)}")
+                        
+                        # ===== COLORIR CÉLULAS INCOMUNS NA PLANILHA DADOS =====
+                        status_text.info("🎯 Marcando presença incomum...")
+                        progress_bar.progress(75)
+                        colorir_celulas_incomuns_dados(w, MAPA_CORES, mapa_datas)
+                    else:
+                        status_text.info("⚡ Modo Rápido ativo — pulando sheets extras...")
+                        progress_bar.progress(75)
                     
                     # ===== REMOVER BORDAS E MUDAR BACKGROUND PARA BRANCO =====
                     status_text.info("🎨 Finalizando formatação...")
