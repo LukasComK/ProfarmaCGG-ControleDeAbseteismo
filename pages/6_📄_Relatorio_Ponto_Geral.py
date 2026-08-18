@@ -74,14 +74,14 @@ def formatar_data_br(data_str: str) -> str:
         return ''
     try:
         data_str = str(data_str).strip()
-        for fmt in ['%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d', '%d/%m/%Y']:
+        for fmt in ['%d/%m/%Y', '%d/%m/%y', '%Y-%m-%d']:
             try:
                 data_dt = datetime.strptime(data_str, fmt)
                 return data_dt.strftime('%d/%m/%Y')
             except ValueError:
                 continue
         try:
-            data_dt = pd.to_datetime(data_str, dayfirst=False)
+            data_dt = pd.to_datetime(data_str, dayfirst=True)
             if pd.notna(data_dt):
                 return data_dt.strftime('%d/%m/%Y')
         except:
@@ -1350,8 +1350,13 @@ if uploaded_files:
                     erros += 1
                     continue
                 
+                # FORÇA as colunas a serem índices numéricos (0, 1, 2, ..., 38...)
+                # Isso garante que planilhas com cabeçalhos/estruturas ligeiramente diferentes
+                # sejam consolidadas corretamente no pd.concat, sem criar colunas paralelas.
+                df_temp.columns = range(len(df_temp.columns))
+                
                 # Detecta datas neste arquivo
-                col_data_temp = df_temp.columns[38]
+                col_data_temp = df_temp.columns[38]  # Agora é o inteiro 38
                 datas_temp = df_temp[col_data_temp].dropna()
                 
                 # Converte para datetime para encontrar min/max
@@ -1423,10 +1428,9 @@ if uploaded_files:
                 st.error("❌ Formato de data inválido! Use DD/MM/AAAA (ex: 01/07/2026)")
                 st.stop()
             
-            # Valida se as datas estão dentro do range
+            # Valida se as datas estão dentro do range (apenas avisa, não bloqueia)
             if data_inicio < data_min or data_fim > data_max:
-                st.warning(f"⚠️ O período deve estar entre {data_min.strftime('%d/%m/%Y')} e {data_max.strftime('%d/%m/%Y')}")
-                st.stop()
+                st.warning(f"⚠️ Algumas datas do período selecionado estão fora do intervalo detectado ({data_min.strftime('%d/%m/%Y')} a {data_max.strftime('%d/%m/%Y')}). O filtro continuará com os dados disponíveis.")
             
             # Filtra o DataFrame pelo período selecionado
             col_data_filtro = df.columns[38]
