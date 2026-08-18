@@ -533,11 +533,31 @@ if arquivos_ok:
                         if nome:
                             tipo_falta = str(df_ent.iloc[r, 7]).strip().upper() if col_max_ent > 7 and pd.notna(df_ent.iloc[r, 7]) else ""
                             motivo = str(df_ent.iloc[r, 8]).strip() if col_max_ent > 8 and pd.notna(df_ent.iloc[r, 8]) else ""
+                            data_entrevista_raw = df_ent.iloc[r, 4] if col_max_ent > 4 else None  # Col E (4) - Data da justificativa
+                            
+                            # Converte a data da entrevista para datetime.date
+                            data_entrevista = None
+                            if pd.notna(data_entrevista_raw):
+                                try:
+                                    if isinstance(data_entrevista_raw, (datetime.datetime, pd.Timestamp)):
+                                        data_entrevista = data_entrevista_raw.date() if hasattr(data_entrevista_raw, 'date') else data_entrevista_raw
+                                    else:
+                                        dt_ent = pd.to_datetime(str(data_entrevista_raw), dayfirst=True, errors='coerce')
+                                        if pd.notna(dt_ent):
+                                            data_entrevista = dt_ent.date()
+                                except:
+                                    pass
+                            
+                            registro_entrevista = {'data': data_entrevista, 'motivo': motivo}
                             
                             if "INJUSTIFICAD" in tipo_falta:
-                                entrevistas_fi_dict[nome] = motivo
+                                if nome not in entrevistas_fi_dict:
+                                    entrevistas_fi_dict[nome] = []
+                                entrevistas_fi_dict[nome].append(registro_entrevista)
                             else:
-                                entrevistas_fa_dict[nome] = motivo
+                                if nome not in entrevistas_fa_dict:
+                                    entrevistas_fa_dict[nome] = []
+                                entrevistas_fa_dict[nome].append(registro_entrevista)
 
                 # ---------------------------------------------------------
                 # PROCESSAR GESTORES E SUPERVISORES E ADMISSÃO (BASE CSV)
@@ -702,6 +722,56 @@ if arquivos_ok:
                     return bool(meses_fi.intersection(meses_med))
 
                 # =========================================================
+                # FUNÇÃO PARA VERIFICAR SE EXISTE ENTREVISTA NO MÊS DA FALTA
+                # =========================================================
+                def tem_entrevista_no_mes(nome_alvo, lista_datas_faltas, entrevistas_dict):
+                    """
+                    Verifica se existe uma entrevista de absenteísmo cujo mês/ano
+                    corresponda ao mês/ano de pelo menos uma das faltas.
+                    
+                    Retorna o registro da entrevista correspondente (dict com 'data' e 'motivo')
+                    ou None se não houver entrevista para o mês das faltas.
+                    """
+                    if not nome_alvo or not lista_datas_faltas:
+                        return None
+                    
+                    # Busca as entrevistas do colaborador (match exato ou aproximado)
+                    registros_entrevistas = buscar_info_aproximada(nome_alvo, entrevistas_dict)
+                    if not registros_entrevistas:
+                        return None
+                    
+                    # Garante que seja uma lista
+                    if not isinstance(registros_entrevistas, list):
+                        registros_entrevistas = [registros_entrevistas]
+                    
+                    # Extrai os meses/anos das faltas
+                    meses_faltas = set()
+                    for d in lista_datas_faltas:
+                        if isinstance(d, datetime.date) and pd.notna(d):
+                            meses_faltas.add((d.year, d.month))
+                        else:
+                            # Tenta extrair de string
+                            try:
+                                dt = pd.to_datetime(str(d), dayfirst=True, errors='coerce')
+                                if pd.notna(dt):
+                                    meses_faltas.add((dt.year, dt.month))
+                            except:
+                                pass
+                    
+                    if not meses_faltas:
+                        return None
+                    
+                    # Verifica se alguma entrevista tem mês/ano correspondente
+                    for registro in registros_entrevistas:
+                        if isinstance(registro, dict):
+                            data_ent = registro.get('data')
+                            if isinstance(data_ent, datetime.date) and pd.notna(data_ent):
+                                if (data_ent.year, data_ent.month) in meses_faltas:
+                                    return registro
+                    
+                    return None
+
+                # =========================================================
                 # CONSTRUÇÃO DO RELATÓRIO EM PLANILHA (GERAL + SEMANAL)
                 # =========================================================
                 st.success("✅ Cruzamento de dados concluído com sucesso!")
@@ -729,7 +799,7 @@ if arquivos_ok:
                             supervisor_final = supervisor_nome
 
                     # VERIFICAÇÃO DE ENTREVISTAS PENDENTES (FA -> P)
-                    entrevista_motivo = buscar_info_aproximada(nome, entrevistas_fa_dict)
+                    entrevista_motivo = tem_entrevista_no_mes(nome, rec.get('FA', []), entrevistas_fa_dict)
                     if not entrevista_motivo and rec.get('FA'):
                         timeline = sorted([(d, 'FA') for d in rec.get('FA', [])] + [(d, 'P') for d in rec.get('P', [])], key=lambda x: x[0] if isinstance(x[0], datetime.date) else datetime.date.min)
                         current_fa_block = []
@@ -780,10 +850,10 @@ if arquivos_ok:
                         else:
                             texto_medida = "Não solicitada"
                             
-                        entrevista_fi = buscar_info_aproximada(nome, entrevistas_fi_dict)
+                        entrevista_fi = tem_entrevista_no_mes(nome, rec['FI'], entrevistas_fi_dict)
                         if entrevista_fi is not None:
                             texto_entrevista_fi = "Sim"
-                            texto_motivo_fi = entrevista_fi if entrevista_fi else "Sem motivo detalhado"
+                            texto_motivo_fi = entrevista_fi.get('motivo') if isinstance(entrevista_fi, dict) and entrevista_fi.get('motivo') else "Sem motivo detalhado"
                         else:
                             texto_entrevista_fi = "Não possui"
                             texto_motivo_fi = "N/A"
@@ -803,10 +873,10 @@ if arquivos_ok:
                         })
                         
                     if rec['FA']:
-                        entrevista_motivo = buscar_info_aproximada(nome, entrevistas_fa_dict)
+                        entrevista_motivo = tem_entrevista_no_mes(nome, rec['FA'], entrevistas_fa_dict)
                         if entrevista_motivo is not None:
                             texto_entrevista = "Sim"
-                            texto_motivo = entrevista_motivo if entrevista_motivo else "Sem motivo detalhado"
+                            texto_motivo = entrevista_motivo.get('motivo') if isinstance(entrevista_motivo, dict) and entrevista_motivo.get('motivo') else "Sem motivo detalhado"
                         else:
                             texto_entrevista = "Não possui"
                             texto_motivo = "N/A"
@@ -916,10 +986,10 @@ if arquivos_ok:
                         if qtd_fi > 0:
                             dias_fi_str = ", ".join([d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d) for d in fi_na_semana])
                             
-                            entrevista_fi = buscar_info_aproximada(nome, entrevistas_fi_dict)
+                            entrevista_fi = tem_entrevista_no_mes(nome, fi_na_semana, entrevistas_fi_dict)
                             if entrevista_fi is not None:
                                 texto_entrevista_fi = "Sim"
-                                texto_motivo_fi = entrevista_fi if entrevista_fi else "Sem motivo detalhado"
+                                texto_motivo_fi = entrevista_fi.get('motivo') if isinstance(entrevista_fi, dict) and entrevista_fi.get('motivo') else "Sem motivo detalhado"
                             else:
                                 texto_entrevista_fi = "Não possui"
                                 texto_motivo_fi = "N/A"
@@ -931,10 +1001,10 @@ if arquivos_ok:
                         # Se teve ATESTADO na semana, coloca na aba de Semanais FA
                         if qtd_fa > 0:
                             dias_fa_str = ", ".join([d.strftime('%d/%m') if isinstance(d, datetime.date) and pd.notna(d) else str(d) for d in fa_na_semana])
-                            entrevista_motivo = buscar_info_aproximada(nome, entrevistas_fa_dict)
+                            entrevista_motivo = tem_entrevista_no_mes(nome, fa_na_semana, entrevistas_fa_dict)
                             if entrevista_motivo is not None:
                                 texto_entrevista = "Sim"
-                                texto_motivo = entrevista_motivo if entrevista_motivo else "Sem motivo detalhado"
+                                texto_motivo = entrevista_motivo.get('motivo') if isinstance(entrevista_motivo, dict) and entrevista_motivo.get('motivo') else "Sem motivo detalhado"
                             else:
                                 texto_entrevista = "Não possui"
                                 texto_motivo = "N/A"
@@ -944,7 +1014,7 @@ if arquivos_ok:
                             }
 
                         # Pendentes Semanais Logic
-                        entrevista_motivo = buscar_info_aproximada(nome, entrevistas_fa_dict)
+                        entrevista_motivo = tem_entrevista_no_mes(nome, rec.get('FA', []), entrevistas_fa_dict)
                         if not entrevista_motivo and rec.get('FA'):
                             timeline = sorted([(d, 'FA') for d in rec.get('FA', [])] + [(d, 'P') for d in rec.get('P', [])], key=lambda x: x[0] if isinstance(x[0], datetime.date) else datetime.date.min)
                             current_fa_block = []
