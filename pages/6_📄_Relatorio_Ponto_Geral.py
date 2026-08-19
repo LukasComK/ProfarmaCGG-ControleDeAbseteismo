@@ -1381,6 +1381,9 @@ if uploaded_files:
                 # sejam consolidadas corretamente no pd.concat, sem criar colunas paralelas.
                 df_temp.columns = range(len(df_temp.columns))
                 
+                # Adiciona coluna de origem para rastrear de qual arquivo veio cada linha
+                df_temp['_Fonte'] = f.name
+                
                 # Detecta datas neste arquivo
                 col_data_temp = df_temp.columns[38]  # Agora é o inteiro 38
                 datas_temp = df_temp[col_data_temp].dropna()
@@ -1407,6 +1410,15 @@ if uploaded_files:
         
         if dataframes:
             df_consolidado = pd.concat(dataframes, ignore_index=True)
+            
+            # Mostra origem dos dados para confirmar que TODAS as planilhas foram consolidadas
+            with st.expander(f"📊 Distribuição por arquivo ({len(df_consolidado)} linhas no total)", expanded=True):
+                if '_Fonte' in df_consolidado.columns:
+                    distribuicao = df_consolidado['_Fonte'].value_counts().reset_index()
+                    distribuicao.columns = ['Arquivo', 'Linhas']
+                    st.dataframe(distribuicao, use_container_width=True, hide_index=True)
+                    st.caption("Se algum arquivo não aparecer aqui, significa que ele foi pulado por não ter 39+ colunas.")
+            
             st.session_state.df_ponto_consolidado = df_consolidado
             st.session_state.df_ponto_total_linhas = len(df_consolidado)
             
