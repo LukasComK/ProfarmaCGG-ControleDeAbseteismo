@@ -113,6 +113,35 @@ def formatar_data_br(data_str: str) -> str:
         return data_str
 
 
+def detectar_coluna_data(df: pd.DataFrame) -> int:
+    """
+    Detecta automaticamente qual coluna contém as datas de ocorrência.
+    Testa cada coluna e retorna o índice da que tiver maior proporção
+    de valores que normalizam corretamente para data via formatar_data_br.
+    """
+    melhor_col = None
+    melhor_score = 0.0
+    max_cols = min(len(df.columns), 60)
+    
+    for c in range(max_cols):
+        amostra = df.iloc[:, c].dropna()
+        if len(amostra) == 0:
+            continue
+        # Usa até 300 exemplares para velocidade
+        amostra = amostra.head(300)
+        acertos = 0
+        for v in amostra:
+            f = formatar_data_br(v)
+            if f and pd.to_datetime(f, errors='coerce', dayfirst=True) is not pd.NaT:
+                acertos += 1
+        score = acertos / len(amostra)
+        if score > melhor_score:
+            melhor_score = score
+            melhor_col = c
+    
+    return melhor_col if melhor_col is not None else 38
+
+
 def safe_unidecode(valor):
     if pd.isna(valor) or str(valor).strip() == '':
         return ''
@@ -1385,8 +1414,8 @@ if uploaded_files:
                 # Adiciona coluna de origem para rastrear de qual arquivo veio cada linha
                 df_temp['_Fonte'] = f.name
                 
-                # Detecta datas neste arquivo
-                col_data_temp = df_temp.columns[38]  # Agora é o inteiro 38
+                # DETECTA automaticamente a coluna de data (não assume que é sempre o índice 38)
+                col_data_temp = detectar_coluna_data(df_temp)
                 datas_temp = df_temp[col_data_temp].dropna()
                 
                 # Normaliza as datas usando formatar_data_br (trata strings dd/mm/aaaa,
@@ -1402,7 +1431,7 @@ if uploaded_files:
                         data_max_global = arq_max
                 
                 dataframes.append(df_temp)
-                st.success(f"✅ {f.name}: {len(df_temp)} linhas carregado")
+                st.success(f"✅ {f.name}: {len(df_temp)} linhas carregado (coluna de data detectada: {col_data_temp})")
             except Exception as e:
                 st.warning(f"⚠️ Erro ao ler {f.name}: {str(e)}")
                 erros += 1
@@ -1474,12 +1503,19 @@ if uploaded_files:
                 st.warning(f"⚠️ Algumas datas do período selecionado estão fora do intervalo detectado ({data_min.strftime('%d/%m/%Y')} a {data_max.strftime('%d/%m/%Y')}). O filtro continuará com os dados disponíveis.")
             
             # Filtra o DataFrame pelo período selecionado
-            col_data_filtro = df.columns[38]
+            # Detecta automaticamente a coluna de data (não assume que é sempre o índice 38)
+            col_data_filtro = detectar_coluna_data(df)
             # Normaliza as datas usando formatar_data_br (trata strings, ISO, serial do Excel)
             datas_normalizadas = df[col_data_filtro].apply(formatar_data_br)
             datas_filtro = pd.to_datetime(datas_normalizadas, errors='coerce', dayfirst=True)
             mask_data = (datas_filtro >= pd.Timestamp(data_inicio)) & (datas_filtro <= pd.Timestamp(data_fim))
             df_filtrado = df[mask_data].copy()
+            
+            # Mostra debug das colunas de data detectadas
+            with st.expander(f"🔍 Coluna de data detectada para filtro: coluna {col_data_filtro}", expanded=False):
+                st.write(f"Datas normalizadas encontradas: {datas_normalizadas.dropna().nunique()} valores únicos")
+                st.write(f"Registros no período: {len(df_filtrado)} de {len(df)} totais")
+                st.dataframe(df[['_Fonte'] + [df.columns[col_data_filtro]]].head(10) if '_Fonte' in df.columns else df[[df.columns[col_data_filtro]]].head(10), use_container_width=True, hide_index=True)
             
             if len(df_filtrado) == 0:
                 st.warning("⚠️ Nenhum registro encontrado no período selecionado.")
@@ -1499,7 +1535,9 @@ if uploaded_files:
         
         col_nome = df.columns[3]; col_cargo = df.columns[7]; col_depto = df.columns[8]
         col_escala = df.columns[11]; col_data_adm = df.columns[16]; col_marcacoes = df.columns[23]
-        col_ocorrencia = df.columns[25]; col_justificativa = df.columns[27]; col_data = df.columns[38]
+        col_ocorrencia = df.columns[25]; col_justificativa = df.columns[27]
+        # Usa a coluna de data detectada automaticamente (não assume índice fixo 38)
+        col_data = df.columns[detectar_coluna_data(df)]
         col_marcacoes_atraso = df.columns[24]
         col_atraso_calc = df.columns[26]
         
