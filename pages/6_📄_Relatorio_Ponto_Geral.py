@@ -904,7 +904,9 @@ def processar_alteracoes_escala(
 
     coluna_escala_base = col_escala_codigo if col_escala_codigo and col_escala_codigo in df.columns else col_escala
     df_base = df.copy()
-    df_base['_Data_Ord'] = pd.to_datetime(df_base[col_data], errors='coerce', dayfirst=True)
+    # Normaliza as datas com formatar_data_br antes de converter (trata strings, ISO, serial do Excel)
+    df_base['_Data_Norm'] = df_base[col_data].apply(formatar_data_br)
+    df_base['_Data_Ord'] = pd.to_datetime(df_base['_Data_Norm'], errors='coerce', dayfirst=True)
     df_base['_Data'] = df_base['_Data_Ord'].dt.strftime('%d/%m/%Y')
     df_base['_Horarios_Oficiais'] = df_base.apply(
         lambda row: extrair_horarios(str(row.get(coluna_escala_base, '')).strip())
@@ -1383,8 +1385,10 @@ if uploaded_files:
                 col_data_temp = df_temp.columns[38]  # Agora é o inteiro 38
                 datas_temp = df_temp[col_data_temp].dropna()
                 
-                # Converte para datetime para encontrar min/max (dayfirst=True para formato brasileiro)
-                datas_convertidas = pd.to_datetime(datas_temp, errors='coerce', dayfirst=True).dropna()
+                # Normaliza as datas usando formatar_data_br (trata strings dd/mm/aaaa,
+                # ISO com hora, e números seriais do Excel) antes de converter para datetime
+                datas_normalizadas = datas_temp.apply(formatar_data_br)
+                datas_convertidas = pd.to_datetime(datas_normalizadas, errors='coerce', dayfirst=True).dropna()
                 if len(datas_convertidas) > 0:
                     arq_min = datas_convertidas.min()
                     arq_max = datas_convertidas.max()
