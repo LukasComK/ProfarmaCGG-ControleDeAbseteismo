@@ -6,7 +6,7 @@ Descrição: Geração de relatórios de ponto com ocorrências, gestores e turn
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import io
 import zipfile
 import re
@@ -72,8 +72,29 @@ def calcular_tempo_servico(data_admissao_str: str) -> str:
 def formatar_data_br(data_str: str) -> str:
     if pd.isna(data_str) or str(data_str).strip() == '':
         return ''
+    
+    # Se for Timestamp ou datetime, formata diretamente (sem passar por string)
+    if isinstance(data_str, (pd.Timestamp, datetime)):
+        return data_str.strftime('%d/%m/%Y')
+    
     try:
         data_str = str(data_str).strip()
+        
+        # Tenta formato ISO com hora: "2026-01-06 00:00:00" ou "2026-06-01 00:00:00"
+        # Extrai ano-mês-dia e converte para dd/mm/aaaa
+        match_iso = re.match(r'^(\d{4})-(\d{1,2})-(\d{1,2})', data_str)
+        if match_iso:
+            return f"{match_iso.group(3).zfill(2)}/{match_iso.group(2).zfill(2)}/{match_iso.group(1)}"
+        
+        # Tenta número serial do Excel (ex: "45678" = dias desde 1899-12-30)
+        if re.match(r'^\d{5}$', data_str):
+            try:
+                serial = int(data_str)
+                data_excel = datetime(1899, 12, 30) + timedelta(days=serial)
+                return data_excel.strftime('%d/%m/%Y')
+            except:
+                pass
+        
         for fmt in ['%d/%m/%Y', '%d/%m/%y', '%Y-%m-%d']:
             try:
                 data_dt = datetime.strptime(data_str, fmt)
@@ -1343,7 +1364,10 @@ if uploaded_files:
         for i, f in enumerate(uploaded_files):
             status_text.text(f"📖 Carregando [{i+1}/{len(uploaded_files)}]: {f.name}...")
             try:
-                df_temp = pd.read_excel(f)
+                # Lê o Excel preservando as strings originais (dtype=str)
+                # Isso evita que o pandas converta "01/06/2026" para Timestamp('2026-01-06')
+                # (interpretando como mês/dia/ano), o que invertia as datas no relatório.
+                df_temp = pd.read_excel(f, dtype=str)
                 
                 if len(df_temp.columns) < 39:
                     st.warning(f"⚠️ {f.name} tem apenas {len(df_temp.columns)} colunas (mínimo 39). Pulando...")
@@ -1359,7 +1383,7 @@ if uploaded_files:
                 col_data_temp = df_temp.columns[38]  # Agora é o inteiro 38
                 datas_temp = df_temp[col_data_temp].dropna()
                 
-                # Converte para datetime para encontrar min/max
+                # Converte para datetime para encontrar min/max (dayfirst=True para formato brasileiro)
                 datas_convertidas = pd.to_datetime(datas_temp, errors='coerce', dayfirst=True).dropna()
                 if len(datas_convertidas) > 0:
                     arq_min = datas_convertidas.min()
@@ -1434,7 +1458,9 @@ if uploaded_files:
             
             # Filtra o DataFrame pelo período selecionado
             col_data_filtro = df.columns[38]
-            datas_filtro = pd.to_datetime(df[col_data_filtro], errors='coerce', dayfirst=True)
+            # Normaliza as datas usando formatar_data_br (trata strings, ISO, serial do Excel)
+            datas_normalizadas = df[col_data_filtro].apply(formatar_data_br)
+            datas_filtro = pd.to_datetime(datas_normalizadas, errors='coerce', dayfirst=True)
             mask_data = (datas_filtro >= pd.Timestamp(data_inicio)) & (datas_filtro <= pd.Timestamp(data_fim))
             df_filtrado = df[mask_data].copy()
             
