@@ -127,13 +127,15 @@ def detectar_coluna_data(df: pd.DataFrame) -> int:
         amostra = df.iloc[:, c].dropna()
         if len(amostra) == 0:
             continue
-        # Usa até 300 exemplares para velocidade
-        amostra = amostra.head(300)
+        # Usa até 200 exemplares para velocidade
+        amostra = amostra.head(200)
         acertos = 0
         for v in amostra:
             f = formatar_data_br(v)
-            if f and pd.to_datetime(f, errors='coerce', dayfirst=True) is not pd.NaT:
-                acertos += 1
+            if f:
+                dt = pd.to_datetime(f, errors='coerce', dayfirst=True)
+                if pd.notna(dt):
+                    acertos += 1
         score = acertos / len(amostra)
         if score > melhor_score:
             melhor_score = score
