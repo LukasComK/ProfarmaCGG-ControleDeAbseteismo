@@ -86,10 +86,11 @@ def formatar_data_br(data_str: str) -> str:
         if match_iso:
             return f"{match_iso.group(3).zfill(2)}/{match_iso.group(2).zfill(2)}/{match_iso.group(1)}"
         
-        # Tenta número serial do Excel (ex: "45678" = dias desde 1899-12-30)
-        if re.match(r'^\d{5}$', data_str):
+        # Tenta número serial do Excel (ex: "45678" ou "45678.0" = dias desde 1899-12-30)
+        # O Excel pode armazenar datas como números seriais, e com dtype=str podem vir como "46143.0"
+        if re.match(r'^\d{4,5}(\.\d+)?$', data_str):
             try:
-                serial = int(data_str)
+                serial = float(data_str)
                 data_excel = datetime(1899, 12, 30) + timedelta(days=serial)
                 return data_excel.strftime('%d/%m/%Y')
             except:
