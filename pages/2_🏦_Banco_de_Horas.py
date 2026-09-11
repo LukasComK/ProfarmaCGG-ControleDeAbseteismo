@@ -839,6 +839,212 @@ if file_banco_horas and file_csv_colaboradores:
                             ws_turno.column_dimensions['C'].width = 13
                             ws_turno.column_dimensions['D'].width = 13
                             ws_turno.column_dimensions['E'].width = 45
+                    # ===== SHEETS DE OFENSORES POR SUPERVISOR (TOP 20) =====
+                    # Estrategia de supervisor: en esta nueva BASE los colaboradores son GESTORES.
+                    # El supervisor de cada colaborador = GESTOR del GESTOR (columna Z / Nome Gestor).
+                    #
+                    # Mapa rápido {COLABORADOR_MAYUS: Nome Gestor} para lookup eficiente (evita escaneos O(n²))
+                    mapa_colaborador_gestor = {}
+                    if df_gestores is not None and not df_gestores.empty and 'Colaborador' in df_gestores.columns and 'Nome Gestor' in df_gestores.columns:
+                        for _, fila in df_gestores[['Colaborador', 'Nome Gestor']].iterrows():
+                            try:
+                                nombre_col = str(fila['Colaborador']).strip().upper()
+                                gestor_col = str(fila['Nome Gestor']).strip()
+                                if nombre_col and gestor_col and gestor_col.upper() != 'NAN':
+                                    # Mantiene el primer gestor encontrado en caso de duplicados
+                                    mapa_colaborador_gestor.setdefault(nombre_col, gestor_col)
+                            except Exception:
+                                continue
+                    
+                    def obtener_gestor_rapido(nombre_colaborador):
+                        """Lookup rápido del gestor directo (columna Z) por nombre de colaborador."""
+                        try:
+                            return mapa_colaborador_gestor.get(str(nombre_colaborador).strip().upper(), "N/A")
+                        except Exception:
+                            return "N/A"
+                    
+                    def buscar_supervisor(nombre_colaborador):
+                        """
+                        Supervisor de un colaborador = GESTOR del GESTOR.
+                        Paso 1: gestor directo del colaborador (columna Z).
+                        Paso 2: gestor de ese gestor (= supervisor).
+                        """
+                        try:
+                            gestor = obtener_gestor_rapido(nombre_colaborador)
+                            if not gestor or gestor == "N/A" or gestor.upper() == "NAN":
+                                return "N/A"
+                            supervisor = obtener_gestor_rapido(gestor)
+                            if not supervisor or supervisor == "N/A" or supervisor.upper() == "NAN":
+                                return "N/A"
+                            return supervisor
+                        except Exception:
+                            return "N/A"
+                    # Amplia la paleta de colores SALDO ATUAL para TOP 20 (posiciones 16-20, degradado verde)
+                    saldo_colors_top20 = {
+                        **saldo_colors,
+                        16: "FF5FBA7A",
+                        17: "FF57B877",
+                        18: "FF4EB872",
+                        19: "FF46B86D",
+                        20: "FF3EB769"
+                    }
+                    
+                    # Asigna el supervisor a TODOS los colaboradores
+                    df_com_supervisores = df_processado[['Colaborador', 'CentroDeCustos', 'POSITIVO_num', 'NEGATIVO_num']].copy()
+                    df_com_supervisores['Supervisor'] = df_com_supervisores['Colaborador'].apply(buscar_supervisor)
+                    
+                    # Normaliza nombres de supervisor vacíos / no resueltos a un grupo común
+                    def normalizar_nombre_supervisor(valor_supervisor):
+                        sup = str(valor_supervisor).strip()
+                        if not sup or sup.upper() in ['N/A', 'NAN', 'NONE', 'NO ENCONTRADO', 'NÃO ENCONTRADO']:
+                            return "Sem Supervisor"
+                        return sup
+                    
+                    df_com_supervisores['Supervisor_Norm'] = df_com_supervisores['Supervisor'].apply(normalizar_nombre_supervisor)
+                    
+                    supervisores_unicos = sorted(
+                        df_com_supervisores['Supervisor_Norm'].dropna().unique().tolist(),
+                        key=str.lower
+                    )
+                    
+                    # Nombres de hoja ya usados (dos supervisores distintos pueden compartir primer nombre)
+                    nombres_hoja_usados = {}
+                    
+                    for supervisor in supervisores_unicos:
+                        # Filtra colaboradores de este supervisor
+                        df_sup_todos = df_com_supervisores[df_com_supervisores['Supervisor_Norm'] == supervisor].copy()
+                        
+                        # TOP 20 positivos y negativos de este supervisor
+                        df_sup_pos = df_sup_todos.nlargest(20, 'POSITIVO_num')[['Colaborador', 'CentroDeCustos', 'POSITIVO_num']].copy()
+                        # Solo ofensores reales (excluye saldos 0/neutros de la sección POSITIVOS)
+                        df_sup_pos = df_sup_pos[df_sup_pos['POSITIVO_num'] > 0].copy()
+                        df_sup_pos['POSITIVO'] = df_sup_pos['POSITIVO_num'].apply(horas_para_tempo)
+                        
+                        df_sup_neg = df_sup_todos.nlargest(20, 'NEGATIVO_num')[['Colaborador', 'CentroDeCustos', 'NEGATIVO_num']].copy()
+                        # Solo ofensores reales (excluye saldos 0/neutros de la sección NEGATIVOS)
+                        df_sup_neg = df_sup_neg[df_sup_neg['NEGATIVO_num'] > 0].copy()
+                        df_sup_neg['NEGATIVO'] = df_sup_neg['NEGATIVO_num'].apply(horas_para_tempo)
+                        
+                        # Crea la hoja solo si hay algún dato
+                        if len(df_sup_pos) > 0 or len(df_sup_neg) > 0:
+                            # Nombre de la hoja = PRIMER NOMBRE del supervisor
+                            if supervisor == "Sem Supervisor":
+                                nombre_hoja = "Sem Supervisor"
+                            else:
+                                primer_nombre = supervisor.split()[0]
+                                # Sanea caracteres inválidos para nombre de hoja Excel
+                                for ch in ['[', ']', ':', '*', '?', '/', '\\']:
+                                    primer_nombre = primer_nombre.replace(ch, '')
+                                nombre_hoja = primer_nombre[:31].strip()
+                                if not nombre_hoja:
+                                    nombre_hoja = "Supervisor"
+                            
+                            # Evita hojas duplicadas si dos supervisores comparten primer nombre
+                            contador = nombres_hoja_usados.get(nombre_hoja, 0) + 1
+                            nombres_hoja_usados[nombre_hoja] = contador
+                            if contador > 1:
+                                sufijo = f" ({contador})"
+                                nombre_hoja = f"{nombre_hoja[:31 - len(sufijo)]}{sufijo}"
+                            
+                            ws_sup = wb.create_sheet(nombre_hoja)
+                            
+                            row_idx = 1
+# ===== POSITIVOS DEL SUPERVISOR (TOP 20) =====
+                            if len(df_sup_pos) > 0:
+                                # Headers POSITIVOS
+                                for col_idx, header in enumerate(headers_ofensores, 1):
+                                    cell = ws_sup.cell(row=row_idx, column=col_idx, value=header)
+                                    cell.fill = header_ofensores_fill
+                                    cell.font = header_ofensores_font
+                                    cell.alignment = center_alignment
+                                    cell.border = border_normal
+                                
+                                ws_sup.row_dimensions[row_idx].height = 20
+                                row_idx += 1
+                                
+                                # Datos POSITIVOS (TOP 20)
+                                for idx, (_, row) in enumerate(df_sup_pos.iterrows(), 1):
+                                    nome_colab = row['Colaborador']
+                                    ws_sup.cell(row=row_idx, column=1, value=nome_colab)
+                                    ws_sup.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
+                                    ws_sup.cell(row=row_idx, column=3, value=row['POSITIVO'])
+                                    ws_sup.cell(row=row_idx, column=4, value="POSITIVO")
+                                    ws_sup.cell(row=row_idx, column=5, value=obtener_gestor_rapido(nome_colab))
+                                    
+                                    for col in range(1, 6):
+                                        cell = ws_sup.cell(row=row_idx, column=col)
+                                        cell.border = border_normal
+                                        cell.font = data_font
+                                        
+                                        if col == 4:  # STATUS
+                                            cell.fill = status_pos_fill
+                                            cell.font = status_pos_font
+                                        elif col == 3:  # SALDO ATUAL con color por posición
+                                            color_key = idx if idx in saldo_colors_top20 else 20
+                                            cell.fill = PatternFill(start_color=saldo_colors_top20[color_key], end_color=saldo_colors_top20[color_key], fill_type="solid")
+                                        else:
+                                            cell.fill = data_fill
+                                        
+                                        if col == 3 or col == 4:
+                                            cell.alignment = center_alignment
+                                        else:
+                                            cell.alignment = left_alignment
+                                    
+                                    row_idx += 1
+                            # Blank line entre secciones
+                            row_idx += 1
+                            
+                            # ===== NEGATIVOS DEL SUPERVISOR (TOP 20) =====
+                            if len(df_sup_neg) > 0:
+                                # Headers NEGATIVOS
+                                for col_idx, header in enumerate(headers_ofensores, 1):
+                                    cell = ws_sup.cell(row=row_idx, column=col_idx, value=header)
+                                    cell.fill = header_ofensores_fill
+                                    cell.font = header_ofensores_font
+                                    cell.alignment = center_alignment
+                                    cell.border = border_normal
+                                
+                                ws_sup.row_dimensions[row_idx].height = 20
+                                row_idx += 1
+                                
+                                # Datos NEGATIVOS (TOP 20)
+                                for idx, (_, row) in enumerate(df_sup_neg.iterrows(), 1):
+                                    nome_colab = row['Colaborador']
+                                    ws_sup.cell(row=row_idx, column=1, value=nome_colab)
+                                    ws_sup.cell(row=row_idx, column=2, value=row['CentroDeCustos'])
+                                    ws_sup.cell(row=row_idx, column=3, value=row['NEGATIVO'])
+                                    ws_sup.cell(row=row_idx, column=4, value="NEGATIVO")
+                                    ws_sup.cell(row=row_idx, column=5, value=obtener_gestor_rapido(nome_colab))
+                                    
+                                    for col in range(1, 6):
+                                        cell = ws_sup.cell(row=row_idx, column=col)
+                                        cell.border = border_normal
+                                        cell.font = data_font
+                                        
+                                        if col == 4:  # STATUS
+                                            cell.fill = status_neg_fill
+                                            cell.font = status_neg_font
+                                        elif col == 3:  # SALDO ATUAL con color por posición
+                                            color_key = idx if idx in saldo_colors_top20 else 20
+                                            cell.fill = PatternFill(start_color=saldo_colors_top20[color_key], end_color=saldo_colors_top20[color_key], fill_type="solid")
+                                        else:
+                                            cell.fill = data_fill
+                                        
+                                        if col == 3 or col == 4:
+                                            cell.alignment = center_alignment
+                                        else:
+                                            cell.alignment = left_alignment
+                                    
+                                    row_idx += 1
+                            
+                            # Remove grid lines
+                            ws_sup.sheet_view.showGridLines = False
+                            
+                            ws_sup.column_dimensions['A'].width = 42
+                            ws_sup.column_dimensions['B'].width = 45
+                            ws_sup.column_dimensions['C'].width = 13
+                            ws_sup.column_dimensions['D'].width = 13
+                            ws_sup.column_dimensions['E'].width = 45
                     
                     # ===== SHEET BASE =====
                     # Cria uma view consolidada de todos os colaboradores com status
