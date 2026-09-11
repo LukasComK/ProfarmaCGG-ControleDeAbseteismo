@@ -948,8 +948,34 @@ if file_banco_horas and file_csv_colaboradores:
                             
                             ws_sup = wb.create_sheet(nombre_hoja)
                             
-                            row_idx = 1
-# ===== POSITIVOS DEL SUPERVISOR (TOP 20) =====
+                            # Nombre del supervisor para el título: PRIMER + SEGUNDO nombre
+                            if supervisor == "Sem Supervisor":
+                                titulo_supervisor = "Sem Supervisor"
+                            else:
+                                partes_titulo = supervisor.split()
+                                if len(partes_titulo) >= 2:
+                                    titulo_supervisor = f"{partes_titulo[0]} {partes_titulo[1]}"
+                                else:
+                                    titulo_supervisor = partes_titulo[0] if partes_titulo else "Supervisor"
+                            
+                            # ===== TÍTULO DEL SUPERVISOR (Fila 1: A1:E1 fusionadas) =====
+                            ws_sup.merge_cells(start_row=1, start_column=1, end_row=1, end_column=5)
+                            ws_sup.cell(row=1, column=1, value=titulo_supervisor)
+                            titulo_fill_sup = PatternFill(start_color="FF275316", end_color="FF275316", fill_type="solid")
+                            titulo_font_sup = Font(bold=True, color="FFFFFFFF", size=14, name="Calibri")
+                            for col in range(1, 6):
+                                celda_titulo = ws_sup.cell(row=1, column=col)
+                                celda_titulo.fill = titulo_fill_sup
+                                celda_titulo.font = titulo_font_sup
+                                celda_titulo.alignment = Alignment(horizontal="center", vertical="center")
+                                celda_titulo.border = border_normal
+                            ws_sup.row_dimensions[1].height = 30
+                            
+                            # Congela la fila 1 para que el título quede siempre visible
+                            ws_sup.freeze_panes = "A2"
+                            
+                            row_idx = 2
+                            # ===== POSITIVOS DEL SUPERVISOR (TOP 20) =====
                             if len(df_sup_pos) > 0:
                                 # Headers POSITIVOS
                                 for col_idx, header in enumerate(headers_ofensores, 1):
