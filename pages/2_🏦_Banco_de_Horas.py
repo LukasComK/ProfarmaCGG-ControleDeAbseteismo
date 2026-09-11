@@ -901,11 +901,9 @@ if file_banco_horas and file_csv_colaboradores:
                     
                     
 
-                    # ===== ABA ÚNICA: VISÃO GERENCIAL (relatório executivo) =====
-                    # Tudo em uma só planilha, pré-mastigado para gerência:
-                    #   Bloco 1: Visão Executiva (indicadores e destaques TOP 3)
-                    #   Bloco 2: Resumo por Supervisor (com filtros dinâmicos / autofilter)
-                    #   Bloco 3: Detalhamento Supervisor → Encarregado → Colaboradores (20 + 20)
+                    # ===== ABA ÚNICA: VISÃO GERENCIAL =====
+                    # Relatório enxuto: os 20 maiores ofensores positivos e 20 negativos por supervisor,
+                    # organizados em Supervisor → Encarregado → Colaboradores (linhas recolhíveis/expansíveis).
                     ws_visao = wb.create_sheet("VISÃO GERENCIAL")
                     ws_visao.sheet_view.showGridLines = False
                     ws_visao.column_dimensions['A'].width = 40
@@ -913,7 +911,6 @@ if file_banco_horas and file_csv_colaboradores:
                     ws_visao.column_dimensions['C'].width = 18
                     ws_visao.column_dimensions['D'].width = 18
                     ws_visao.column_dimensions['E'].width = 13
-                    ws_visao.column_dimensions['F'].width = 12
                     # Botões + / − dos grupos ficam no topo de cada grupo
                     ws_visao.sheet_properties.outlinePr.summaryBelow = False
                     
@@ -926,17 +923,9 @@ if file_banco_horas and file_csv_colaboradores:
                             return f"{partes[0]} {partes[1]}"
                         return partes[0] if partes else "Supervisor"
                     
-                    # Horas com sinal (para saldo líquido)
-                    def horas_com_sinal(valor):
-                        if pd.isna(valor) or valor == 0:
-                            return "00:00:00"
-                        sinal = "-" if valor < 0 else ""
-                        return f"{sinal}{horas_para_tempo(valor)}"
-                    
                     # Estilos da Visão Gerencial
                     fill_escuro = PatternFill(start_color="FF275316", end_color="FF275316", fill_type="solid")
                     font_escuro = Font(bold=True, color="FFFFFFFF", size=12, name="Calibri")
-                    fill_secao = PatternFill(start_color="FF265216", end_color="FF265216", fill_type="solid")
                     font_secao = Font(bold=True, color="FFFFFFFF", size=11, name="Calibri")
                     fill_encarregado = PatternFill(start_color="FF71C37A", end_color="FF71C37A", fill_type="solid")
                     font_encarregado = Font(bold=True, color="FFFFFFFF", size=10, name="Calibri")
@@ -956,173 +945,16 @@ if file_banco_horas and file_csv_colaboradores:
                     
                     # Linha informativa (data de geração e contexto)
                     ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                    ws_visao.cell(row=fila, column=1, value="Relatório gerado em " + datetime.datetime.now().strftime("%d/%m/%Y %H:%M") + " | Detalhe limitado aos 20 maiores positivos e 20 maiores negativos por supervisor")
+                    ws_visao.cell(row=fila, column=1, value="Relatório gerado em " + datetime.datetime.now().strftime("%d/%m/%Y %H:%M") + " | 20 maiores positivos e 20 maiores negativos por supervisor")
                     for col in range(1, 6):
                         cel = ws_visao.cell(row=fila, column=col)
                         cel.fill = PatternFill(start_color="FFE7E6E6", end_color="FFE7E6E6", fill_type="solid")
                         cel.font = Font(italic=True, color="FF000000", size=10, name="Calibri")
                         cel.alignment = Alignment(horizontal="left", vertical="center")
                         cel.border = border_normal
-                    ws_visao.row_dimensions[fila].height = 18
                     fila += 2
                     
-                    # ===== BLOCO 1: VISÃO EXECUTIVA =====
-                    # Indicadores globais calculados para leitura direta
-                    total_geral_pos = df_processado['POSITIVO_num'].sum()
-                    total_geral_neg = df_processado['NEGATIVO_num'].sum()
-                    saldo_geral = total_geral_pos - total_geral_neg
-                    qtd_ofensores_geral = len(df_processado[(df_processado['POSITIVO_num'] > 0) | (df_processado['NEGATIVO_num'] > 0)])
-                    
-                    df_grupos = df_com_supervisores.groupby('Supervisor_Norm').agg(
-                        POS_total=('POSITIVO_num', 'sum'),
-                        NEG_total=('NEGATIVO_num', 'sum'),
-                        QTD_POS=('POSITIVO_num', lambda s: int((s > 0).sum())),
-                        QTD_NEG=('NEGATIVO_num', lambda s: int((s > 0).sum())),
-                    ).reset_index()
-                    df_grupos['SALDO_LIQUIDO'] = df_grupos['POS_total'] - df_grupos['NEG_total']
-                    qtd_supervisores_geral = len(df_grupos[(df_grupos['Supervisor_Norm'] != 'Sem Supervisor') & ((df_grupos['QTD_POS'] > 0) | (df_grupos['QTD_NEG'] > 0))])
-                    
-                    ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                    ws_visao.cell(row=fila, column=1, value="VISÃO EXECUTIVA")
-                    for col in range(1, 6):
-                        cel = ws_visao.cell(row=fila, column=col)
-                        cel.fill = fill_secao
-                        cel.font = font_secao
-                        cel.alignment = Alignment(horizontal="left", vertical="center")
-                        cel.border = border_normal
-                    ws_visao.row_dimensions[fila].height = 22
-                    fila += 1
-                    
-                    fill_valor = PatternFill(start_color="FFD9EAD3", end_color="FFD9EAD3", fill_type="solid")
-                    metricas = [
-                        ("Total de horas positivas (banco)", horas_para_tempo(total_geral_pos)),
-                        ("Total de horas negativas (devidas)", horas_para_tempo(total_geral_neg)),
-                        ("Saldo líquido geral (positivas - negativas)", horas_com_sinal(saldo_geral)),
-                        ("Total de ofensores (positivos + negativos)", str(int(qtd_ofensores_geral))),
-                        ("Supervisores com ofensores", str(int(qtd_supervisores_geral))),
-                    ]
-                    for rotulo, valor in metricas:
-                        ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=4)
-                        ws_visao.cell(row=fila, column=1, value=rotulo)
-                        ws_visao.cell(row=fila, column=5, value=valor)
-                        for col in range(1, 6):
-                            cel = ws_visao.cell(row=fila, column=col)
-                            cel.border = border_normal
-                            cel.font = Font(bold=False, color="FF000000", size=11, name="Calibri")
-                            if col == 5:
-                                cel.fill = fill_valor
-                                cel.alignment = Alignment(horizontal="center", vertical="center")
-                            else:
-                                cel.fill = PatternFill(start_color="FFFFFFFF", end_color="FFFFFFFF", fill_type="solid")
-                                cel.alignment = Alignment(horizontal="left", vertical="center")
-                        fila += 1
-                    
-                    # Destaques TOP 3 (leitura direta da gerência, sem investigar)
-                    df_real_sup = df_grupos[df_grupos['Supervisor_Norm'] != 'Sem Supervisor'].copy()
-                    criticos = df_real_sup.nsmallest(3, 'SALDO_LIQUIDO') if len(df_real_sup) > 0 else df_real_sup
-                    destaques_pos = df_real_sup.nlargest(3, 'SALDO_LIQUIDO') if len(df_real_sup) > 0 else df_real_sup
-                    
-                    if len(criticos) > 0:
-                        texto_prio = "PRIORIDADES — MAIORES SALDOS NEGATIVOS:  " + "  |  ".join(
-                            f"{i+1}) {nome_exibicao_supervisor(r['Supervisor_Norm'])} ({horas_com_sinal(r['SALDO_LIQUIDO'])})"
-                            for i, r in criticos.iterrows()
-                        )
-                        ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                        ws_visao.cell(row=fila, column=1, value=texto_prio)
-                        for col in range(1, 6):
-                            cel = ws_visao.cell(row=fila, column=col)
-                            cel.fill = PatternFill(start_color="FFFFF2CC", end_color="FFFFF2CC", fill_type="solid")
-                            cel.font = Font(bold=True, color="FFC00000", size=10, name="Calibri")
-                            cel.alignment = Alignment(horizontal="left", vertical="center")
-                            cel.border = border_normal
-                        ws_visao.row_dimensions[fila].height = 20
-                        fila += 1
-                    
-                    if len(destaques_pos) > 0:
-                        texto_pos = "DESTAQUES POSITIVOS — MAIORES SALDOS:  " + "  |  ".join(
-                            f"{i+1}) {nome_exibicao_supervisor(r['Supervisor_Norm'])} ({horas_com_sinal(r['SALDO_LIQUIDO'])})"
-                            for i, r in destaques_pos.iterrows()
-                        )
-                        ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                        ws_visao.cell(row=fila, column=1, value=texto_pos)
-                        for col in range(1, 6):
-                            cel = ws_visao.cell(row=fila, column=col)
-                            cel.fill = PatternFill(start_color="FFD9EAD3", end_color="FFD9EAD3", fill_type="solid")
-                            cel.font = Font(bold=True, color="FF38761D", size=10, name="Calibri")
-                            cel.alignment = Alignment(horizontal="left", vertical="center")
-                            cel.border = border_normal
-                        ws_visao.row_dimensions[fila].height = 20
-                        fila += 1
-                    # ===== BLOCO 2: RESUMO POR SUPERVISOR (com filtros dinâmicos) =====
-                    fila += 1
-                    ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                    ws_visao.cell(row=fila, column=1, value="RESUMO POR SUPERVISOR")
-                    for col in range(1, 6):
-                        cel = ws_visao.cell(row=fila, column=col)
-                        cel.fill = fill_secao
-                        cel.font = font_secao
-                        cel.alignment = Alignment(horizontal="left", vertical="center")
-                        cel.border = border_normal
-                    ws_visao.row_dimensions[fila].height = 22
-                    fila += 1
-                    
-                    # Ordena pelos piores saldos no topo (Sem Supervisor vai para o fim)
-                    df_resumo_ord = df_grupos.copy()
-                    df_resumo_ord['sem_sup'] = df_resumo_ord['Supervisor_Norm'] == 'Sem Supervisor'
-                    df_resumo_ord = df_resumo_ord.sort_values(['sem_sup', 'SALDO_LIQUIDO'], ascending=[True, True]).reset_index(drop=True)
-                    
-                    # Cabeçalho da tabela-resumo
-                    fila_resumo_cab = fila
-                    cab_resumo = ['SUPERVISOR', 'TOTAL POSITIVAS', 'TOTAL NEGATIVAS', 'SALDO LÍQUIDO', 'QTD POS', 'QTD NEG']
-                    for idx_cab, nome_cab in enumerate(cab_resumo, 1):
-                        cel = ws_visao.cell(row=fila, column=idx_cab, value=nome_cab)
-                        cel.fill = header_ofensores_fill
-                        cel.font = header_ofensores_font
-                        cel.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                        cel.border = border_normal
-                    ws_visao.row_dimensions[fila].height = 24
-                    fila += 1
-                    
-                    # Dados do resumo
-                    for _, r in df_resumo_ord.iterrows():
-                        saldo_val = r['SALDO_LIQUIDO']
-                        ws_visao.cell(row=fila, column=1, value=nome_exibicao_supervisor(r['Supervisor_Norm']))
-                        ws_visao.cell(row=fila, column=2, value=horas_para_tempo(r['POS_total']))
-                        ws_visao.cell(row=fila, column=3, value=horas_para_tempo(r['NEG_total']))
-                        ws_visao.cell(row=fila, column=4, value=horas_com_sinal(saldo_val))
-                        ws_visao.cell(row=fila, column=5, value=int(r['QTD_POS']))
-                        ws_visao.cell(row=fila, column=6, value=int(r['QTD_NEG']))
-                        for col in range(1, 7):
-                            cel = ws_visao.cell(row=fila, column=col)
-                            cel.border = border_normal
-                            cel.fill = data_fill
-                            cel.font = data_font
-                            if col == 1:
-                                cel.alignment = Alignment(horizontal="left", vertical="center")
-                            else:
-                                cel.alignment = Alignment(horizontal="center", vertical="center")
-                            if col == 4:
-                                if saldo_val < 0:
-                                    cel.font = Font(bold=True, color="FFFF0000", size=11, name="Calibri")
-                                elif saldo_val > 0:
-                                    cel.font = Font(bold=True, color="FF38761D", size=11, name="Calibri")
-                        fila += 1
-                    
-                    fila_resumo_fim = fila - 1
-                    ws_visao.auto_filter.ref = f"A{fila_resumo_cab}:F{fila_resumo_fim}"
-                    # ===== BLOCO 3: DETALHAMENTO (Supervisor → Encarregado → Colaboradores) =====
-                    fila += 1
-                    ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                    ws_visao.cell(row=fila, column=1, value="DETALHAMENTO POR SUPERVISOR (use os botões + / − à esquerda para recolher e expandir)")
-                    for col in range(1, 6):
-                        cel = ws_visao.cell(row=fila, column=col)
-                        cel.fill = fill_secao
-                        cel.font = font_secao
-                        cel.alignment = Alignment(horizontal="left", vertical="center")
-                        cel.border = border_normal
-                    ws_visao.row_dimensions[fila].height = 22
-                    fila += 1
-                    
+                    # ===== DETALHAMENTO (Supervisor → Encarregado → Colaboradores) =====
                     headers_detalhe = ['FUNCIONÁRIO', 'SETOR', 'HORAS POSITIVAS', 'HORAS NEGATIVAS', 'STATUS']
                     
                     for supervisor in supervisores_unicos:
@@ -1158,12 +990,11 @@ if file_banco_horas and file_csv_colaboradores:
                                 'pos': '', 'neg': r['NEG'], 'tipo': 'NEGATIVO',
                             })
                         
-                        # Totais do supervisor (sobre TODOS os colaboradores dele — visão gerencial)
+                        # Totais e contagens do supervisor (mastigado na própria linha)
                         pos_total_sup = df_sup_todos['POSITIVO_num'].sum()
                         neg_total_sup = df_sup_todos['NEGATIVO_num'].sum()
                         qtd_pos_sup = int((df_sup_todos['POSITIVO_num'] > 0).sum())
                         qtd_neg_sup = int((df_sup_todos['NEGATIVO_num'] > 0).sum())
-                        
                         fila += 1  # linha em branco de separação entre supervisores
                         
                         # Título do supervisor (linha-resumo do grupo, nível 1)
@@ -1185,6 +1016,7 @@ if file_banco_horas and file_csv_colaboradores:
                             set(l['encarregado'] for l in linhas_sup),
                             key=lambda e: (-qtd_por_enc[e], e.lower())
                         )
+                        
                         for enc in encarregados_ord:
                             # Subtítulo do encarregado (nível 2 do agrupamento)
                             ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
@@ -1241,26 +1073,6 @@ if file_banco_horas and file_csv_colaboradores:
                                             cel.alignment = Alignment(horizontal="left", vertical="center")
                                 ws_visao.row_dimensions[fila].outlineLevel = 3
                                 fila += 1
-                    # ===== LEGENDA (para quem receber entender sem perguntar) =====
-                    fila += 1
-                    legenda_linhas = [
-                        "LEGENDA",
-                        "• POSITIVO = horas em banco (saldo a favor do colaborador).",
-                        "• NEGATIVO = horas devidas (saldo negativo de banco de horas).",
-                        "• O detalhamento acima mostra os até 20 maiores ofensores positivos e 20 maiores negativos por supervisor.",
-                        "• Use os botões + / − na lateral esquerda para recolher ou expandir por supervisor e por encarregado.",
-                    ]
-                    for idx_leg, txt_leg in enumerate(legenda_linhas):
-                        ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                        ws_visao.cell(row=fila, column=1, value=txt_leg)
-                        for col in range(1, 6):
-                            cel = ws_visao.cell(row=fila, column=col)
-                            cel.fill = PatternFill(start_color="FFF2F2F2", end_color="FFF2F2F2", fill_type="solid")
-                            if idx_leg == 0:
-                                cel.font = Font(bold=True, color="FF275316", size=10, name="Calibri")
-                            else:
-                                cel.font = Font(italic=True, color="FF595959", size=9, name="Calibri")
-                        fila += 1
                     
                     # Coloca a Visão Gerencial como PRIMEIRA aba (aberta ao entregar o relatório)
                     wb.move_sheet("VISÃO GERENCIAL", offset=-len(wb.sheetnames) + 1)
