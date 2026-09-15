@@ -973,6 +973,7 @@ if file_banco_horas and file_csv_colaboradores:
                             cel.border = border_normal
                         ws_visao.row_dimensions[fila].height = 22
                         ws_visao.row_dimensions[fila].outlineLevel = 2
+                        ws_visao.row_dimensions[fila].collapsed = True
                         ws_visao.row_dimensions[fila].hidden = True
                         fila += 1
                         
@@ -993,6 +994,7 @@ if file_banco_horas and file_csv_colaboradores:
                                 cel.border = border_normal
                             ws_visao.row_dimensions[fila].height = 22
                             ws_visao.row_dimensions[fila].outlineLevel = 3
+                            ws_visao.row_dimensions[fila].collapsed = True
                             ws_visao.row_dimensions[fila].hidden = True
                             fila += 1
                             
@@ -1087,6 +1089,7 @@ if file_banco_horas and file_csv_colaboradores:
                             cel.border = border_normal
                         ws_visao.row_dimensions[fila].height = 26
                         ws_visao.row_dimensions[fila].outlineLevel = 1
+                        ws_visao.row_dimensions[fila].collapsed = True
                         fila += 1
                         
                         # Subgrupos POSITIVO (TOP 20) e NEGATIVO (TOP 20) por supervisor
