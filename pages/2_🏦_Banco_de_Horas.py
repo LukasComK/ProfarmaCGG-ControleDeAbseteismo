@@ -957,6 +957,85 @@ if file_banco_horas and file_csv_colaboradores:
                     # ===== DETALHAMENTO (Supervisor → Encarregado → Colaboradores) =====
                     headers_detalhe = ['FUNCIONÁRIO', 'SETOR', 'HORAS POSITIVAS', 'HORAS NEGATIVAS', 'STATUS']
                     
+                    def escrever_subgrupo(linhas_cat, titulo, fill_cat, font_cat, fila):
+                        """Escreve um subgrupo POSITIVO/NEGATIVO com seus encarregados e os 20 colaboradores, tudo recolhido por padrão."""
+                        if len(linhas_cat) == 0:
+                            return fila
+                        
+                        # Título do subgrupo (nível 2, recolhido)
+                        ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
+                        ws_visao.cell(row=fila, column=1, value=titulo)
+                        for col in range(1, 6):
+                            cel = ws_visao.cell(row=fila, column=col)
+                            cel.fill = fill_cat
+                            cel.font = font_cat
+                            cel.alignment = Alignment(horizontal="left", vertical="center")
+                            cel.border = border_normal
+                        ws_visao.row_dimensions[fila].height = 22
+                        ws_visao.row_dimensions[fila].outlineLevel = 2
+                        ws_visao.row_dimensions[fila].hidden = True
+                        fila += 1
+                        
+                        # Encarregados com ofensores desta categoria (maiores volumes primeiro)
+                        encs = sorted(
+                            set(l['encarregado'] for l in linhas_cat),
+                            key=lambda e: (-sum(1 for l in linhas_cat if l['encarregado'] == e), e.lower())
+                        )
+                        for enc in encs:
+                            # Subtítulo do encarregado (nível 3, recolhido)
+                            ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
+                            ws_visao.cell(row=fila, column=1, value=f"ENCARREGADO: {enc}")
+                            for col in range(1, 6):
+                                cel = ws_visao.cell(row=fila, column=col)
+                                cel.fill = fill_encarregado
+                                cel.font = font_encarregado
+                                cel.alignment = Alignment(horizontal="left", vertical="center")
+                                cel.border = border_normal
+                            ws_visao.row_dimensions[fila].height = 22
+                            ws_visao.row_dimensions[fila].outlineLevel = 3
+                            ws_visao.row_dimensions[fila].hidden = True
+                            fila += 1
+                            
+                            # Cabeçalho das colunas (nível 4, recolhido)
+                            for col_idx, h in enumerate(headers_detalhe, 1):
+                                cel = ws_visao.cell(row=fila, column=col_idx, value=h)
+                                cel.fill = header_ofensores_fill
+                                cel.font = header_ofensores_font
+                                cel.alignment = Alignment(horizontal="center", vertical="center")
+                                cel.border = border_normal
+                            ws_visao.row_dimensions[fila].height = 20
+                            ws_visao.row_dimensions[fila].outlineLevel = 4
+                            ws_visao.row_dimensions[fila].hidden = True
+                            fila += 1
+                            
+                            # Colaboradores do encarregado dentro desta categoria (nível 4, recolhidos)
+                            linhas_enc = [l for l in linhas_cat if l['encarregado'] == enc]
+                            for l in linhas_enc:
+                                ws_visao.cell(row=fila, column=1, value=l['colab'])
+                                ws_visao.cell(row=fila, column=2, value=l['setor'])
+                                ws_visao.cell(row=fila, column=3, value=l['pos'])
+                                ws_visao.cell(row=fila, column=4, value=l['neg'])
+                                ws_visao.cell(row=fila, column=5, value=l['tipo'])
+                                for col in range(1, 6):
+                                    cel = ws_visao.cell(row=fila, column=col)
+                                    cel.border = border_normal
+                                    cel.font = data_font
+                                    if col == 5:
+                                        if l['tipo'] == 'POSITIVO':
+                                            cel.fill = status_pos_fill
+                                            cel.font = status_pos_font
+                                        else:
+                                            cel.fill = status_neg_fill
+                                            cel.font = status_neg_font
+                                        cel.alignment = Alignment(horizontal="center", vertical="center")
+                                    else:
+                                        cel.fill = data_fill
+                                        cel.alignment = Alignment(horizontal="center", vertical="center") if col in (3, 4) else Alignment(horizontal="left", vertical="center")
+                                ws_visao.row_dimensions[fila].outlineLevel = 4
+                                ws_visao.row_dimensions[fila].hidden = True
+                                fila += 1
+                        return fila
+                    
                     for supervisor in supervisores_unicos:
                         # Colaboradores deste supervisor
                         df_sup_todos = df_com_supervisores[df_com_supervisores['Supervisor_Norm'] == supervisor].copy()
@@ -1010,72 +1089,11 @@ if file_banco_horas and file_csv_colaboradores:
                         ws_visao.row_dimensions[fila].outlineLevel = 1
                         fila += 1
                         
-                        # Encarregados ordenados por volume de ofensores (maiores primeiro)
-                        qtd_por_enc = Counter(l['encarregado'] for l in linhas_sup)
-                        encarregados_ord = sorted(
-                            set(l['encarregado'] for l in linhas_sup),
-                            key=lambda e: (-qtd_por_enc[e], e.lower())
-                        )
-                        
-                        for enc in encarregados_ord:
-                            # Subtítulo do encarregado (nível 2 do agrupamento)
-                            ws_visao.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=5)
-                            ws_visao.cell(row=fila, column=1, value=f"ENCARREGADO: {enc}")
-                            for col in range(1, 6):
-                                cel = ws_visao.cell(row=fila, column=col)
-                                cel.fill = fill_encarregado
-                                cel.font = font_encarregado
-                                cel.alignment = Alignment(horizontal="left", vertical="center")
-                                cel.border = border_normal
-                            ws_visao.row_dimensions[fila].height = 22
-                            ws_visao.row_dimensions[fila].outlineLevel = 2
-                            ws_visao.row_dimensions[fila].hidden = True
-                            fila += 1
-                            
-                            # Cabeçalho das colunas (nível 3)
-                            for col_idx, h in enumerate(headers_detalhe, 1):
-                                cel = ws_visao.cell(row=fila, column=col_idx, value=h)
-                                cel.fill = header_ofensores_fill
-                                cel.font = header_ofensores_font
-                                cel.alignment = Alignment(horizontal="center", vertical="center")
-                                cel.border = border_normal
-                            ws_visao.row_dimensions[fila].height = 20
-                            ws_visao.row_dimensions[fila].outlineLevel = 3
-                            ws_visao.row_dimensions[fila].hidden = True
-                            fila += 1
-                            
-                            # Linhas do encarregado (negativos primeiro — prioridade gerencial)
-                            linhas_enc = sorted(
-                                [l for l in linhas_sup if l['encarregado'] == enc],
-                                key=lambda l: (l['tipo'] != 'NEGATIVO',)
-                            )
-                            for l in linhas_enc:
-                                ws_visao.cell(row=fila, column=1, value=l['colab'])
-                                ws_visao.cell(row=fila, column=2, value=l['setor'])
-                                ws_visao.cell(row=fila, column=3, value=l['pos'])
-                                ws_visao.cell(row=fila, column=4, value=l['neg'])
-                                ws_visao.cell(row=fila, column=5, value=l['tipo'])
-                                for col in range(1, 6):
-                                    cel = ws_visao.cell(row=fila, column=col)
-                                    cel.border = border_normal
-                                    cel.font = data_font
-                                    if col == 5:
-                                        if l['tipo'] == 'POSITIVO':
-                                            cel.fill = status_pos_fill
-                                            cel.font = status_pos_font
-                                        else:
-                                            cel.fill = status_neg_fill
-                                            cel.font = status_neg_font
-                                        cel.alignment = Alignment(horizontal="center", vertical="center")
-                                    else:
-                                        cel.fill = data_fill
-                                        if col in (3, 4):
-                                            cel.alignment = Alignment(horizontal="center", vertical="center")
-                                        else:
-                                            cel.alignment = Alignment(horizontal="left", vertical="center")
-                                ws_visao.row_dimensions[fila].outlineLevel = 3
-                                ws_visao.row_dimensions[fila].hidden = True
-                                fila += 1
+                        # Subgrupos POSITIVO (TOP 20) e NEGATIVO (TOP 20) por supervisor
+                        linhas_pos = [l for l in linhas_sup if l['tipo'] == 'POSITIVO']
+                        linhas_neg = [l for l in linhas_sup if l['tipo'] == 'NEGATIVO']
+                        fila = escrever_subgrupo(linhas_pos, "POSITIVO (TOP 20)", status_pos_fill, status_pos_font, fila)
+                        fila = escrever_subgrupo(linhas_neg, "NEGATIVO (TOP 20)", status_neg_fill, status_neg_font, fila)
                     
                     # Coloca a Visão Gerencial como PRIMEIRA aba (aberta ao entregar o relatório)
                     wb.move_sheet("VISÃO GERENCIAL", offset=-len(wb.sheetnames) + 1)
