@@ -1029,6 +1029,7 @@ if file_banco_horas and file_csv_colaboradores:
                                 cel.border = border_normal
                             ws_visao.row_dimensions[fila].height = 22
                             ws_visao.row_dimensions[fila].outlineLevel = 2
+                            ws_visao.row_dimensions[fila].hidden = True
                             fila += 1
                             
                             # Cabeçalho das colunas (nível 3)
@@ -1040,6 +1041,7 @@ if file_banco_horas and file_csv_colaboradores:
                                 cel.border = border_normal
                             ws_visao.row_dimensions[fila].height = 20
                             ws_visao.row_dimensions[fila].outlineLevel = 3
+                            ws_visao.row_dimensions[fila].hidden = True
                             fila += 1
                             
                             # Linhas do encarregado (negativos primeiro — prioridade gerencial)
@@ -1072,6 +1074,7 @@ if file_banco_horas and file_csv_colaboradores:
                                         else:
                                             cel.alignment = Alignment(horizontal="left", vertical="center")
                                 ws_visao.row_dimensions[fila].outlineLevel = 3
+                                ws_visao.row_dimensions[fila].hidden = True
                                 fila += 1
                     
                     # Coloca a Visão Gerencial como PRIMEIRA aba (aberta ao entregar o relatório)
